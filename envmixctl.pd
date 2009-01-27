@@ -1,0 +1,4 @@
+#N canvas 347 279 450 300 10;
+#X obj 93 188 nbx 5 14 -1e+37 1e+37 0 0 empty empty empty 0 -8 0 10
+-262144 -1 -1 0 256;
+#X text 122 99 syntax: envmixctl oscname paramname;
