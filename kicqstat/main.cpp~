@@ -1,0 +1,28 @@
+#include <QApplication>
+#include <QFont>
+#include <QPushButton>
+#include <QVBoxLayout>
+#include <QHBoxLayout>
+#include <QToolBox>
+#include <QTableWidget>
+#include <QWidget>
+
+class MainForm: public QWidget {
+  MainForm();
+};
+
+MainForm::MainForm()
+  :QWidget(0)
+{
+  resize(400, 300);
+  // here we will setup layouts and tabs
+  
+}
+
+
+int main(int argc, char *argv[]) {
+  QApplication app(argc, argv);
+  MainForm form;
+  form.show();
+  return app.exec();
+}
