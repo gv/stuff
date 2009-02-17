@@ -1,0 +1,11 @@
+function l(id) {
+    return document.getElementById(id);
+}
+
+function browse(worldUrl, container) {
+    var r = {
+	container: l(container),
+	worldUrl: worldUrl
+    };
+    return r;
+};
