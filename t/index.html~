@@ -1,0 +1,16 @@
+<html>
+  <head>
+    <style type="text/css">
+      
+
+    </style>
+    <script src="defer.js"></script>
+    <script src="client.js"></script>
+  </head>
+  <body>
+    <div id="worldBrowser"></div>
+    <script>
+      browse('', 'worldBrowser');
+    </script>
+  </body>
+</html>

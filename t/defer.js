@@ -7,8 +7,8 @@
 // from defer/DOM api functions.
 
 // constructs a deferred value
-function Future() {
-	this.listeners = [];
+function Future(listeners) {
+    this.listeners = /*listeners ||*/ [];
 }
 
 Future.prototype.listen = function(act) {
@@ -56,14 +56,50 @@ var dfr = function(f) {
 
 // ------------------ apis ---------------------------------------
 
+
+
 // for POST
 // var informServer = function
 
 var askServer = function(url) {
 	var method = 'GET';
-	var transport = new XMLHttpRequest();
+	var transport = new XMLHttpRequest(), r = new Future();
 	transport.onreadystatechange = function() {
 		switch(transport.readyState) {
 			// XXX handle other stuff
-		case 4:
+		case 4: 
+		var answer = eval('(' + transport.responseText + ')');
+		r.set(answer);
+		}
+	};
+	transport.open(method, url);
+};
+
+var getEvt = function(l, evtName) {
+    evtName = 'on' + evtName;
+    var r = new Future(), prevHandlerFunction = l[evtName];
+    l[evtName] = function(arg) {
+	r.set(arg);
+	l[evtName] = prevHandlerFunction;
+    };
+    return r;
+};
+	
+    
+// helpers
+
+var L = dfr(function(id) {
+	return ('string' == typeof id) ? document.getElementById(id) : id;
+    });
+
+
+var addEl = dfr(function(parent, tagName, className) {
+	var r = L(parent).appendChild(document.createElement(tagName));
+	r.className = className;
+	return r;
+    });
+
+
+    
+	
 	

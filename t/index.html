@@ -1,0 +1,23 @@
+<html>
+  <head>
+    <style type="text/css">
+      body { text-align: center; }
+      #worldBrowser { border: 1px solid black; width: 640px; height: 640px; padding: 5px;
+      position: relative; }
+
+      .playerBrowser { border: 1px solid gray; float: left; margin: 5px; }
+      .listBrowser { border: 1px solid gray; position: absolute; top: 5px; right: 5px;
+      width: 180px; height: 630px;
+      }
+
+    </style>
+    <script src="defer.js"></script>
+    <script src="client.js"></script>
+  </head>
+  <body>
+    <div id="worldBrowser"></div>
+    <script>
+      browse('', 'worldBrowser');
+    </script>
+  </body>
+</html>
