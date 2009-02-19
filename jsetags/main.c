@@ -1,7 +1,8 @@
 /* 
    This program produces emacs-style TAGS file for JavaScript and KScript programs.
    Handles directories recursively (no it doesn't).
-	 Use like this: jsetags .
+	 Use like this: jsetags . 
+	 (no don't)
 */
 
 #include <sys/stat.h>
@@ -12,19 +13,24 @@
 
 #include <regex.h>
 
-#include <tchar.h>
-#include "xgetopt/xgetopt.h"
+#ifdef WIN32
+# include <tchar.h>
+# include "xgetopt/xgetopt.h"
+#else
+# include <getopt.h>
+#endif
 
 #define TRACE(LEVEL_, LIST_) if(prog.verbosity >= LEVEL_) {	\
 		printf LIST_;																						\
 		printf("\n");																						\
 	}
 
-char fileNamePattern[] = ".[jk]s$";
+char fileNamePatternStr[] = ".[jk]s$";
 
 // Could put no '.' in the beginning as well
 // XXX consider definitions that span multiple lines
-char defunPatternString[] = "([a-zA-Z0-9_]+)[ \t]*=[ \t]*function|function[ \t]+([a-zA-Z0-9_]+)";
+// XXX consider var act = defer(function(a, b) {
+char defunPatternStr[] = "([a-zA-Z0-9_]+)[ \t]*=[ \t]*function|function[ \t]+([a-zA-Z0-9_]+)";
 
 struct JsEtags {
 	unsigned verbosity;
@@ -42,7 +48,7 @@ typedef struct Tag {
 
 typedef struct TagListEntry {
   struct TagListEntry *next;
-  struct Tag;
+  struct Tag d;
 } TagListEntry;
   
 typedef struct TagFileSection {
@@ -90,12 +96,12 @@ void addTag(char *tagName, int tagNameLim, int lineNumber, int charNumber) {
   (*last)->next = NULL;
 
   // store data in it
-  strncpy((*last)->text, tagName, tagNameLim);
-  (*last)->text[tagNameLim] = 0;
-  (*last)->lineNumber = lineNumber;
-  (*last)->charNumber = charNumber;
+  strncpy((*last)->d.text, tagName, tagNameLim);
+  (*last)->d.text[tagNameLim] = 0;
+  (*last)->d.lineNumber = lineNumber;
+  (*last)->d.charNumber = charNumber;
   // set name to an empty string maybe will use it later
-  (*last)->name[0] = 0;
+  (*last)->d.name[0] = 0;
 }
 
 void processRegularFile(const char *fileName) {
@@ -150,13 +156,13 @@ void processRegularFile(const char *fileName) {
   // count bytes first
   tagsTextSize = 0;
   for(; tag; tag = tag->next) {
-    tagsTextSize += strlen(tag->text) + 
-      measureDecimal(tag->lineNumber) + 
-      measureDecimal(tag->charNumber) +
+    tagsTextSize += strlen(tag->d.text) + 
+      measureDecimal(tag->d.lineNumber) + 
+      measureDecimal(tag->d.charNumber) +
       3; // first separator, ',', "\n"
 
     // obligatory field
-    nameLen = strlen(tag->name);
+    nameLen = strlen(tag->d.name);
     if(nameLen) {
       tagsTextSize += nameLen + 1;
     }
@@ -171,11 +177,11 @@ void processRegularFile(const char *fileName) {
   // write tags
   tag = tagFileProduction.curSection.tags;
   for(cnt = 0; tag; tag = tag->next) {
-    fprintf(tagFileProduction.fp, "%s\x7F", tag->text);
-    if(tag->name[0]) {
-      fprintf(tagFileProduction.fp, "%s\x01", tag->name);
+    fprintf(tagFileProduction.fp, "%s\x7F", tag->d.text);
+    if(tag->d.name[0]) {
+      fprintf(tagFileProduction.fp, "%s\x01", tag->d.name);
     }
-    fprintf(tagFileProduction.fp, "%d,%d\n", tag->lineNumber, tag->charNumber);
+    fprintf(tagFileProduction.fp, "%d,%d\n", tag->d.lineNumber, tag->d.charNumber);
 		cnt++;
   }
 
@@ -202,8 +208,11 @@ void processFile(const char *fileName) {
     return;
   }
 
-  //if(S_ISDIR(stt.st_mode)) {
-	if(_S_IFDIR & stt.st_mode) {
+#ifdef WIN32
+# define S_ISDIR(x) (_S_IFDIR & (x))
+#endif
+
+  if(S_ISDIR(stt.st_mode)) {
     // XXX call recursively
     fprintf(stderr, "%s is a directory\n", fileName);
     return;
@@ -242,10 +251,10 @@ int main(int argc, char **argv) {
   }
 						    
 	TRACE(1, ("Starting being %d verbose", prog.verbosity));
-	TRACE(1, ("Tag pattern is \"%s\"", defunPatternString));
+	TRACE(1, ("Tag pattern is \"%s\"", defunPatternStr));
   
   // Init analyzer
-  err = regcomp(&analysis.defunPattern, defunPatternString, REG_EXTENDED);
+  err = regcomp(&analysis.defunPattern, defunPatternStr, REG_EXTENDED);
   if(err) {
     regerror(err, &analysis.defunPattern, bf, sizeof(bf));
     fprintf(stderr, "Error in defun pattern: %s\n", bf);
