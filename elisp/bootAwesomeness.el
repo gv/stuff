@@ -141,6 +141,8 @@
 (global-set-key [M-f4]  'save-buffers-kill-emacs)
 (global-set-key [M-f7]  'isearch-forward)
 (global-set-key [C-tab]  'other-window) 
+(global-set-key [M-left] 'pop-tag-mark)
+
 ;;
 
 ;; GNU Stuff.
