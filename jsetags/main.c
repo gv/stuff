@@ -1,6 +1,7 @@
 /* 
    This program produces emacs-style TAGS file for JavaScript and KScript programs.
    Handles directories recursively (no it doesn't).
+	 Use like this: jsetags .
 */
 
 #include <sys/stat.h>
@@ -8,10 +9,26 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+
 #include <regex.h>
 
+#include <tchar.h>
+#include "xgetopt/xgetopt.h"
+
+#define TRACE(LEVEL_, LIST_) if(prog.verbosity >= LEVEL_) {	\
+		printf LIST_;																						\
+		printf("\n");																						\
+	}
+
+char fileNamePattern[] = ".[jk]s$";
+
 // Could put no '.' in the beginning as well
-char defunPatternString[] = "\\.([a-zA-Z0-9_]+)\\s*=\\s*function|function\\s+.([a-zA-Z0-9_]+)";
+// XXX consider definitions that span multiple lines
+char defunPatternString[] = "([a-zA-Z0-9_]+)[ \t]*=[ \t]*function|function[ \t]+([a-zA-Z0-9_]+)";
+
+struct JsEtags {
+	unsigned verbosity;
+} prog;
 
 struct Analysis {
   regex_t defunPattern;
@@ -41,6 +58,18 @@ struct TagFileProduction {
   "TAGS"
 };
 
+int measureDecimal(int number) {
+	int max = 10, maxLen = 1;
+	if(number >= 1000000000)
+		return 10;
+
+	for(;number >= max; max *= 10) 
+		maxLen++;
+	return maxLen;
+}
+	
+	
+
 // emacs TAGS section needs to have section data in bytes written in section header
 // so before we write them we must calculate it
 
@@ -69,28 +98,14 @@ void addTag(char *tagName, int tagNameLim, int lineNumber, int charNumber) {
   (*last)->name[0] = 0;
 }
 
-
-
-void parseFile(const char *fileName) {
-  // check for directory
-  int err;
-  struct stat stt;
-  err = stat(fileName, &stt);
-  if(ENOENT == err) {
-    fprintf(stderr, "File %s not found!\n", fileName);
-    return;
-  }
-
-  if(S_ISDIR(stt.st_mode)) {
-    // XXX call recursively
-    fprintf(stderr, "%s is a directory\n", fileName);
-    return;
-  }
-  
-  
+void processRegularFile(const char *fileName) {
   FILE *fp = fopen(fileName, "rt");
   char line[200];
   unsigned linesReadCnt = 0;
+  regmatch_t funNameMatch;
+	int err, nameLen, cnt;
+	TagListEntry *tag;
+	unsigned tagsTextSize;
 
   if(!fp) {
     fprintf(stderr, "Couldn't fopen %s\n", fileName);
@@ -103,34 +118,37 @@ void parseFile(const char *fileName) {
 
   
   // process file line by line
+	// XXX check for binary file
   do {
     if(fgets(line, sizeof(line), fp)) {
       linesReadCnt++;
-      regmatch_t funNameMatch;
-      int execErr = regexec(&analysis.defunPattern, line, 1, &funNameMatch, 0);
-      if(execErr) {
-	if(REG_ESPACE == execErr) {
-	  // XXX crash more violently
-	  fprintf(stderr, "AAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
-	  return;
-	} else { // no match
-	  continue;
-	}
+      err = regexec(&analysis.defunPattern, line, 1, &funNameMatch, 0);
+      if(err) {
+				if(REG_ESPACE == err) {
+					// XXX crash more violently
+					fprintf(stderr, "AAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+					return;
+				} else { // no match
+					continue;
+				}
       } else { // match
-	addTag(line + funNameMatch.rm_so, 
-	       funNameMatch.rm_eo - funNameMatch.rm_so,
-	       linesReadCnt,
-	       funNameMatch.rm_so);
+				TRACE(2, ("Match: %s", line));
+				addTag(line/* + funNameMatch.rm_so*/, 
+							 funNameMatch.rm_eo/* - funNameMatch.rm_so*/,
+							 linesReadCnt,
+							 funNameMatch.rm_so);
       }
     } else { // file over
       break;
     }
   } while(1);
 
+	TRACE(1, ("%d lines read", linesReadCnt));
+
   // write a section to the file
-  TagListEntry *tag = tagFileProduction.curSection.tags;
+  tag = tagFileProduction.curSection.tags;
   // count bytes first
-  unsigned tagsTextSize = 0;
+  tagsTextSize = 0;
   for(; tag; tag = tag->next) {
     tagsTextSize += strlen(tag->text) + 
       measureDecimal(tag->lineNumber) + 
@@ -138,26 +156,30 @@ void parseFile(const char *fileName) {
       3; // first separator, ',', "\n"
 
     // obligatory field
-    int nameLen = strlen(tag->name);
+    nameLen = strlen(tag->name);
     if(nameLen) {
       tagsTextSize += nameLen + 1;
     }
   }
   
   // write header
+	// XXX check ENOSPACE
   fprintf(tagFileProduction.fp, "\x0c\n%s,%d\n", 
-	  tagFileProduction.curSection.fileName, 
-	  tagsTextSize);
+					tagFileProduction.curSection.fileName, 
+					tagsTextSize);
 
   // write tags
   tag = tagFileProduction.curSection.tags;
-  for(; tag; tag = tag->next) {
-    fprintf(tagFileProduction.fp, "%s\xF7", tag->text);
+  for(cnt = 0; tag; tag = tag->next) {
+    fprintf(tagFileProduction.fp, "%s\x7F", tag->text);
     if(tag->name[0]) {
       fprintf(tagFileProduction.fp, "%s\x01", tag->name);
     }
     fprintf(tagFileProduction.fp, "%d,%d\n", tag->lineNumber, tag->charNumber);
+		cnt++;
   }
+
+	TRACE(1, ("Written %d tags", cnt));
 	      
   // Clean up section.
   while(tagFileProduction.curSection.tags) {
@@ -165,27 +187,67 @@ void parseFile(const char *fileName) {
     tagFileProduction.curSection.tags = tagFileProduction.curSection.tags->next;
     free(doomed);
   }
+}
+
+void processFile(const char *fileName) {
+  int err;
+  struct stat stt;
+
+	TRACE(1, ("Trying to process %s", fileName));
+
+  // check for directory
+  err = stat(fileName, &stt);
+  if(ENOENT == err) {
+    fprintf(stderr, "File %s not found!\n", fileName);
+    return;
+  }
+
+  //if(S_ISDIR(stt.st_mode)) {
+	if(_S_IFDIR & stt.st_mode) {
+    // XXX call recursively
+    fprintf(stderr, "%s is a directory\n", fileName);
+    return;
+  }
+  
+  processRegularFile(fileName);
 }  
   
    
     
 int main(int argc, char **argv) {
   char bf[100];
-  int c, i;
+  int c, i, err;
+	// Init work mode
+	prog.verbosity = 0;
+
   // Parse options using getopt
-  while ((c = getopt (argc, argv, "abc:")) != -1) {
+  while ((c = getopt (argc, argv, "v")) != -1) {
     switch(c) {
-      // XXX put opions here
-    default: break;
+		case 'v':
+			prog.verbosity++;
+			break;
+		case '?':
+			if (isprint (optopt))
+				fprintf (stderr, "Unknown option `-%c'.\n", optopt);
+			else
+				fprintf (stderr,
+								 "Unknown option character `\\x%x'.\n",
+								 optopt);
+			return 1;
+
+    default: 
+			fprintf(stderr, "It's not happening\n");
+			abort();
     }
   }
 						    
-   
+	TRACE(1, ("Starting being %d verbose", prog.verbosity));
+	TRACE(1, ("Tag pattern is \"%s\"", defunPatternString));
   
   // Init analyzer
-  int regErrCode = regcomp(&analysis.defunPattern, defunPatternString, 0);
-  if(regErrCode) {
-    regerror(regErrCode, &analysis.defunPattern, bf, sizeof(bf));
+  err = regcomp(&analysis.defunPattern, defunPatternString, REG_EXTENDED);
+  if(err) {
+    regerror(err, &analysis.defunPattern, bf, sizeof(bf));
     fprintf(stderr, "Error in defun pattern: %s\n", bf);
     return 1;
   }
@@ -199,8 +261,10 @@ int main(int argc, char **argv) {
 
   // process input files
   for(i = optind; i < argc; i++) {
-    parseFile(argv[i]);
+    processFile(argv[i]);
   }
+
+	//getch();
 }
     
   
