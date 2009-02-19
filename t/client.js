@@ -1,17 +1,12 @@
-function L(id) {
-	return document.getElementById(id);
-}
+// some generic accessors
+var get = dfr(function(object, key) {	return object[key];    });
+var getContainer  = dfr(function(widget) {	return widget.l;    });
 
-
-function addEl(parent, tagName) {
-	return L(parent).appendChild(document.createElement(tagName));
-}
-
-
-
+// ----
+				 
 var mkWorld = function(url) {
 	var r = {
-		url: url
+		prefix: url
 	};
 	return r;
 };
@@ -23,21 +18,40 @@ var getPlayer = function(world, id) {
 	return r;
 };
 
+
+var getList = function(world) {
+    var url = world.prefix + 'what=list';
+    var r = {
+	world: world,
+	data: askServer(url)
+    };
+
+    return r;
+};
+
 // returns world browser data
 var browse = function(worldUrl, container) {
-	var world = mkWorld(worldUrl);
+    var world = mkWorld(worldUrl);
 	var r = {
 		l: L(container),
 		world: world,
-		playerBrowser: browsePlayer(getPlayer(world, getCookie('tplayerid')), 
-																addEl(container, 'DIV')),
-																
+		playerBrowser: browsePlayer(getPlayer(world, getCookie('tplayerid')),
+					    addEl(container, 'DIV', 'playerBrowser')),
+		listBrowser: browseList(getList(world), 
+					addEl(container, 'DIV', 'listBrowser'))
 	};
 
 	// build world browser widget
 	
 
 	return r;
+};
+
+var browseList = function(list, container) {
+    var r = {
+	l: L(container)
+    };
+    return r;
 };
 
 // returns a player browser struct
