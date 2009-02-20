@@ -1,0 +1,7 @@
+*.ncb
+*.suo
+*.o
+Debug
+generated
+TAGS
+*~
