@@ -6,10 +6,13 @@
 */
 
 #include <sys/stat.h>
+#include <ctype.h>
 #include <errno.h>
+#include <assert.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+
 
 #include <regex.h>
 
@@ -24,6 +27,12 @@
 		printf LIST_;																						\
 		printf("\n");																						\
 	}
+
+#define LIMITSTR(STR_) (STR_)[sizeof(STR_)-1] = '\0'
+
+#define COUNT(X_) (sizeof(X_)/(sizeof((X_)[0])))
+
+
 
 char fileNamePatternStr[] = ".[jk]s$";
 
@@ -52,7 +61,7 @@ typedef struct TagListEntry {
 } TagListEntry;
   
 typedef struct TagFileSection {
-  char* fileName;
+  const char* fileName;
   TagListEntry *tags;
 } TagFileSection;
 
@@ -79,7 +88,7 @@ int measureDecimal(int number) {
 // emacs TAGS section needs to have section data in bytes written in section header
 // so before we write them we must calculate it
 
-void addTag(char *tagName, int tagNameLim, int lineNumber, int charNumber) {
+TagListEntry* addTag() {
   // allocate tag XXX do we realy need to order them?
   TagListEntry **last = &tagFileProduction.curSection.tags;
   while(*last) {
@@ -89,29 +98,63 @@ void addTag(char *tagName, int tagNameLim, int lineNumber, int charNumber) {
   *last = malloc(sizeof(TagListEntry));
   if(!*last) {
     fprintf(stderr, "AAAA FUCKING HELL DO IT YOURSELF YOU MISERABLE POOR LAZY FAGGOT");
-    return;
+    abort();
   }
 
   // init list item
   (*last)->next = NULL;
 
   // store data in it
-  strncpy((*last)->d.text, tagName, tagNameLim);
-  (*last)->d.text[tagNameLim] = 0;
-  (*last)->d.lineNumber = lineNumber;
-  (*last)->d.charNumber = charNumber;
+  //strncpy((*last)->d.text, tagName, tagNameLim);
+  //(*last)->d.text[tagNameLim] = 0;
+  //(*last)->d.lineNumber = lineNumber;
+  //(*last)->d.charNumber = charNumber;
   // set name to an empty string maybe will use it later
-  (*last)->d.name[0] = 0;
+  //(*last)->d.name[0] = 0;
+	return *last;
 }
+
+// debug output
+void showMatch(regmatch_t *rm) {
+	char helperBf[200];
+	int print = 0;
+
+	memset(helperBf, ' ', sizeof(helperBf)-1);
+	LIMITSTR(helperBf);
+
+	if(rm->rm_so >= sizeof(helperBf)) {
+		TRACE(2, ("Warning: match start offset too high (%d)", rm->rm_so));
+	} else {
+		helperBf[rm->rm_so] = '<';
+		print = 1;
+	}
+
+	if(rm->rm_eo >= sizeof(helperBf)) {
+		TRACE(2, ("Warning: match end offset too high (%d)", rm->rm_eo));
+	} else {
+		helperBf[rm->rm_eo] = '>';
+		print = 1;
+	}
+
+
+	if(print) {
+		TRACE(2, ("Match: %s", helperBf));
+	}
+}
+
+
 
 void processRegularFile(const char *fileName) {
   FILE *fp = fopen(fileName, "rt");
   char line[200];
   unsigned linesReadCnt = 0;
-  regmatch_t funNameMatch;
-	int err, nameLen, cnt;
+  regmatch_t funMatch[3], *nameMatch;
+	int err, cnt;
 	TagListEntry *tag;
-	unsigned tagsTextSize;
+	size_t tagsTextSize, nameLen;
+
+//#ifdef DEBUG
+//#endif
 
   if(!fp) {
     fprintf(stderr, "Couldn't fopen %s\n", fileName);
@@ -128,7 +171,7 @@ void processRegularFile(const char *fileName) {
   do {
     if(fgets(line, sizeof(line), fp)) {
       linesReadCnt++;
-      err = regexec(&analysis.defunPattern, line, 1, &funNameMatch, 0);
+      err = regexec(&analysis.defunPattern, line, COUNT(funMatch), funMatch, 0);
       if(err) {
 				if(REG_ESPACE == err) {
 					// XXX crash more violently
@@ -138,12 +181,32 @@ void processRegularFile(const char *fileName) {
 					continue;
 				}
       } else { // match
+				// "function name" submatch is [1] or [2]
+				for(nameMatch = funMatch + 1; 
+					nameMatch < funMatch + COUNT(funMatch); 
+					nameMatch++)
+					if(nameMatch->rm_so >= 0)
+						break;
+
+				showMatch(funMatch);
+
+				assert(funMatch + COUNT(funMatch) > nameMatch);
+				showMatch(nameMatch);
+
 				TRACE(2, ("Match: %s", line));
-				addTag(line/* + funNameMatch.rm_so*/, 
-							 funNameMatch.rm_eo/* - funNameMatch.rm_so*/,
-							 linesReadCnt,
-							 funNameMatch.rm_so);
-      }
+				tag = addTag();//line/* + funNameMatch.rm_so*/, 
+							 //funNameMatch.rm_eo/* - funNameMatch.rm_so*/,
+							 //linesReadCnt,
+							 //funNameMatch.rm_so);
+				tag->d.lineNumber = linesReadCnt;
+				tag->d.charNumber = funMatch[1].rm_so;
+				nameLen = min(sizeof(tag->d.text)-1, funMatch->rm_eo);
+				strncpy(tag->d.text, line, nameLen);
+        tag->d.text[nameLen] = '\0';
+				nameLen = min(sizeof(tag->d.name)-1, (nameMatch->rm_eo - nameMatch->rm_so));
+				strncpy(tag->d.name, line + nameMatch->rm_so, nameLen);
+				tag->d.name[nameLen] = '\0';
+			}
     } else { // file over
       break;
     }
