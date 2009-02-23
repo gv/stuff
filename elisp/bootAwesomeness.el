@@ -200,7 +200,12 @@
 (tool-bar-mode -1)
 
 ;
-(set-default-font "Courier New 9")
+(set-default-font 
+ (if (equal window-system 'x)
+     "Bitstream Vera Sans Mono-8"
+         "Courier New 9")
+)
+         
 
 ;;
 ;;
