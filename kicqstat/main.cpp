@@ -1,6 +1,26 @@
 #include <QApplication>
 #include "kicqstat.h"
 
+class KicqStat: public IcqStat, public QApplication {
+	MainForm *mainForm_;
+
+	KicqStat(int argc, char **argv):
+		QApplication(argc, argv)
+	{
+	}
+
+	// for init
+	void bitch(const char *what) {
+		
+	}
+
+	int init2() {
+		init();
+		mainForm_ = mew MainForm(this);
+
+	}
+};
+		
 
 MainTab::MainTab(QWidget *parent):
 	QWidget(parent)
@@ -23,8 +43,9 @@ StopTab::StopTab(QWidget *parent):
 }
 
 
-MainForm::MainForm()
-  :QDialog(0)
+MainForm::MainForm(IcqStat *prog)
+  :QDialog(0),
+	 prog_(prog)
 {
   resize(400, 300);
   
@@ -41,7 +62,6 @@ MainForm::MainForm()
 
 
 int main(int argc, char *argv[]) {
-  QApplication app(argc, argv);
-  MainForm form;
-  return form.exec();
+	KicqStat prog(argc, argv);
+  return prog.exec();
 }

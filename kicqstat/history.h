@@ -8,30 +8,36 @@ using std::string;
 using std::vector;
 using std::map;
 
-struct Msg {
-	string body;
-	string *to, *from;
-};
-
 struct WordStat {
 	unsigned in, out;
 };
 
+struct MsgInfo {
+	char *body, *from, *to;
+};
+	
+
 // All data will lie here
 class History {
-	set<string> subjects;
-	map<string, WordStat> index;
+	struct Msg {
+		string body;
+		string *to, *from;
+	};
+
+	set<string> subjects_;
+	typedef map<string, WordStat> Index;
+	Index index_;
 	// XXX how do i sort them
 	//vector <Msg> messages;
 
  public:
-	addMessage(Msg *message);
+	void addMessage(MsgInfo *message);
 
 };
 
 // main program will be here
 class IcqStat {
-	History history;
+	History history_;
  public:
 	IcqStat();
 	virtual int bitch(char* what);
@@ -39,10 +45,11 @@ class IcqStat {
 
 // These are data needed to process qip files.
 class QipHistoryParser {
-	regex_t inHdrPattern, outHdrPattern;
+	regex_t inHdrPattern_, outHdrPattern_;
  public:
-	QipHistoryParser();
-	
+	QipHistoryParser(History *);
+ ~QipHistoryParser():
+	int parseFile(FILE *fp);
 };
 	
 

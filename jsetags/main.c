@@ -199,7 +199,7 @@ void processRegularFile(const char *fileName) {
 							 //linesReadCnt,
 							 //funNameMatch.rm_so);
 				tag->d.lineNumber = linesReadCnt;
-				tag->d.charNumber = funMatch[1].rm_so;
+				tag->d.charNumber = nameMatch->rm_so;
 				nameLen = min(sizeof(tag->d.text)-1, funMatch->rm_eo);
 				strncpy(tag->d.text, line, nameLen);
         tag->d.text[nameLen] = '\0';
