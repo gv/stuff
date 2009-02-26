@@ -7,3 +7,4 @@ TAGS
 *~a.out
 *.lst
 *.s
+*.pdb 

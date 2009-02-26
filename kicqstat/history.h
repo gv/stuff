@@ -8,38 +8,59 @@ using std::string;
 using std::vector;
 using std::map;
 
-struct WordStat {
-	unsigned in, out;
-};
 
+/*
+	input data for addMessage
+*/
 struct MsgInfo {
 	char *body, *from, *to;
 };
 	
 
-// All data will lie here
+/*
+	Counts for (Word, Person)
+*/
+struct WordStat {
+	unsigned in, out;
+WordStat(): in(0), out(0);
+};
+
+/*
+	Complete index
+*/
 class History {
-	struct Msg {
+	typedef string Person;
+	typedef string Word;
+ public:
+	typedef map<Person*, WordStat> WordIndex;
+	// all words will be stored in a map
+	typedef map<Word, WordStat> Index;
+
+	Index index_;
+	set<Person> persons_; // stores names of persons who write and read messages
+	
+	/*
+		struct Msg {
 		string body;
 		string *to, *from;
-	};
-
-	set<string> subjects_;
-	typedef map<string, WordStat> Index;
-	Index index_;
-	// XXX how do i sort them
-	//vector <Msg> messages;
-
+		};
+		vector <Msg> messages;
+	*/
+	
  public:
 	void addMessage(MsgInfo *message);
-
+		
 };
 
 // main program will be here
 class IcqStat {
+ protected:
+	vector<string> stopWords;
 	History history_;
+
  public:
 	IcqStat();
+	int init();
 	virtual int bitch(char* what);
 }
 

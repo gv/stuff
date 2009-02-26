@@ -7,17 +7,6 @@
 #include <QDialog>
 
 
-class MainForm: public QDialog {
-  Q_OBJECT
-  
-  public:
-  MainForm();
-	
-private:
-	QTabWidget *tabs;
-	
-};
-
 class MainTab: public QWidget {
   Q_OBJECT
 
@@ -34,5 +23,19 @@ class StopTab: public QWidget {
   StopTab(QWidget *parent = NULL);
 };
 
+
+class MainForm: public QDialog {
+  Q_OBJECT
+  
+  public:
+  MainForm();
+	
+private:
+	QTabWidget *tabs;
+	MainTab *mainTab_;
+	StopTab *stopTab_;
+	
+	
+};
 
 

@@ -19,7 +19,8 @@ enum {
 };
 
 
-IcqStat::IcqStat() {
+IcqStat::IcqStat() 
+{
 }
 
 int IcqStat::init() {
@@ -90,8 +91,10 @@ int IcqStat::init() {
 	regfree(&logFileNamePattern);
 }
 		
-		
-		
+
+/*
+	Загрузка одного квипового файла
+*/
 		
 QipHistoryParser::QipHistoryParser(History *history):
 	history_(history)
@@ -147,13 +150,22 @@ int QipHistoryParser::parseFile(FILE *fp) {
 	} while(1);
 }
 
+/*
+	Индекс
+*/
+
 History::History() {
-	wordPattern_ = regcomp("[^а-яА-Я-]", 0);
+	wordPattern_ = regcomp("[а-яА-Я-]+", 0);
 	assert(wordPattern_);
 }
 
 History::~History() {
 	regfree(wordPattern_);
+}
+
+Person* History::getPerson(const char *name) {
+	string temp;
+	return &(*subjects_.insert(temp).first);
 }
 
 void History::addMessage(MsgInfo *m) {
@@ -166,6 +178,9 @@ void History::addMessage(MsgInfo *m) {
 	msg.to = &(*subjects_.insert(subj).first);
 	*/
 
+	Person *from = getPerson(m->from);
+	Person *to = getPerson(m->to);
+
 	char *tail = m->body;
 
 	// make it lowercase
@@ -176,24 +191,27 @@ void History::addMessage(MsgInfo *m) {
 	regmatch_t match;
 	int err;
 	string word;
-	while(!(err = regexec(&wordPattern_, tail, 1, &match, 0))) {
+	for(; !(err = regexec(&wordPattern_, tail, 1, &match, 0)); 
+			tail += match.rm_eo) {
 		word.assign(tail + match.rm_so, match.rm_so - match.rm_eo);
 		
-		Index::iterator entry = index_.find(word);
-		if(index_.end() == entry) {
-			entry = index_.insert(word);
-			entry->second = 1;
-		} else {
-			entry->second++;
+		Index::iterator wordIndex = index_.find(word);
+		if(index_.end() == wordIndex) {
+			wordIndex = index_.insert(word);
+		} 
+		
+		WordIndex::iterator submitterIndex = wordIndex->find(from);
+		if(wordIndex->end() == submitterIndex) {
+			submitterIndex = wordIndex->insert(from);
 		}
+		submitterIndex->out++;
+		
+		WordIndex::iterator recipientIndex = wordIndex->find(to);
+		if(wordIndex->end() == Index) {
+			recipientIndex = wordIndex->insert(to);
+		}
+		submitterIndex->in++;
 	}
 	// че все чтоли уже
 }
-	
-	
-	
-	
-
-		
-	
 	
