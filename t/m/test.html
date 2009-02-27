@@ -1,0 +1,34 @@
+<html>
+  <head>
+	<style>
+	  div { border: 1px solid gray; margin: 10px; padding: 10px; }
+	</style>
+	<script src='defer.js'></script>
+  </head>
+  <body>
+	<div id="ind">...</div>
+	<div>
+	  <h3>waiting for 1s, 2s and 3s</h3>
+	  <div id="test1">
+	  </div>
+	</div>
+	<script>
+	  var l = document.getElementById('test1');
+	  var ind = document.getElementById('ind');
+	  var testHold = defer(function(a, b, c) {
+	  l.innerHTML = a + b + c;
+	  ind.innerHTML = arguments.length;
+	  });
+	  l.innerHTML = 'wait...';
+	  testHold(hold(1000, 'ok '));
+	  testHold(hold(1000, 'ok '), hold(2000, 'very '));
+	  testHold(hold(3000, 'ok '), 'very ', hold(200, 'nice'));
+	</script>
+
+	<div>
+	  <h3>Race test</h3>
+	  <div id="test2"></div>
+	</div>
+  </body>
+</html>
+	  
