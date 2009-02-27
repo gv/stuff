@@ -6,6 +6,12 @@
 	or not computed yet
 */
 
+function indexOf(a, v, dflt) {
+	for(var i in a) 
+		if(v == a[i]) return i;
+	return dflt || -1;
+}
+
 /* I use the "new,prototype,etc..." mechanism of javascript here
 	 to distinguish future values from regular values
 	 using instanceof operator. */
@@ -13,12 +19,6 @@
 /* Users of this library should not construct 
 	 future values themselves. Those values will be returned
 	 from defer/DOM api functions. */
-
-function indexOf(a, v, dflt) {
-	for(var i in a) 
-		if(v == a[i]) return i;
-	return dflt || -1;
-}
 
 // constructs a deferred value
 function Future() {
@@ -52,8 +52,15 @@ Future.prototype.set = function(v) {
 Future.prototype.cancel = function() {};
 
 Future.prototype.unlisten = function(f) {
-	this.listeners.splice(indexOf(this.listeners, f, this.listeners.length), 1);
-	this.listeners.length || this.cancel();
+	for(var i in this.listeners) {
+		if(this.listeners[i].act == f)  {
+			this.listeners.splice(i, 1);
+			//alert('remains ' + this.listeners.length + ' ' + this.listeners);
+			this.listeners.length || this.cancel();
+			return true;
+		}
+	}
+	return false;
 };
 	
 
@@ -165,6 +172,7 @@ var race = function() {
 	var r = new Future(), racers = arguments;
 	var finishLine = function(val) {
 		// Run cancellations.
+		//alert('unlistening ' + racers.length);
 		for(var i = 0; i < racers.length; i++) {
 			if(racers[i] instanceof Future) {
 				racers[i].unlisten(finishLine);
@@ -203,29 +211,60 @@ var hold = function(time, val) {
 };
 
 // for POST
-// var informServer = function
 
-var askServer = function(url) {
-	var method = 'GET';
+var urlEncode = function(data, head) {
+	for(var key in data) {
+		head = (head ? head + '&' :	"") + 
+		key + '=' + escape(data[key]);
+	}
+	return head;
+};
+
+var __defer_askServer = function(method, url, data) {
 	var transport = new XMLHttpRequest(), r = new Future();
 	transport.onreadystatechange = function() {
 		switch(transport.readyState) {
-			// XXX handle other stuff
+			// XXX handle other states
 		case 4: 
 		var answer = eval('(' + transport.responseText + ')');
 		r.set(answer);
 		}
 	};
-	transport.open(method, url);
+
+	if('GET' == method) {
+		transport.open('GET', url + (data && ('?' + urlEncode(data))));
+		transport.send();
+	} else {
+		transport.open('POST', url);
+		transport.send(data ? urlEncode(data) : "")
+	}
 };
 
+var askServer = defer(function(url, data) {
+		return __defer_askServer('GET', url, data);
+	});
+	
+	
+var send = defer(function(url, data) {
+		return __defer_askServer('POST', url, data);
+	});
+	
+
+// default is onclick
 var getEvt = function(l, evtName) {
-	evtName = 'on' + evtName;
-	var r = new Future(), prevHandlerFunction = l[evtName];
-	l[evtName] = function(arg) {
-		r.set(arg);
-		l[evtName] = prevHandlerFunction;
+	evtName = 'on' + (evtName || 'click');
+	var r = new Future();
+
+	r.cancel = function() {
+		l.disabled = true;
 	};
+
+	l[evtName] = function(arg) {
+		delete l[evtName];
+		l.disabled = true;
+		r.set(arg);
+	};
+	l.disabled = false;
 	return r;
 };
 	
@@ -237,11 +276,27 @@ var L = defer(function(id) {
 	});
 
 
-var addEl = defer(function(parent, tagName, className) {
+var stick = defer(function(parent, tagName, className, body) {
 		var r = L(parent).appendChild(document.createElement(tagName));
 		r.className = className;
+		if(body) r.innerHTML = body;
+		r.disabled = true;
 		return r;
 	});
+
+var __defer_indicate = defer(function(l, body, className) {
+		l.innerHTML = body;
+		l.className = className || l.className.replace(/wait/g, '');
+	});
+
+var indicate = function(l, body, className) {
+	l = L(l);
+	l.className += ' wait';
+	__defer_indicate(l, body, className);
+	return l;
+};
+	
+		
 
 
     

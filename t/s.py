@@ -139,11 +139,15 @@ class Entry(resource.Resource):
     def render_GET(self, request):
         return """<html>
 <head>
+<link rel=stylesheet href="%(static)scss.css" />
 <script src="%(static)sdefer.js"></script>
 <script src="%(static)sclient.js"></script>
 </head>
 <body>
+<center>
 <div id="worldBrowser"></div>
+</center>
+
 <script>
 browse("%(world)s", "worldBrowser");
 </script>

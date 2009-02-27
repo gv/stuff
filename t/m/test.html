@@ -1,6 +1,6 @@
 <html>
   <head>
-	<style>
+	<style type="text/css">
 	  div { border: 1px solid gray; margin: 10px; padding: 10px; }
 	</style>
 	<script src='defer.js'></script>
@@ -12,12 +12,12 @@
 	  <div id="test1">
 	  </div>
 	</div>
-	<script>
+	<script type="text/javascript">
 	  var l = document.getElementById('test1');
 	  var ind = document.getElementById('ind');
 	  var testHold = defer(function(a, b, c) {
-	  l.innerHTML = a + b + c;
-	  ind.innerHTML = arguments.length;
+		  l.innerHTML = a + b + c;
+		  ind.innerHTML = arguments.length;
 	  });
 	  l.innerHTML = 'wait...';
 	  testHold(hold(1000, 'ok '));
@@ -26,9 +26,34 @@
 	</script>
 
 	<div>
-	  <h3>Race test</h3>
+	  <h3>getEvt test</h3>
 	  <div id="test2"></div>
 	</div>
+	<script type="text/javascript">
+	  var startBtn = indicate(stick('test2', 'BUTTON'), 'Start');
+	  var stopBtn = indicate(stick('test2', 'BUTTON'), 'Stop');
+	  var testProcess = defer(function() {
+		  
+		  testProcess(getEvt(stopBtn), hold(1000));
+	  });
+	  testProcess(getEvt(startBtn, 'click'));
+
+	</script>
+
+
+	<div>
+	  <h3>race test</h3>
+	  <div id="test3"></div>
+	</div>
+	<script type="text/javascript">
+	  var aBtn = stick('test3', 'BUTTON', '', 'Option A');
+	  var bBtn = stick('test3', 'BUTTON', '', 'Option B');
+	  var iterTest3 = defer(function(what) {
+		  what && alert(what);
+		  iterTest3(race(getEvt(aBtn), getEvt(bBtn)));
+	  });
+	  iterTest3();
+	</script>
   </body>
 </html>
 	  

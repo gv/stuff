@@ -1,9 +1,13 @@
+/*
+	This is a browser client for multiplayer card game.
+*/
+
 // let's use this
-dojo.require('dojo.cookie');
+//dojo.require('dojo.cookie');
 
 // some generic accessors
-var get = dfr(function(object, key) {	return object[key];    });
-var getContainer  = dfr(function(widget) {	return widget.l;    });
+var get = defer(function(object, key) {	return object[key];    });
+var getContainer  = defer(function(widget) {	return widget.l;    });
 
 // ----
 				 
@@ -37,20 +41,14 @@ var getList = function(world) {
 };
 
 var browse = function(worldUrl, container) {
-	var world = mkWorld(worldUrl);
-	var r = {
-		l: L(container),
-		world: world
-	};
+	var world = mkWorld(worldUrl), l = L(container);
 
-	// build world browser widget
-	browseList(getList(world), 
-						 addEl(container, 'DIV', 'listBrowser'));
+	// Parallel branch 1.
+	browseList(stick(l, 'DIV', 'listBrowser'));
 
-	// sequence is
-	// get username
-	// do stuff until logout
-	var iter = defer(function(lastBrowsingResult) {
+
+	// Parallel branch 2.
+	var iter = defer(function() {
 			var player = getPlayer(world);
 			return iter(browsePlayer(result));
 		});
@@ -60,21 +58,40 @@ var browse = function(worldUrl, container) {
 		playerBrowser: browsePlayer(getPlayer(world, getCookie('tplayerid')),
 		addEl(container, 'DIV', 'playerBrowser')),
 	*/
-	return r;
 };
 
-var browseList = function(list, container) {
-	var r = {
-		l: L(container)
-	};
-	
-	
-	
-	//return r;
-};
+var browseList = defer(function(l) {
+		// housewarm
+		var usersDisplay = stick(l, 'UL', 'users');
+		var invitationsDisplay = stick(l, 'UL', 'invitations');
+		var panel = stick(l, 'DIV', 'panel');
+		var inviteBtn = stick(panel, 'BUTTON', 'invite', 'Invite');
+		// manual reload
+		var reloadBtn = stick(panel, 'BUTTON', 'reload', 'Reload');
 
+		var iter = defer(function(what) {
+				if(what instanceof Event) {
+					alert(what);
+					switch(what.target) {
+					case reloadBtn:
+						alert('reload');
+						break;
+
+					case inviteBtn:
+						alert('invite');
+						break;
+					}
+				}
+
+
+				/*return */iter(race(getEvt(reloadBtn), getEvt(inviteBtn)));
+			});
+
+		iter();
+	});;
+			
 // returns a player browser struct
-var browsePlayer = function(player, container) {
+var browsePlayer = function(l) {
 	var r = {
 		l: L(container),
 		player: player,
@@ -89,7 +106,6 @@ var browsePlayer = function(player, container) {
 };
 
 var browseGame = function(game, container) {
-	var r = 
     
 };
 	

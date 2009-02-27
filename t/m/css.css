@@ -1,0 +1,42 @@
+body {
+	text-align: center;
+	background: #779977;
+}
+
+#worldBrowser { 
+	margin: 20px;
+	width: 80%;
+	height: 80%;
+	border: 1px solid white;
+	background: #99bb99;
+	position: relative;
+}
+
+.listBrowser {
+	background: white;
+	border: 1px dotted #bbffbb;
+	position: absolute;
+	right: 0;
+	top: 0;
+	height: 100%;
+	width: 20%;
+}
+
+.listBrowser .panel {
+	position: absolute;
+	bottom: 3px;
+	left: 3px; 
+	right: 3px;
+	border: 1px solid gray;
+	padding: 5px;
+}
+
+.listBrowser .panel button {
+	float: left;
+	margin: 4px;
+}
+	
+	
+	
+	
+	
