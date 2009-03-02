@@ -124,15 +124,54 @@ var browseList = defer(function(l, world) {
 		reload();
 	});;
 			
-// returns a player browser struct
-var browsePlayer = defer(function(l, player) {
-	// build a player browser widget
+var browsePlayer = defer(function(l, player, world) {
+		// build a player browser widget
 		l.innerHTML = '';
-		var logOutBtn = stick(l, 'BUTTON', 'logout', 'Log out');
+
+		// build a panel
+		var panel = stick(l, 'DIV', 'panel');
+		var nameInd = stick(panel, 'DIV', 'playerName', player.name);
+		var logOutBtn = stick(panel, 'BUTTON', 'logout', 'Log out');
+		var reloadBtn = stick(panel, 'BUTTON', 'reload', 'Reload');
+		var invitationPanel = stick(panel, 'DIV', 'invitations');
+		clearFloats(panel);
+
+		// XXX need more gamescreens
 		var gameScreen  = stick(l, 'DIV', 'gameScreen');
-		
-		indicate(gameScreen, urlEncode(player));
-		return getEvt(logOutBtn);
+
+		var refresh = defer(function(data) {
+				// display invitations
+	
+
+				var game;
+				if(data.games) {
+					for(var i in data.games) {
+						game = data.games[i];
+						break;
+					}
+				}
+				
+				if(!game) {
+					return handleBtn(race(getEvt(logOutBtn), getEvt(reloadBtn)));
+				}
+
+				
+					
+
+		var start = defer(function() {
+				return refresh(askServer(world.prefix + 'clients/' + player.id));
+			});
+
+		var handleBtn = defer(function(evt) {
+				switch(evt.target) {
+				case logOutBtn:
+				return true;
+				case reloadBtn:
+				return start();
+				}
+			});
+
+		return start();
 	});
 
 var browseGame = function(game, container) {
