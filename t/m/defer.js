@@ -26,14 +26,26 @@ function Future() {
 }
 
 Future.prototype.listen = function(act) {
+	/*
+		Now a promise can be in one of two states:
+		
+		1. Unfulfilled.
+		2. Fulfilled.
+	*/
 	if(typeof this.v == 'undefined') {
 		var r = new Future();
+		/*
+		r.cancel = function() {
+			cause.unlisten(act);
+		}
+		*/
+
 		this.listeners.push({act: act, r: r});
 		return r;
 	} else {
 		// Could val also be a future?
-		//return listen(this.v, act);
-		return act(this.v);
+		return listen(act, this.v);
+		//return act(this.v);
 	}
 };
 
@@ -43,8 +55,8 @@ Future.prototype.set = function(v) {
 	for(var i in this.listeners) {
 		var l = this.listeners[i];
 		// see question above
-		// l.r.set(listen(l.act, v));
-		l.r.set(l.act(v));
+		l.r.set(listen(l.act, v));
+		//l.r.set(l.act(v));
 	}
 	this.listeners = [];
 };
@@ -103,30 +115,6 @@ var __list = function(lst) {
 		return [];
 };
 		
-/*
-var defer = function(f) {
-	return function() {
-		var n = arguments.length;
-		if(!n--) return f();
-		return listen(function(val1) {
-				if(!n--) 
-					return f(val1);
-				return listen(function(val2) {
-						if(!n--)
-							return f(val1, val2)
-*/
-
-/*
-var defer = function(f) {
-	return function() {
-		var origLen = arguments.length, vals = [];
-		return origLen ?
-		listen(function(val) {
-				vals.push(val);
-				if(vals.length == origLen) {
-					return f.apply(null, vals);
-				}
-*/
 
 /*	Returns function that calls f when all the  arguments are ready.
 */
@@ -148,24 +136,6 @@ var defer = function(f) {
 	}
 };
 		
-/*
-var defer = function(f) {
-	var res = function(first) {
-		if(!arguments.length) return f();
-
-		var shifted = defer(function() {
-			return f.apply(null, [first].concat(Array.prototype.slice.call(arguments)));
-			}),	tail = Array.prototype.slice.call(arguments, 1);
-
-		return listen(function(firstVal) {
-				return shifted
-
-			}, first);
-	};
-	return res;
-};
-*/
-	
 // Returns the first evaluated result.
 // Unlistens all the rest, which can cause a cancellation.
 var race = function() {
@@ -232,12 +202,15 @@ var __defer_askServer = function(method, url, data) {
 	};
 
 	if('GET' == method) {
-		transport.open('GET', url + (data && ('?' + urlEncode(data))));
-		transport.send();
+		transport.open('GET', url + (data ? ('?' + urlEncode(data)) : ''));
+		transport.send(null);
 	} else {
 		transport.open('POST', url);
+		transport.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded;charset=utf-8');
 		transport.send(data ? urlEncode(data) : "")
 	}
+	
+	return r;
 };
 
 var askServer = defer(function(url, data) {

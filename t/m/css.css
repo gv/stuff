@@ -5,8 +5,8 @@ body {
 
 #worldBrowser { 
 	margin: 20px;
-	width: 80%;
-	height: 80%;
+	width: 95%;
+	height: 95%;
 	border: 1px solid white;
 	background: #99bb99;
 	position: relative;
@@ -35,6 +35,36 @@ body {
 	float: left;
 	margin: 4px;
 }
+
+.mainPanel {
+	position: absolute;
+	width: 80%;
+}
+
+.mainPanel .loginScreen {
+	margin: 10px;
+	padding: 10px;
+	border: 1px solid white;
+}
+
+.mainPanel .loginScreen .label, 
+.mainPanel .loginScreen button,
+.mainPanel .loginScreen input {
+	margin: 3px;
+	float: left;
+}
+
+.clear {
+	clear:both;
+}
+
+.mainPanel .playerScreen {
+	margin: 10px;
+	padding: 10px;
+	border: 1px solid white;
+}
+
+	
 	
 	
 	
