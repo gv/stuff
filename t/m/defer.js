@@ -21,7 +21,11 @@ function indexOf(a, v, dflt) {
 	 from defer/DOM api functions. */
 
 // constructs a deferred value
+
+notYet = {debug: 'NOT_YET'};
+
 function Future() {
+	this.v = notYet;
 	this.listeners = [];
 }
 
@@ -35,9 +39,10 @@ Future.prototype.listen = function(act) {
 	if(typeof this.v == 'undefined') {
 		var r = new Future();
 		/*
-		r.cancel = function() {
+			var cause = this;
+			r.cancel = function() {
 			cause.unlisten(act);
-		}
+			}
 		*/
 
 		this.listeners.push({act: act, r: r});
@@ -77,10 +82,31 @@ Future.prototype.unlisten = function(f) {
 	
 
 // parameter order is like f(val)		
-function listen(f, val) {
-	return (val instanceof Future) ?
-		val.listen(f):
-		f(val);
+function listen(f, thing) {
+	/*
+		thing is a regular variable
+	*/
+	if(!(thing instanceof Future)) 
+		return f(thing);
+	/*
+		thing is a fulfilled promise
+	*/
+	if(thing.v != notYet)
+		return listen(f, thing.v);
+	/*
+		Value of thing is not known yet, so we give client a promise 
+		that we hand him f(thing) when thing is available. 
+		
+		It seems we should give them a link to us to, so they can let us know they 
+		don't need f(thing) more, so if noone else needs g(thing) or eatConcrete(thing),
+		we can be almost sure we don't need thing itself!
+	*/
+	var promise = new Future();
+	promise.cancel = function() {
+		thing.unlisten(f);
+	};
+	thing.listeners.push({act: f, r: promise});
+	return promise;
 }
 	
 
@@ -101,20 +127,6 @@ var pair = function(first, second, _construct) {
 		}, first);
 };
 			
-
-// receives an array of Futures or regular values
-// returns Future of array of regular values
-var __list = function(lst) {
-	if(lst.length) {
-		var tail = lst.slice(1);
-		return listen(function(first) {
-				
-
-			}, lst[0]);
-	} else
-		return [];
-};
-		
 
 /*	Returns function that calls f when all the  arguments are ready.
 */

@@ -18,18 +18,6 @@ var mkWorld = function(url) {
 	return r;
 };
 
-// if no id is given, asks user for a name
-var getPlayer = function(world, id) {
-	var r = {
-		world: world
-	};
-
-	// ask 
-	
-	return r;
-};
-
-
 var browse = function(worldUrl, container) {
 	var world = mkWorld(worldUrl), l = L(container);
 
@@ -133,16 +121,31 @@ var browsePlayer = defer(function(l, player, world) {
 		var nameInd = stick(panel, 'DIV', 'playerName', player.name);
 		var logOutBtn = stick(panel, 'BUTTON', 'logout', 'Log out');
 		var reloadBtn = stick(panel, 'BUTTON', 'reload', 'Reload');
+
 		var invitationPanel = stick(panel, 'DIV', 'invitations');
+		var invitationList = stick(invitationPanel, 'DIV', 'invitationList');
+		var invitationItems = [];
+		
+
 		clearFloats(panel);
 
 		// XXX need more gamescreens
 		var gameScreen  = stick(l, 'DIV', 'gameScreen');
 
 		var refresh = defer(function(data) {
-				// display invitations
-	
-
+				// update invitations
+				if(data.invitations) {
+					for(var i = 0; i < data.invitations.length; i++) {
+						var inv = data.invitations[i], it = invitationItems[i];
+						if(it && it.who == inv.who && inv.whatGame == it.whatGame) 
+							continue;
+						
+							
+							
+						
+						
+						
+					
 				var game;
 				if(data.games) {
 					for(var i in data.games) {
@@ -155,8 +158,10 @@ var browsePlayer = defer(function(l, player, world) {
 					return handleBtn(race(getEvt(logOutBtn), getEvt(reloadBtn)));
 				}
 
-				
-					
+				return race(browseGame(gameScreen, data),
+										handleBtn(race(getEvt(logOutBtn)
+																	 getEvt(reloadBtn))));
+			});
 
 		var start = defer(function() {
 				return refresh(askServer(world.prefix + 'clients/' + player.id));
@@ -174,8 +179,9 @@ var browsePlayer = defer(function(l, player, world) {
 		return start();
 	});
 
-var browseGame = function(game, container) {
+var browseGame = defer(function(container, game) {
+	
     
-};
+	});
 	
     
