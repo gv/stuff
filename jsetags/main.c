@@ -269,7 +269,6 @@ void processFile(const char *fileName, int checkName);
 int processDir(const char *fileName) {
 	DIR *dp;
 	struct dirent *de;
-	int err;
 	
 	dp = opendir(fileName);
 	if(!dp) {
