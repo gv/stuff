@@ -84,8 +84,6 @@ var browseList = defer(function(l, world) {
 		// manual reload
 		var reloadBtn = stick(panel, 'BUTTON', 'reload', 'Reload');
 
-		//var reload; // remove this and see what happens
-
 		var iter = defer(function(what) {
 				if(what instanceof Event) {
 					//alert(what);
@@ -135,25 +133,31 @@ var browsePlayer = defer(function(l, player, world) {
 		var refresh = defer(function(data) {
 				// update invitations
 				if(data.invitations) {
-					for(var i = 0; i < data.invitations.length; i++) {
-						var inv = data.invitations[i], it = invitationItems[i];
-						if(it && it.who == inv.who && inv.whatGame == it.whatGame) 
-							continue;
-						
-							
-							
-						
-						
-						
-					
-				var game;
-				if(data.games) {
-					for(var i in data.games) {
-						game = data.games[i];
-						break;
-					}
+					updateControls(data.invitations,
+												 invitationItems,
+												 function() {
+													 var lIt = stick(invitationList, 'DIV', 'invitation');
+													 it = {
+														 l: lIt,
+														 lCbx: stick(lIt, 'INPUT'),
+														 lLabel: stick(lIt, 'DIV')
+													 };
+													 it.lCbx.type = 'checkbox';
+													 return it;
+												 },
+
+												 function(it, inv) {
+													 if(it.who == inv.who && inv.whatGame == it.whatGame) 
+														 return;
+
+													 it.who = inv.who;
+													 it.whatGame = inv.whatGame;
+													 it.name = inv.name;
+													 it.lLabel.innerHTML = inv.name;
+												 });
 				}
-				
+					
+				var game = first(data.games);
 				if(!game) {
 					return handleBtn(race(getEvt(logOutBtn), getEvt(reloadBtn)));
 				}
@@ -179,9 +183,30 @@ var browsePlayer = defer(function(l, player, world) {
 		return start();
 	});
 
-var browseGame = defer(function(container, game) {
-	
-    
+var browseGame = defer(function(l, game, world, player) {
+		l.innerHTML = '';
+		
+    var lRound = stick(l, 'DIV', 'round');
+		
+		var go = defer(function(game) {
+				if(game.over) 
+					return true;
+
+				if(game.round) {
+					var browsedRound = browseRound(lRound, game.round, game, world);
+					/* To get a next round, we must ask the whole clients state again. */
+					var gameWithNextRound = 0;
+						
+				}
+
+				return true;
+			});
+				
+		return go(game);
+	});
+
+var browseRound = defer(function(l, round, game, world) {
+		l.innerHTML = '';
 	});
 	
     

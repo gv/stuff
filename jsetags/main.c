@@ -12,6 +12,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <dirent.h>
 
 
 #include <regex.h>
@@ -19,9 +20,14 @@
 #ifdef WIN32
 # include <tchar.h>
 # include "xgetopt/xgetopt.h"
+
+# define S_ISDIR(x) (_S_IFDIR & (x))
+
 #else
 # include <getopt.h>
+
 #endif
+
 
 #define TRACE(LEVEL_, LIST_) if(prog.verbosity >= LEVEL_) {	\
 		printf LIST_;																						\
@@ -34,7 +40,7 @@
 
 
 
-char fileNamePatternStr[] = ".[jk]s$";
+char fileNamePatternStr[] = "\\.([jk]s|html?)$";
 
 // Could put no '.' in the beginning as well
 // XXX consider definitions that span multiple lines
@@ -43,6 +49,7 @@ char defunPatternStr[] = "([a-zA-Z0-9_]+)[ \t]*=[ \t]*function|function[ \t]+([a
 
 struct JsEtags {
 	unsigned verbosity;
+	regex_t fileNamePattern;
 } prog;
 
 struct Analysis {
@@ -156,6 +163,8 @@ void processRegularFile(const char *fileName) {
 //#ifdef DEBUG
 //#endif
 
+	TRACE(1, ("Trying to process %s", fileName));
+
   if(!fp) {
     fprintf(stderr, "Couldn't fopen %s\n", fileName);
     return;
@@ -194,10 +203,7 @@ void processRegularFile(const char *fileName) {
 				showMatch(nameMatch);
 
 				TRACE(2, ("Match: %s", line));
-				tag = addTag();//line/* + funNameMatch.rm_so*/, 
-							 //funNameMatch.rm_eo/* - funNameMatch.rm_so*/,
-							 //linesReadCnt,
-							 //funNameMatch.rm_so);
+				tag = addTag();
 				tag->d.lineNumber = linesReadCnt;
 				tag->d.charNumber = nameMatch->rm_so;
 				nameLen = min(sizeof(tag->d.text)-1, funMatch->rm_eo);
@@ -258,11 +264,28 @@ void processRegularFile(const char *fileName) {
   }
 }
 
-void processFile(const char *fileName) {
+void processFile(const char *fileName, int checkName);
+
+int processDir(const char *fileName) {
+	DIR *dp;
+	struct dirent *de;
+	int err;
+	
+	dp = opendir(fileName);
+	if(!dp) {
+		fprintf(stderr, "Can't opendir %s\n", fileName);
+		return 0;
+	}
+
+	while(de = readdir(dp)) {
+		processFile(de->d_name, 1);		
+	}
+}
+		
+
+void processFile(const char *fileName, int checkName) {
   int err;
   struct stat stt;
-
-	TRACE(1, ("Trying to process %s", fileName));
 
   // check for directory
   err = stat(fileName, &stt);
@@ -271,15 +294,24 @@ void processFile(const char *fileName) {
     return;
   }
 
-#ifdef WIN32
-# define S_ISDIR(x) (_S_IFDIR & (x))
-#endif
-
   if(S_ISDIR(stt.st_mode)) {
-    // XXX call recursively
-    fprintf(stderr, "%s is a directory\n", fileName);
+    // call recursively
+		processDir(fileName);
     return;
   }
+
+	// If we're traversing a directory tree, we will process
+	// only files whos names match a pattern
+	if(checkName) {
+		err = regexec(&prog.fileNamePattern, fileName, 0, NULL, 0);
+		if(ENOSPC == err) {
+			fprintf(stderr, "Ran out of space executing a regexp can you believe it\n");
+			return;
+		} else if(err) { // didn't match
+			TRACE(1, ("Skipping %s", fileName));
+			return;
+		}
+	}
   
   processRegularFile(fileName);
 }  
@@ -315,8 +347,16 @@ int main(int argc, char **argv) {
 						    
 	TRACE(1, ("Starting being %d verbose", prog.verbosity));
 	TRACE(1, ("Tag pattern is \"%s\"", defunPatternStr));
+
+	// Init prog .
+	err = regcomp(&prog.fileNamePattern, fileNamePatternStr, REG_EXTENDED);
+	if(err) {
+    regerror(err, &prog.fileNamePattern, bf, sizeof(bf));
+    fprintf(stderr, "Error in defun pattern: %s\n", bf);
+    return 1;
+	}		
   
-  // Init analyzer
+  // Init analyzer.
   err = regcomp(&analysis.defunPattern, defunPatternStr, REG_EXTENDED);
   if(err) {
     regerror(err, &analysis.defunPattern, bf, sizeof(bf));
@@ -333,7 +373,7 @@ int main(int argc, char **argv) {
 
   // process input files
   for(i = optind; i < argc; i++) {
-    processFile(argv[i]);
+    processFile(argv[i], 0);
   }
 
 	//getch();

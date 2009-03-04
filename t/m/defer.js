@@ -24,56 +24,46 @@ function indexOf(a, v, dflt) {
 
 notYet = {debug: 'NOT_YET'};
 
+var nop = function() {};
+
 function Future() {
 	this.v = notYet;
 	this.listeners = [];
 }
-
-Future.prototype.listen = function(act) {
-	/*
-		Now a promise can be in one of two states:
-		
-		1. Unfulfilled.
-		2. Fulfilled.
-	*/
-	if(typeof this.v == 'undefined') {
-		var r = new Future();
-		/*
-			var cause = this;
-			r.cancel = function() {
-			cause.unlisten(act);
-			}
-		*/
-
-		this.listeners.push({act: act, r: r});
-		return r;
-	} else {
-		// Could val also be a future?
-		return listen(act, this.v);
-		//return act(this.v);
-	}
-};
 
 // XXX make set a bound method maybe
 Future.prototype.set = function(v) {
 	this.v = v;
 	for(var i in this.listeners) {
 		var l = this.listeners[i];
-		// see question above
 		l.r.set(listen(l.act, v));
-		//l.r.set(l.act(v));
 	}
+	/*
+		Cleanup possible circular links.
+	*/
 	this.listeners = [];
+	delete this.cancel;
+	/*
+		Also, what should we do if someone tries to 
+		 1) cancel	already performed evaluation?
+		 2) set a value twice?
+
+		Both situations are kind of not right, and the second is
+		very not right.	Maybe we should throw an exception?
+	*/
 };
 
-Future.prototype.cancel = function() {};
+Future.prototype.cancel = nop;
 
 Future.prototype.unlisten = function(f) {
 	for(var i in this.listeners) {
 		if(this.listeners[i].act == f)  {
 			this.listeners.splice(i, 1);
 			//alert('remains ' + this.listeners.length + ' ' + this.listeners);
-			this.listeners.length || this.cancel();
+			if(!this.listeners.length) { 
+				this.cancel();
+				delete this.cancel;
+			}
 			return true;
 		}
 	}
@@ -148,8 +138,9 @@ var defer = function(f) {
 	}
 };
 		
-// Returns the first evaluated result.
-// Unlistens all the rest, which can cause a cancellation.
+/* Returns the first evaluated result.
+	 Unlistens all the rest, which can cause a cancellation.
+*/
 var race = function() {
 	var r = new Future(), racers = arguments;
 	var finishLine = function(val) {
@@ -242,14 +233,19 @@ var getEvt = function(l, evtName) {
 
 	r.cancel = function() {
 		l.disabled = true;
+		l.className = l.className.replace(/disabled/g, '');
+		delete l[evtName];
 	};
 
 	l[evtName] = function(arg) {
 		delete l[evtName];
 		l.disabled = true;
-		r.set(arg);
+		l.className = l.className.replace(/disabled/g, '');
+		r.set(arg || window.event);
 	};
+
 	l.disabled = false;
+	l.className += ' disabled';
 	return r;
 };
 	
@@ -281,7 +277,39 @@ var indicate = function(l, body, className) {
 	return l;
 };
 	
-		
+
+/*
+	This function provides generic algorithm for updating an array of controls 
+	to reflect a list of values.
+	We do not rebuild every control, so check box states/focuses/other stuff
+	remains untouched. However, insertions and other order changes can make it behave 
+	irrationally.
+*/
+var updateControls = defer(function(items, 
+														controls, 
+														_buildControl, 
+														_updateControl, 
+														_rmControl) {
+		for(var i = 0; i < items.length; i++) {
+			var item = items[i], control = controls[i];
+			if(!control) {
+				control = _buildControl();
+				controls.push(control);
+			}
+			_updateControl(control, item);
+		}
+
+		while(controls.length > items.length) {
+			(_rmControl || 
+			 function(c) { c.l.parentNode.removeChild(c.l); })(controls.pop());
+		}
+													 });
+
+var first = defer(function(o) {
+		for(var k in o)
+			return o[k];
+	});
+
 
 
     
