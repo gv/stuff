@@ -308,25 +308,41 @@ deck = [Card(s, r) for
 
 class Round:
     """
-    Round is a part of game from deal until the next deal
+    Round object holds state of a single round of a thousand game.
+    It's actually a set of methods
     """
     def __init__(self, game):
         self.currentIndex = 0
         self.trump = None
+        self.declarer = None
 
+        # XXX do we need this link?
         self.views = []
         for index, player in enumerate(game.players):
             self.views += [self.View(self, game.views[index], player)]
             
-
-        # start to play
+        # deal
         shuffle(deck)
-        #for index, view in enumerate(self.views):
-        #    view.giveCards(deck[index*7 : index*7+7])
-        for index, gv in enumerate(gameViews):
-            gv.postToPlayer(what = 'cards',
-                            cards = deck[index*7 : index*7+7])
+        
+        for player in game.players:
+            player.postMessage(gameId = game.id,
+                               what = 'cards',
+                               cards = deck[index*7 : index*7+7])
         self.hidden = deck[21:]
+
+        # first bid
+        self.bid(game.players[0], 100)
+
+    def bid(self, game, bidder, amount):
+        if game.players[self.currentIndex] != bidder:
+            raise ValueError("Is't not %s's turn to bid!" % bidder.id)
+
+        # check this player's view to see if we can afford this amount
+
+        # post messages to views
+
+        
+
 
     class View(MessageDriven):
         """
@@ -336,25 +352,38 @@ class Round:
         """
         def __init__(self, round, gameView, player):
             self.id = round.id
+
+            # We also must see images of other players.
+            class PlayerView:
+                def __init__(self, playerId):
+                    self.id = playerId
+                    self.card = None
+                    self.bid = None
+
             self.score = 0
             self.hand = []
+            self.bid = None
+            self.trump = None
+            self.players = [PlayerView(p.id) for p in 
+
             gameView.setRound(self, player)
 
         def getState(self):
             return dict(
                 score = self.score,
                 hand = self.hand,
-                trump = self.trump
+                trump = self.trump,
+                bid = self.bid,
+                
                 )
                 
-        #def handleCards(self, msg):
-        #    self.hand += msg['cards']
-                    
 
 class Game(Server):
     """
-    This class processes messages, related to a specific type of game
+    This class is a server plugin. 
+    It processes commands from clients, related to any thousand game.
     """
+    # XXX we should accept any command only from authenticated clients
     def __init__(self, players):
         if (len(players)) != 3:
             raise AttributeError("Can't play round with %n players" % 
@@ -372,10 +401,32 @@ class Game(Server):
     def startRound(self):
         self.round = Round(self)
 
-    class View(MessageDriven):
+    def _getPlayer(self, id):
+        for p in self.players:
+            if p.id = who: return p
+        raise AttributeError("No player %s in game %s" % (who, self.id))
+
+    def handleBid(self, who, amount):
+        # XXX authenticate 
+        bidder = self._getPlayer(who)
+        return self.round.bid(self, bidder, amount)
+
+    def handlePass(self, who):
+        # XXX authenticate again
+        passer = self._getPlayer(who)
+        return self.round.pass_(self, passer)
+
+    def handleMove(self, who, card, announce=False):
+        # XXX authenticate on plugin or class level
+        mover = self._getPlayer(who)
+        return self.round.move(self, mover, card, announce)
+        
+
+    class View(): #MessageDriven):
         """
         The game view maintains game data, specific for a player. 
-        
+
+        This class is a Player plugin.
         This object sits inside clients state and processes client messages, such as
         "this player has received cards" or "this player sees a card is put into a trick".
         """
@@ -387,10 +438,6 @@ class Game(Server):
             self.score = 0
             player.addGame(self)
 
-        #def postToPlayer(self, **kw):
-        #    kw['gameId']  = self.id
-        #    player.postMessage(kw)
-            
         def getState(self):
             """
             This data will go to a game browser
