@@ -28,7 +28,7 @@
 
 #endif
 
-
+// XXX trace to stderr
 #define TRACE(LEVEL_, LIST_) if(prog.verbosity >= LEVEL_) {	\
 		printf LIST_;																						\
 		printf("\n");																						\
@@ -38,11 +38,11 @@
 
 #define COUNT(X_) (sizeof(X_)/(sizeof((X_)[0])))
 
+#define MAX_PATH	260
 
 
 char fileNamePatternStr[] = "\\.([jk]s|html?)$";
 
-// Could put no '.' in the beginning as well
 // XXX consider definitions that span multiple lines
 // XXX consider var act = defer(function(a, b) {
 char defunPatternStr[] = "([a-zA-Z0-9_]+)[ \t]*=[ \t]*function|function[ \t]+([a-zA-Z0-9_]+)";
@@ -111,13 +111,6 @@ TagListEntry* addTag() {
   // init list item
   (*last)->next = NULL;
 
-  // store data in it
-  //strncpy((*last)->d.text, tagName, tagNameLim);
-  //(*last)->d.text[tagNameLim] = 0;
-  //(*last)->d.lineNumber = lineNumber;
-  //(*last)->d.charNumber = charNumber;
-  // set name to an empty string maybe will use it later
-  //(*last)->d.name[0] = 0;
 	return *last;
 }
 
@@ -142,7 +135,6 @@ void showMatch(regmatch_t *rm) {
 		helperBf[rm->rm_eo] = '>';
 		print = 1;
 	}
-
 
 	if(print) {
 		TRACE(2, ("Match: %s", helperBf));
@@ -266,25 +258,55 @@ void processRegularFile(const char *fileName) {
 
 void processFile(const char *fileName, int checkName);
 
-int processDir(const char *fileName) {
+int processDir(const char *path) {
 	DIR *dp;
 	struct dirent *de;
+	char filePath[MAX_PATH + 1];
+	size_t pathLen;
 	
-	dp = opendir(fileName);
+	dp = opendir(path);
 	if(!dp) {
-		fprintf(stderr, "Can't opendir %s\n", fileName);
+		fprintf(stderr, "Can't opendir %s\n", path);
 		return 0;
 	}
 
-	while(de = readdir(dp)) {
-		processFile(de->d_name, 1);		
+	pathLen = strlen(path);
+	if(pathLen >= MAX_PATH - 2) {
+		fprintf(stderr, "Directory name %s is too long!\n", path);
+		return 0;
 	}
+
+	strcpy(filePath, path);
+	filePath[pathLen++] = '\\';
+
+	while(de = readdir(dp)) {
+		// we need to filter out '.' and '..' 
+		// and '.svn' too by coincedence
+		// why not do it here
+
+		if('.' == de->d_name[0]) {
+			continue;
+		}
+
+		// form a path
+		LIMITSTR(filePath);
+		strncpy(filePath + pathLen, de->d_name, sizeof(filePath) - pathLen);
+		if(filePath[sizeof(filePath) - 1]) {
+			LIMITSTR(filePath);
+			fprintf(stderr, "Path beginning with %s is too long\n", filePath);
+		} else {
+			processFile(filePath, 1);		
+		}
+	}
+	return 1;
 }
 		
 
 void processFile(const char *fileName, int checkName) {
   int err;
   struct stat stt;
+
+	TRACE(1, ("Trying file %s", fileName));
 
   // check for directory
   err = stat(fileName, &stt);
