@@ -32,12 +32,12 @@ def cfirst(s):
 # (maybe by storing it in a queue so remote can retrieve them any time later)
 # 
 # Every client will store it's own revision number and message buffer for
-# synchronization, so for every client we will essentially need apersistent 
-# TCP connection. Which means we shouldn't create many clients.
+# synchronization.
+#
+# Still since we can't afford more than one persistent connection
 #
 class MessageDriven:
-    """
-    A utility class to control some objects by JSON-serializable messages
+    """  A utility class to control some objects by JSON-serializable messages
     """
     def postMessage(self, msg=None, **kw):
         msg = msg or kw
@@ -49,14 +49,12 @@ class MessageDriven:
         handlingMethod(msg)
 
     def getState(self):
-        """
-        If browser asks, we must give him something
+        """  If browser asks, we must give him something
         """
         raise "Implement getState!"
 
 class Client(MessageDriven, resource.Resource):
-    """
-    Each clients state is stored on the server, so user 
+    """ Each clients state is stored on the server, so user 
     can close her browser and open it again and nothing wil be lost.
     
     This means a client object must be a JSON-serializable data structure,
@@ -78,8 +76,7 @@ class Client(MessageDriven, resource.Resource):
 
 
 class Player(Client):
-    """
-    This objects getState() and message queue are the points
+    """  This objects getState() and message queue are the points
     where remote clients get their data.
     The player objects hosts different games of differtent
     classes. Each game must be a JSON-serializable object,
@@ -90,13 +87,12 @@ class Player(Client):
         Client.__init__(self)
         self.name = name
         # This will store game views, actually. But from players point of view,
-        # those *are * games.
+        # those *are* games.
         self.games = {}
         self.invitations = []
 
     def processMessage(self, msg):
-        """
-        This method is modified so it can see if message is for
+        """  This method is modified so it can see if message is for
         some game plugin and pass it to this plugin.
         """
         gameId = msg.get('game')
@@ -106,8 +102,7 @@ class Player(Client):
             client.processMessage(self, msg)
 
     def addGame(self, view):
-        """
-        Adds a new game view to a client.
+        """  Adds a new game view to a client.
         """
         self.games[view.id] = view
         # This messages will pass a view state to remote.
@@ -120,8 +115,7 @@ class Player(Client):
         
 
     def handleRmGame(self, gameId):
-        """
-        Removes a game view from client when a game is over
+        """  Removes a game view from client when a game is over
         """
         del self.views[gameId]
 
