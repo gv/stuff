@@ -106,7 +106,7 @@ class Player(Client):
         """
         self.games[view.id] = view
         # This messages will pass a view state to remote.
-        # View state should include id and a type of game.
+        # Remote client should construct game object from this state.
         self.postMessage(what = 'addGame',
                          game = view.getState())
 
@@ -132,6 +132,8 @@ class Player(Client):
 class ClientMgr(Client):
     """ This object stores our client table for us,
     so we can reference client by an id anywhere.
+    
+    XXX Yet we don't. Why is that?
     
     Another thing it does is providing a client list 
     (and client list related messages to remotes)
@@ -187,8 +189,7 @@ class Server(resource.Resource):
         return resource.Resource.getChild(self, path, request)
 
     def render_POST(self, request):
-        """
-        For now let's just handle all remote messages here.
+        """ For now let's just handle all remote messages here.
         """
         # There must be a selector field
         try: what = request.args['what'][0]
@@ -301,9 +302,8 @@ deck = [Card(s, r) for
         r in [NINE, JACK, QUEEN, KING, TEN, ACE]]
 
 class Round:
-    """
-    Round object holds state of a single round of a thousand game.
-    It's actually a set of methods
+    """ Round object holds state of a single round of a thousand game.
+    It's actually a set of methods which control Game object.
     """
     def __init__(self, game):
         self.currentIndex = 0
@@ -313,7 +313,7 @@ class Round:
         # XXX do we need this link?
         self.views = []
         for index, player in enumerate(game.players):
-            self.views += [self.View(self, game.views[index], player)]
+            self.views += [self.View(self, game, index)]
             
         # deal
         shuffle(deck)
@@ -334,20 +334,21 @@ class Round:
         # check this player's view to see if we can afford this amount
 
         # post messages to views
+        
 
         
 
 
-    class View(MessageDriven):
-        """
-        View is a part of round which can be browsed by user. 
+    class View:#(MessageDriven):
+        """ View is a part of round which can be browsed by user. 
         It processes messages sent to clients as a part of client state,
         but it's not revisioned or has not a  remote accessible mesage history
         """
-        def __init__(self, round, gameView, player):
-            self.id = round.id
+        def __init__(self, round, game, index):
+            # self.id = round.id
 
             # We also must see images of other players.
+            # Seems right we reference them by ids here (another circular link issue)
             class PlayerView:
                 def __init__(self, playerId):
                     self.id = playerId
@@ -400,25 +401,24 @@ class Game(Server):
             if p.id = who: return p
         raise AttributeError("No player %s in game %s" % (who, self.id))
 
-    def handleBid(self, who, amount):
+    def handleBid(self, req):
         # XXX authenticate 
         bidder = self._getPlayer(who)
         return self.round.bid(self, bidder, amount)
 
-    def handlePass(self, who):
+    def handlePass(self, req):
         # XXX authenticate again
         passer = self._getPlayer(who)
         return self.round.pass_(self, passer)
 
-    def handleMove(self, who, card, announce=False):
+    def handleMove(self, req):
         # XXX authenticate on plugin or class level
         mover = self._getPlayer(who)
         return self.round.move(self, mover, card, announce)
         
 
-    class View(): #MessageDriven):
-        """
-        The game view maintains game data, specific for a player. 
+    class View: #(MessageDriven):
+        """ The game view maintains game data, specific for a player. 
 
         This class is a Player plugin.
         This object sits inside clients state and processes client messages, such as
