@@ -28,7 +28,8 @@ var browse = function(worldUrl, container) {
 	var playerScreen = stick(mainPanel, 'DIV', 'playerScreen');
 
 	// Parallel branch 1.
-	browseList(stick(l, 'DIV', 'listBrowser'), world);
+	var listBrowser = mkListBrowser();
+	browseList(listBrowser, stick(l, 'DIV', 'listBrowser'), world);
 	
 	// Parallel branch 2.
 	var getName = defer(function() {
@@ -62,7 +63,9 @@ var browse = function(worldUrl, container) {
 		});
 
 	var go = defer(function() {
+			setPlayer(listBrowser, null);
 			var player = getPlayer();
+			setPlayer(listBrowser, player);
 			var loggedOut = browsePlayer(playerScreen, player);
 			go(loggedOut);
 		});
@@ -70,7 +73,7 @@ var browse = function(worldUrl, container) {
 	go();
 };
 
-var browsePlayer = defer(function(l, player) {
+var browsePlayer = defer(function(l, player, listBrowser) {
 		// build a player browser widget
 		l.innerHTML = '';
 
@@ -125,10 +128,13 @@ var browsePlayer = defer(function(l, player) {
 															 return p && p.name;
 															 /*return p ? 
 															 p.name : 
-															 getPlayerName(getEvt(player.world, 'updateplayers'));*/
+															 getPlayerName(getEvt(player.world, 
+															 'updateplayers'));*/
 														 });
 
 													 inv.playerName = getPlayerName() || 
+													 // XXX Here we can call getEvt more than once in a row
+													 // That doesn't work now
 													 getPlayerName(getEvt(player.world, 
 																								'updateplayers'));
 													 
@@ -254,13 +260,31 @@ var browseRound = defer(function(l, round, game) {
 
 		return go(round);
 	});
+
+/*
+	List Browser
+	---- -------
+	This browser works in two modes:
 	
+	A. Not logged in: shows a list of players' names.
+	B. Logged in: shows a list of players' names and controls to invite 
+	some of them to play a game
+*/
+
+var mkListBrowser = defer(function() {
+		return {};
+	});
+
+var setPlayer = defer(function(listBrowser, player) {
+		listBrowser.player = player;
+		listBrowser.onloggedinstatechange && listBrowser.onloggedinstatechange(player);
+	});
     
-var browseList = defer(function(l, world) {
+var browseList = defer(function(listBrowser, l, world) {
 		// housewarm
 		var usersDisplay = stick(l, 'UL', 'users'), lUsers = [];
 		
-		//var invitationsDisplay = stick(l, 'UL', 'invitations');
+		listBrowser.invitationsDisplay = stick(l, 'UL', 'invitations');
 		var panel = stick(l, 'DIV', 'panel');
 		var inviteBtn = stick(panel, 'BUTTON', 'invite', 'Invite');
 		// manual reload
@@ -314,6 +338,10 @@ var browseList = defer(function(l, world) {
 					case inviteBtn:
 					var ids = getSelectedIds();
 
+					if(!listBrowser.player) {
+						alert("Can't invite when not logged in");
+						break;
+					}
 					if(!ids.length) {
 						alert('Select some players');
 						break;
@@ -328,7 +356,17 @@ var browseList = defer(function(l, world) {
 					break;
 					}
 				} 
+				
+				var canAlwaysHappen = race(getEvt(reloadBtn), 
+																	 getEvt(listBrowser, 'loggedinstatechange'));
 
+				if(!listBrowser.player) {
+					go(canAlwaysHappen);
+					return;
+				}
+
+				/* If we're logged in, other things can happen too.	
+				 */
 				var evts = map(map(lUsers, 
 													 prop('lCbx')),
 											 getEvt);
@@ -336,7 +374,7 @@ var browseList = defer(function(l, world) {
 				if(getSelectedIds().length)
 					evts.push(getEvt(inviteBtn));
 
-				go(race(getEvt(reloadBtn), 
+				go(race(canAlwaysHappen, 
 								race.apply(null, evts)));
 			});												
 			
