@@ -5,12 +5,6 @@
 // let's use this
 //dojo.require('dojo.cookie');
 
-// some generic accessors
-var get = defer(function(object, key) {	return object[key];    });
-var getContainer  = defer(function(widget) {	return widget.l;    });
-
-// ----
-				 
 var mkWorld = function(url) {
 	var r = {
 		prefix: url
@@ -91,7 +85,6 @@ var browsePlayer = defer(function(l, player) {
 		var invitationPanel = stick(panel, 'DIV', 'invitations');
 		var invitationList = stick(invitationPanel, 'DIV', 'invitationList');
 		var invitationItems = [];
-		
 
 		clearFloats(panel);
 
@@ -105,7 +98,7 @@ var browsePlayer = defer(function(l, player) {
 												 invitationItems,
 												 function() {
 													 var lIt = stick(invitationList, 'DIV', 'invitation');
-													 it = {
+													 var it = {
 														 l: lIt,
 														 lCbx: stick(lIt, 'INPUT'),
 														 lLabel: stick(lIt, 'DIV')
@@ -120,8 +113,28 @@ var browsePlayer = defer(function(l, player) {
 
 													 it.who = inv.who;
 													 it.whatGame = inv.whatGame;
-													 it.name = inv.name;
-													 it.lLabel.innerHTML = inv.name;
+													 
+													 /* If our version of list does not yet contain player
+															who sent an invite, we need to wait for it to update
+													 */
+													 var getPlayerName = defer(function() {
+															 var p = first(filter(player.world.players, 
+																									 function(p) {
+																										 p.id == inv.who;
+																									 }));
+															 return p && p.name;
+															 /*return p ? 
+															 p.name : 
+															 getPlayerName(getEvt(player.world, 'updateplayers'));*/
+														 });
+
+													 inv.playerName = getPlayerName() || 
+													 getPlayerName(getEvt(player.world, 
+																								'updateplayers'));
+													 
+													 indicate(it.lLabel, inv.playerName);
+													 /* XXX cancel this indication if this element is 
+															used for another invitation */
 												 });
 				}
 					
@@ -133,7 +146,7 @@ var browsePlayer = defer(function(l, player) {
 				gameState.player = player;
 
 				return race(browseGame(gameScreen, gameState),
-										handleBtn(race(getEvt(logOutBtn)
+										handleBtn(race(getEvt(logOutBtn),
 																	 getEvt(reloadBtn))));
 			});
 
@@ -154,13 +167,19 @@ var browsePlayer = defer(function(l, player) {
 	});
 
 var getPlayerState = function(player) {
-	return askServer(player.world.prefix + 'clients/' + player.id);
+	return askServer(player.world.prefix + 'clients/' + player.id, {priv: player.priv});
 };
 
+var sendFromPlayer = defer(function(player, data, suffix) {
+		data.from = player.id;
+		data.priv = player.priv;
+		return send(player.world.prefix + (suffix || ""), data);
+	});
+
+
 var browseGame = defer(function(l, game) {
-		/*
-			game object remains the same in this function for clarity.
-			We store game state in gameState
+		/* game object remains the same in this function for clarity.
+			 We store game state in state
 		*/
 		l.innerHTML = '';
 
@@ -170,8 +189,7 @@ var browseGame = defer(function(l, game) {
 		var lScore = stick(l, 'DIV', 'score');
 		
 		var getGameState = defer(function(playerState) {
-				return playerState.games &&
-				playerState.games[game.id];
+				return playerState.games &&	playerState.games[game.id];
 			});
 
 		var handleCommand = defer(function(cmd) {
@@ -180,23 +198,27 @@ var browseGame = defer(function(l, game) {
 				
 
 			});
-		
-		var go = defer(function(gameState) {
-				if(gameState.over) 
+
+		var display = defer(function(state) {
+				if(state.over) 
 					return true;
 
-				if(gameState.round) {
-					var browsedRound = browseRound(lRound, gameState.round, game);
+				if(state.round) {
+					var browsedRound = browseRound(lRound, state.round, game);
 					/* To get a next round, we must ask the whole clients state again. */
-					return go(getGameState(getPlayerState(player)), browsedRound);
+					return go(browsedRound);
 				}
 
 				// XXX What does that mean if game is not over and stil we got no round?
 				// Do we need to wait or something?			
 				return true;
+			});				
+		
+		var go = defer(function(gameState) {
+				return display(getGameState(getPlayerState(player))); 
 			});
 				
-		return go(game);
+		return display(game);
 	});
 
 /*
@@ -221,7 +243,7 @@ var browseRound = defer(function(l, round, game) {
 
 
 				break;
-
+				}
 			});
 
 		var go = defer(function(state) {
@@ -236,14 +258,53 @@ var browseRound = defer(function(l, round, game) {
     
 var browseList = defer(function(l, world) {
 		// housewarm
-		var usersDisplay = stick(l, 'UL', 'users');
-		var invitationsDisplay = stick(l, 'UL', 'invitations');
+		var usersDisplay = stick(l, 'UL', 'users'), lUsers = [];
+		
+		//var invitationsDisplay = stick(l, 'UL', 'invitations');
 		var panel = stick(l, 'DIV', 'panel');
 		var inviteBtn = stick(panel, 'BUTTON', 'invite', 'Invite');
 		// manual reload
 		var reloadBtn = stick(panel, 'BUTTON', 'reload', 'Reload');
 
-		var iter = defer(function(what) {
+		var refresh = defer(function(data) {
+				if(data.err) {
+					alert(data.err.msg);
+				}
+
+				if(data.players) {
+					updateControls(data.players,
+												 lUsers,
+												 function() {
+													 var lIt = stick(usersDisplay, 'DIV', 'user');
+													 var it = {
+														 lCbx: stick(lIt, 'INPUT'),
+														 lLabel: stick(lIt, 'DIV'),
+													 };
+													 it.lCbx.type = 'checkbox';
+													 return it;
+												 },
+												 function(it, usr) {
+													 if(it.id == usr.id) return;
+													 it.id = usr.id;
+													 it.name = usr.name;
+													 it.lLabel.innerHTML = usr.name;
+													 it.lLabel.title = usr.id;
+												 });
+
+					world.players = players;
+					world.onupdateplayers && world.onupdateplayers();
+				}
+
+				go();
+			});
+
+		var getSelectedIds = function() {
+			return filter(map(lUsers, function(w) {
+						return w.lCbx.checked && w.id;
+					}), identity);
+		};
+
+		var go = defer(function(what) {
 				if(what instanceof Event) {
 					//alert(what);
 					switch(what.target) {
@@ -251,21 +312,38 @@ var browseList = defer(function(l, world) {
 					return reload();
 
 					case inviteBtn:
-					alert('invite');
+					var ids = getSelectedIds();
+
+					if(!ids.length) {
+						alert('Select some players');
+						break;
+					}
+
+					refresh(sendFromPlayer(player, {
+								what: 'invite', 
+								whatGame: 'thousand',
+								who: ids.join(',')
+							}));
+					
 					break;
 					}
-				} else { // answer
-					alert(urlEncode(what));
-				}
+				} 
 
+				var evts = map(map(lUsers, 
+													 prop('lCbx')),
+											 getEvt);
+				
+				if(getSelectedIds().length)
+					evts.push(getEvt(inviteBtn));
 
-
-				iter(race(getEvt(reloadBtn), getEvt(inviteBtn)));
-			});
-		
-		reload = function() {
-			iter(askServer(world.prefix + 'clients'));
+				go(race(getEvt(reloadBtn), 
+								race.apply(null, evts)));
+			});												
+			
+		var reload = function() {
+			refresh(askServer(world.prefix + 'clients'));
 		};
+		
 		reload();
-	});;
+	});
 			

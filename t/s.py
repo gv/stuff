@@ -34,10 +34,11 @@ def cfirst(s):
 # Every client will store it's own revision number and message buffer for
 # synchronization.
 #
-# Still since we can't afford more than one persistent connection
+# Still since we can't afford more than one persistent connection, we will need
+# some kind of multiplexor (cometd comes to mind)
 #
 class MessageDriven:
-    """  A utility class to control some objects by JSON-serializable messages
+    """  A utility base class to control some objects by JSON-serializable messages
     """
     def postMessage(self, msg=None, **kw):
         msg = msg or kw
@@ -46,12 +47,15 @@ class MessageDriven:
     def processMessage(self, msg):
         what = msg['what']
         handlingMethod = getattr(self, 'handle' + cfirst(what))
-        handlingMethod(msg)
+        # del msg['what']
+        handlingMethod(**msg)
 
     def getState(self):
         """  If browser asks, we must give him something
         """
         raise "Implement getState!"
+
+
 
 class Client(MessageDriven, resource.Resource):
     """ Each clients state is stored on the server, so user 
@@ -68,10 +72,17 @@ class Client(MessageDriven, resource.Resource):
         if "" == path: return self
         return resource.Resource.getChild(self, path, request)
 
+    def authenticate(self, request):
+        return True
 
     def render_GET(self, request):
-        return cjson.encode(self.getState())
+        if self.authenticate(request):
+            return cjson.encode(self.getState())
+        else:
+            return self.rejectNoAuth()
         
+    def rejectNoAuth(self):
+        return cjson.encode({'err':{'msg':'Not authentificated'}})
 
 
 
@@ -95,11 +106,11 @@ class Player(Client):
         """  This method is modified so it can see if message is for
         some game plugin and pass it to this plugin.
         """
-        gameId = msg.get('game')
+        gameId = msg.get('gameId')
         if gameId:
-            self.games[gameId].processMessage(msg)
+            self.games[gameId].processMessage(self, msg)
         else:
-            client.processMessage(self, msg)
+            Client.processMessage(self, msg)
 
     def addGame(self, view):
         """  Adds a new game view to a client.
@@ -110,24 +121,47 @@ class Player(Client):
         self.postMessage(what = 'addGame',
                          game = view.getState())
 
-    def handleAddGame(self, view):
+    def handleAddGame(self, game):
+        """ Remote should reconstruct a game object from it's state
+        We can't we're kind of too lame for that
+        """
         pass
         
 
     def handleRmGame(self, gameId):
         """  Removes a game view from client when a game is over
         """
-        del self.views[gameId]
+        del self.games[gameId]
+
+    def handleInvited(self, who, whatGame):
+        """ 
+        """
+        class Invitation:
+            def __init__(self, who, what):
+                self.who = who
+                self.what = what
+            
+            def __eq__(self, other):
+                return (self.who == other.who and 
+                        self.what == other.what)
+
+            def getState(self):
+                return dict(who = self.who,
+                            whatGame = self.what)
+
+        inv = Invitation(who, whatGame, name)
+        if not (inv in self.invitations):
+            self.invitations += [inv]
 
     def getState(self):
         return {
             'name': self.name,
             'games': [v.getState() for v in self.games.values()],
-            'invitations': invitations
+            'invitations': [i.getState() for i in self.invitations]
             }
 
     
-# The players list will be accessible at http://server/clients
+# The players list will be accessible at http://hostname/clients
 
 class ClientMgr(Client):
     """ This object stores our client table for us,
@@ -147,15 +181,17 @@ class ClientMgr(Client):
             return self
         return self.clients.get(id)
 
-    def handleAddPlayer(self, msg):
-        """
-        It's a message for remote, actual adding is already done.
+    def getChild(self, path, req):
+        if "" == path: return self
+        return self.clients.get(path)
+
+    def handleAddPlayer(self, **k):
+        """  It's a message for remote, actual adding is already done.
         """
         pass
 
-    def handleChat(self, msg):
-        """
-        That will just go to message queue or UDP
+    def handleChat(self, **k):
+        """  That will just go to message queue or network
         """
         pass
                          
@@ -202,20 +238,12 @@ class Server(resource.Resource):
         try: handlingMethod = getattr(self, 'handle' + cfirst(what))
         except: return cjson.encode({'err': {'msg': "Don't know what '%s' is" % what}})
 
-        result = handlingMethod(request)
-        return cjson.encode(result)
+        try:
+            result = handlingMethod(request)
+            return cjson.encode(result)
+        except Exception, e:
+            return cjson.encode({'err': {'msg': repr(e)}})
 
-class GameMgr(resource.Resource):
-    """ An utility resource to receive post requests to 
-    http://server/games/34lj2345h4l urls
-    """
-    def __init__(self):
-        resource.Resource.__init__(self)
-        self.games = {}
-
-    def getChild(self, path, request):
-        return self.games[path]
-        
 class Entry(Server):
     """ This is a main resouce, which dispatches requests
     for other resources.
@@ -225,6 +253,18 @@ class Entry(Server):
         resource.Resource.__init__(self)
         self.clients = ClientMgr()
         self.putChild('clients', self.clients)
+
+        class GameMgr(resource.Resource):
+            """ An utility resource to receive post requests to 
+            http://server/games/34lj2345h4l urls
+            """
+            def __init__(self):
+                resource.Resource.__init__(self)
+                self.games = {}
+
+            def getChild(self, path, request):
+                return self.games[path]
+        
         self.games = GameMgr()
         self.putChild('games', self.games)
 
@@ -242,9 +282,7 @@ class Entry(Server):
 <script src="%(static)sclient.js"></script>
 </head>
 <body>
-<center>
 <div id="worldBrowser"></div>
-</center>
 
 <script>
 browse("%(world)s", "worldBrowser");
@@ -254,28 +292,37 @@ browse("%(world)s", "worldBrowser");
 
     def handleNeedClient(self, request):
         # player must have a name, so we can show him in a list
-        try: name = request.args['name']
+        # XXX check if name is taken
+        try: name = request.args['name'][0]
         except: return {'err': {'msg': "needClient: say your name!"}}
         client = Player(name)
+        # XXX that should be automatically done by a single global client manager
         self.clients.addPlayer(client)
-        return dict(id = client.id)
+        return dict(id = client.id, 
+                    priv = client.priv, 
+                    name = player.name)
 
     def handleChat(self, request):
         pass
 
+    def handleInvite(self, request):
+        # XXX check priv token
+        ids = request.args['who'][0].split(',')
+        for id in ids:
+            who = self.clients.get(id)
+            if not who:
+                raise ValueError("No client %s" % whoId)
+            who.postMessage(what = 'invited',
+                            who = request.args['from'][0],
+                            whatGame = request.args['whatGame'][0])
+                        
 
 
-#class Card:
-#    """
-#    These are cards we will play some day
-#    """
-#    def __init__(self, suit, rank):
-#        self.suit = suit
-#        self.rank = rank
+
+# ---------- Thousand game ---- XXX make a module -------------------------------------
 
 def Card(suit, rank):
-    """
-    Completely serializable
+    """  Completely serializable
     """
     return suit + rank
 
@@ -305,17 +352,20 @@ class Round:
     """ Round object holds state of a single round of a thousand game.
     It's actually a set of methods which control Game object.
     """
+
+    PASSED = -1
+
     def __init__(self, game):
         self.currentIndex = 0
         self.trump = None
         self.declarer = None
 
-        # XXX do we need this link?
+        # XXX Do we need this link?
         self.views = []
         for index, player in enumerate(game.players):
             self.views += [self.View(self, game, index)]
             
-        # deal
+        # Deal
         shuffle(deck)
         
         for player in game.players:
@@ -324,34 +374,79 @@ class Round:
                                cards = deck[index*7 : index*7+7])
         self.hidden = deck[21:]
 
-        # first bid
+        # First bid
         self.bid(game.players[0], 100)
 
+    def _checkCurrent(self, game, player):
+        if game.players[self.currentIndex] != player:
+            raise ValueError("Is't not %s's turn to do what he does!" % player.id)
+
+    def _checkDeclaration(self, game, mustHave = True):
+        if mustHave and not self.declarer:
+            raise ValueError("This can't be done until nobody declared!")
+        elif self.declarer and not mustHave:
+            raise ValueError("This can't be done when %s already has declared!" % self.declarer)
+            
+
     def bid(self, game, bidder, amount):
-        if game.players[self.currentIndex] != bidder:
-            raise ValueError("Is't not %s's turn to bid!" % bidder.id)
+        self._checkCurrent(game, bidder)
 
-        # check this player's view to see if we can afford this amount
+        # Check this player's view to see if we can afford this amount
 
-        # post messages to views
+        # Post messages to views
+        for p in game.players:
+            p.postMessage(what = 'bid',
+                          gameId = game.id,
+                          who = bidder.id,
+                          amount = amount)
+
+    def pass_(self, game, passer):
+        self._checkCurrent(game, passer)
+
+        for p in game.players:
+            p.postMessage(what = 'pass',
+                          gameId = game.id,
+                          who = passer.id)
+        
+        # Check if we have a declarer, because we need to send 
+        # her cards
+        bidderIndexes = [i for i,v in enumerate(game.views) 
+                         if v.round.bid != Round.PASSED]
+        if len(bidderIndexes) != 1:
+            return
+        
+        # Yep we do
+        self.declarer = game.players[bidderIndexes[0]]
+        self.declarer.postMessage(what = 'cards',
+                                  gameId = game.id,
+                                  cards  = self.hidden)
+
+    def move(self, game, mover, card, announce=False):
+        pass
+        
+        
+        
+            
+            
+
+        
+
         
 
         
 
 
     class View:#(MessageDriven):
-        """ View is a part of round which can be browsed by user. 
+        """ Round view is a part of round which can be browsed by user. 
         It processes messages sent to clients as a part of client state,
         but it's not revisioned or has not a  remote accessible mesage history
         """
         def __init__(self, round, game, index):
-            # self.id = round.id
-
             # We also must see images of other players.
             # Seems right we reference them by ids here (another circular link issue)
             class PlayerView:
-                def __init__(self, playerId):
-                    self.id = playerId
+                def __init__(self, player):
+                    self.id = player.id
                     self.card = None
                     self.bid = None
 
@@ -359,8 +454,9 @@ class Round:
             self.hand = []
             self.bid = None
             self.trump = None
-            self.players = [PlayerView(p.id) for p in 
-
+            self.declarerId = None
+            self.table = [PlayerView(p) for p in game.players]
+                            
             gameView.setRound(self, player)
 
         def getState(self):
@@ -369,13 +465,15 @@ class Round:
                 hand = self.hand,
                 trump = self.trump,
                 bid = self.bid,
-                
+                table = [dict(id = pv.id,
+                              bid = pv.bid,
+                              card = pv.card) 
+                         for pv in self.table]
                 )
                 
 
 class Game(Server):
-    """
-    This class is a server plugin. 
+    """  This class is a server plugin. 
     It processes commands from clients, related to any thousand game.
     """
     # XXX we should accept any command only from authenticated clients
@@ -398,8 +496,8 @@ class Game(Server):
 
     def _getPlayer(self, id):
         for p in self.players:
-            if p.id = who: return p
-        raise AttributeError("No player %s in game %s" % (who, self.id))
+            if p.id == id: return p
+        raise AttributeError("No player %s in game %s" % (id, self.id))
 
     def handleBid(self, req):
         # XXX authenticate 
@@ -433,8 +531,7 @@ class Game(Server):
             player.addGame(self)
 
         def getState(self):
-            """
-            This data will go to a game browser
+            """  This data will go to a game browser
             """
             return dict(
                 id = self.id,
@@ -459,11 +556,12 @@ class Game(Server):
         
         
 
-# serve all this
-site = server.Site(Entry())
-reactor.listenTCP(2222, site)
-print "running reactor"
-reactor.run()
+if __name__ == '__main__':
+    # serve all this
+    site = server.Site(Entry())
+    reactor.listenTCP(2222, site)
+    print "running reactor"
+    reactor.run()
 
 
 

@@ -20,12 +20,11 @@ function indexOf(a, v, dflt) {
 	 future values themselves. Those values will be returned
 	 from defer/DOM api functions. */
 
-// constructs a deferred value
-
 notYet = {debug: 'NOT_YET'};
 
 var nop = function() {};
 
+// constructs a deferred value
 function Future() {
 	this.v = notYet;
 	this.listeners = [];
@@ -36,6 +35,11 @@ Future.prototype.set = function(v) {
 	this.v = v;
 	for(var i in this.listeners) {
 		var l = this.listeners[i];
+		/*
+			XXX
+			If v is a Promise, maybe we could just hang our listeners on it
+			instead of creating potentially huge promise chain.
+		*/
 		l.r.set(listen(l.act, v));
 	}
 	/*
@@ -103,7 +107,7 @@ function listen(f, thing) {
 /*
 	Core APIs.
 	----------
-	defer(...) and  race()
+	defer(...) and race(...)
 */
 
 var pair = function(first, second, _construct) {
@@ -265,6 +269,12 @@ var stick = defer(function(parent, tagName, className, body) {
 		return r;
 	});
 
+var clearFloats = function(l) {
+	var c = stick(l, 'DIV');
+	c.style.clear = 'both';
+	return c;
+}
+
 var __defer_indicate = defer(function(l, body, className) {
 		l.innerHTML = body;
 		l.className = className || l.className.replace(/wait/g, '');
@@ -305,13 +315,39 @@ var updateControls = defer(function(items,
 		}
 													 });
 
+/*
+	What kind of functional library would we be if we did not include these?
+*/
+
+var map = defer(function(list, f) {
+	var r = [];
+	for(var i in list) r.push(f(list[i]));
+	return r;
+	});
+
+var filter = defer(function(list, f) {
+		var r = [];
+		for(var i in list) 
+			if(f(list[i]))
+				r.push(list[i]);
+		return r;
+	});
+
+var identity = defer(function(x) {
+		return x;
+	});
+
 var first = defer(function(o) {
 		for(var k in o)
 			return o[k];
 	});
 
+/*
+	Operators
+*/
 
-
-    
-	
-	
+var prop = function(key) {
+	return defer(function(obj) {
+			return obj[key];
+		});
+};
