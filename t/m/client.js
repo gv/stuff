@@ -66,7 +66,7 @@ var browse = function(worldUrl, container) {
 			setPlayer(listBrowser, null);
 			var player = getPlayer();
 			setPlayer(listBrowser, player);
-			var loggedOut = browsePlayer(playerScreen, player);
+			var loggedOut = browsePlayer(playerScreen, player, listBrowser);
 			go(loggedOut);
 		});
 	
@@ -82,10 +82,11 @@ var browsePlayer = defer(function(l, player, listBrowser) {
 		var nameInd = stick(panel, 'DIV', 'playerName', player.name);
 		var logOutBtn = stick(panel, 'BUTTON', 'logout', 'Log out');
 		var reloadBtn = stick(panel, 'BUTTON', 'reload', 'Reload');
+		clearFloats(panel);
 
-		// XXX invitation list should have it's own container
 		// Also, we should handle invitaion messages in parallel message handling cycle.
-		var invitationPanel = stick(panel, 'DIV', 'invitations');
+		var invitationPanel = listBrowser.invitationPanel;
+		invitationPanel.innerHTML = '';
 		var invitationList = stick(invitationPanel, 'DIV', 'invitationList');
 		var invitationItems = [];
 
@@ -104,9 +105,10 @@ var browsePlayer = defer(function(l, player, listBrowser) {
 													 var it = {
 														 l: lIt,
 														 lCbx: stick(lIt, 'INPUT'),
-														 lLabel: stick(lIt, 'DIV')
+														 lLabel: stick(lIt, 'DIV', 'label')
 													 };
 													 it.lCbx.type = 'checkbox';
+													 clearFloats(lIt);
 													 return it;
 												 },
 
@@ -116,6 +118,8 @@ var browsePlayer = defer(function(l, player, listBrowser) {
 
 													 it.who = inv.who;
 													 it.whatGame = inv.whatGame;
+
+													 it.l.title = it.who + '(' + it.whatGame + ')';
 													 
 													 /* If our version of list does not yet contain player
 															who sent an invite, we need to wait for it to update
@@ -123,7 +127,7 @@ var browsePlayer = defer(function(l, player, listBrowser) {
 													 var getPlayerName = defer(function() {
 															 var p = first(filter(player.world.players, 
 																									 function(p) {
-																										 p.id == inv.who;
+																											return p.id == inv.who;
 																									 }));
 															 return p && p.name;
 															 /*return p ? 
@@ -173,7 +177,10 @@ var browsePlayer = defer(function(l, player, listBrowser) {
 	});
 
 var getPlayerState = function(player) {
-	return askServer(player.world.prefix + 'clients/' + player.id, {priv: player.priv});
+	return askServer(player.world.prefix + 'clients/' + player.id, 
+{priv: player.priv}
+									 );
+	
 };
 
 var sendFromPlayer = defer(function(player, data, suffix) {
@@ -283,8 +290,10 @@ var setPlayer = defer(function(listBrowser, player) {
 var browseList = defer(function(listBrowser, l, world) {
 		// housewarm
 		var usersDisplay = stick(l, 'UL', 'users'), lUsers = [];
-		
-		listBrowser.invitationsDisplay = stick(l, 'UL', 'invitations');
+
+		// 
+		listBrowser.invitationPanel = stick(l, 'DIV', 'invitations');
+
 		var panel = stick(l, 'DIV', 'panel');
 		var inviteBtn = stick(panel, 'BUTTON', 'invite', 'Invite');
 		// manual reload
@@ -302,7 +311,7 @@ var browseList = defer(function(listBrowser, l, world) {
 													 var lIt = stick(usersDisplay, 'DIV', 'user');
 													 var it = {
 														 lCbx: stick(lIt, 'INPUT'),
-														 lLabel: stick(lIt, 'DIV'),
+														 lLabel: stick(lIt, 'DIV')
 													 };
 													 it.lCbx.type = 'checkbox';
 													 return it;
@@ -315,7 +324,7 @@ var browseList = defer(function(listBrowser, l, world) {
 													 it.lLabel.title = usr.id;
 												 });
 
-					world.players = players;
+					world.players = data.players;
 					world.onupdateplayers && world.onupdateplayers();
 				}
 
@@ -347,7 +356,7 @@ var browseList = defer(function(listBrowser, l, world) {
 						break;
 					}
 
-					refresh(sendFromPlayer(player, {
+					refresh(sendFromPlayer(listBrowser.player, {
 								what: 'invite', 
 								whatGame: 'thousand',
 								who: ids.join(',')

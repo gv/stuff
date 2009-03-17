@@ -17,6 +17,9 @@ print "libraries imported"
 
 # utils
 
+DEBUG = False
+#DEBUG = True
+
 def randomBinString(length):
     s = ""
     while len(s) < length: s += chr(randint(0, 255))
@@ -96,6 +99,7 @@ class Player(Client):
 
     def __init__(self, name):
         Client.__init__(self)
+        self.priv = urlsafe_b64encode(randomBinString(8))
         self.name = name
         # This will store game views, actually. But from players point of view,
         # those *are* games.
@@ -133,7 +137,7 @@ class Player(Client):
         """
         del self.games[gameId]
 
-    def handleInvited(self, who, whatGame):
+    def handleInvited(self, who, whatGame, **k):
         """ 
         """
         class Invitation:
@@ -149,7 +153,7 @@ class Player(Client):
                 return dict(who = self.who,
                             whatGame = self.what)
 
-        inv = Invitation(who, whatGame, name)
+        inv = Invitation(who, whatGame)
         if not (inv in self.invitations):
             self.invitations += [inv]
 
@@ -238,11 +242,17 @@ class Server(resource.Resource):
         try: handlingMethod = getattr(self, 'handle' + cfirst(what))
         except: return cjson.encode({'err': {'msg': "Don't know what '%s' is" % what}})
 
-        try:
+        # maybe opposite
+        if DEBUG:
+            try:
+                result = handlingMethod(request)
+                return cjson.encode(result)
+            except Exception, e:
+                return cjson.encode({'err': {'msg': repr(e)}})
+        else:
             result = handlingMethod(request)
             return cjson.encode(result)
-        except Exception, e:
-            return cjson.encode({'err': {'msg': repr(e)}})
+            
 
 class Entry(Server):
     """ This is a main resouce, which dispatches requests
@@ -295,11 +305,11 @@ browse("%(world)s", "worldBrowser");
         # XXX check if name is taken
         try: name = request.args['name'][0]
         except: return {'err': {'msg': "needClient: say your name!"}}
-        client = Player(name)
+        player = Player(name)
         # XXX that should be automatically done by a single global client manager
-        self.clients.addPlayer(client)
-        return dict(id = client.id, 
-                    priv = client.priv, 
+        self.clients.addPlayer(player)
+        return dict(id = player.id, 
+                    priv = player.priv, 
                     name = player.name)
 
     def handleChat(self, request):
@@ -315,11 +325,12 @@ browse("%(world)s", "worldBrowser");
             who.postMessage(what = 'invited',
                             who = request.args['from'][0],
                             whatGame = request.args['whatGame'][0])
+        return {}
                         
 
 
 
-# ---------- Thousand game ---- XXX make a module -------------------------------------
+# ---------- Thousand game ---- XXX make a module ---------------------------------
 
 def Card(suit, rank):
     """  Completely serializable
@@ -443,7 +454,9 @@ class Round:
         """
         def __init__(self, round, game, index):
             # We also must see images of other players.
-            # Seems right we reference them by ids here (another circular link issue)
+            # Seems right we reference them by ids here 
+            # (another circular link issue)
+            # Second option is using weakrefs
             class PlayerView:
                 def __init__(self, player):
                     self.id = player.id

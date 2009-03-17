@@ -42,13 +42,41 @@ body {
 	border: 1px solid white;
 }
 
+.mainPanel .playerScreen .panel .playerName {
+	color: #e8e8e8;
+	font-weight: bold;
+	float: left;
+}
+
+.mainPanel .playerScreen .panel BUTTON {
+	margin: 3px;
+	float: right;
+}
 	
-	
-	
-	
+
+.wait {
+	background: #000000;
+}
+
 /*
   User list browser.
 */
+
+.invitations {
+	background: #ffffe0;
+	border: 1px solid #ffff80;
+	padding: 7px;
+	margin: 7px;
+}
+
+.invitations .invitation input {
+	float: left;
+}
+
+.invitations .invitation .label {
+	padding: 2px;
+}
+
 	
 .listBrowser {
 	background: white;
