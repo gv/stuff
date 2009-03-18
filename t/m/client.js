@@ -90,6 +90,10 @@ var browsePlayer = defer(function(l, player, listBrowser) {
 		var invitationList = stick(invitationPanel, 'DIV', 'invitationList');
 		var invitationItems = [];
 
+		var listExtPanel = listBrowser.extPanel;
+		extPanel.innerHTML = '';
+		var inviteBtn = stick(listExtPanel, 'BUTTON', 'invite', 'Invite');
+
 		clearFloats(panel);
 
 		// XXX need more gamescreens
@@ -136,6 +140,9 @@ var browsePlayer = defer(function(l, player, listBrowser) {
 															 'updateplayers'));*/
 														 });
 
+													 /* XXX cancel this indication if this element is 
+															used for another invitation */
+													 // abandon(inv.playerName);
 													 inv.playerName = getPlayerName() || 
 													 // XXX Here we can call getEvt more than once in a row
 													 // That doesn't work now
@@ -143,14 +150,15 @@ var browsePlayer = defer(function(l, player, listBrowser) {
 																								'updateplayers'));
 													 
 													 indicate(it.lLabel, inv.playerName);
-													 /* XXX cancel this indication if this element is 
-															used for another invitation */
 												 });
 				}
 					
+				var commonBtnEvts = race(getEvt(logOutBtn), 
+																 getEvt(reloadBtn));
 				var gameState = first(playerState.games);
 				if(!gameState) {
-					return handleBtn(race(getEvt(logOutBtn), getEvt(reloadBtn)));
+					return handleBtn(race(commonBtnEvts,
+																getEvt(inviteBtn)));
 				}
 				
 				gameState.player = player;
@@ -164,12 +172,29 @@ var browsePlayer = defer(function(l, player, listBrowser) {
 				return refresh(getPlayerState(player));
 			});
 
+		var inviteClickEvt;
+		var getIdsToInvite = defer(function(/*selChangeEvt*/) {
+				var selPlayers = getSelectedPlayers(listBrowser);
+				if(selPlayers.length) {
+					return map(selPlayers, prop('id'));
+				} else {
+					return getIdsToInvite(getEvt(listBrowser, 'playersselectionchange'));
+				}
+			});
+
+		var invite = defer(function(ids) {
+				return 
+																
+				
+
 		var handleBtn = defer(function(evt) {
 				switch(evt.target) {
 				case logOutBtn:
 				return true;
+
 				case reloadBtn:
 				return start();
+
 				}
 			});
 
@@ -191,8 +216,8 @@ var sendFromPlayer = defer(function(player, data, suffix) {
 
 
 var browseGame = defer(function(l, game) {
-		/* game object remains the same in this function for clarity.
-			 We store game state in state
+		/* "game" object remains the same in this function for clarity.
+			 We store game state in "state"
 		*/
 		l.innerHTML = '';
 
@@ -319,7 +344,6 @@ var browseList = defer(function(listBrowser, l, world) {
 		// manual reload
 		var reloadBtn = stick(panel, 'BUTTON', 'reload', 'Reload');
 		listBrowser.extPanel = stick(panel, 'DIV', 'extra'); // for browsePlayer
-		var inviteBtn = stick(panel, 'BUTTON', 'invite', '//Invite');
 
 		var refresh = defer(function(data) {
 				if(data.err) {
@@ -366,7 +390,7 @@ var browseList = defer(function(listBrowser, l, world) {
 					case reloadBtn:
 					return reload();
 
-					case inviteBtn:
+					/*case inviteBtn:
 					var ids = getSelectedIds();
 
 					if(!listBrowser.player) {
@@ -382,22 +406,19 @@ var browseList = defer(function(listBrowser, l, world) {
 								what: 'invite', 
 								whatGame: 'thousand',
 								who: ids.join(',')
-							}));
+								}));*/
 					
 					break;
 					}
 				} 
 				
+				/*
+					When someone calls getEvt(listBrowser, 'playersselectionchange'
+					we need to enable checkboxes.
+				*/
 				var canAlwaysHappen = race(getEvt(reloadBtn), 
 																	 getEvt(listBrowser, 'prepareevt'));
 
-				/*if(!listBrowser.player) {
-					go(canAlwaysHappen);
-					return;
-					}*/
-
-				/* If we're logged in, other things can happen too.	
-				 */
 				if(listBrowser.onplayersselectionchange) {
 					var evts = map(map(lUsers, 
 												 prop('lCbx')),
@@ -408,9 +429,6 @@ var browseList = defer(function(listBrowser, l, world) {
 					go(canAlwaysHappen);
 				}
 				
-				/*if(getSelectedIds().length)
-					evts.push(getEvt(inviteBtn));*/
-
 			});												
 			
 		var reload = function() {
