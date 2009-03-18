@@ -6,6 +6,16 @@
 	or not computed yet
 */
 
+/*
+	Helpers.
+*/
+
+function update(d, s) {
+	for(var k in s)
+		d[k] = s[k];
+	return d;
+}
+
 function indexOf(a, v, dflt) {
 	for(var i in a) 
 		if(v == a[i]) return i;
@@ -13,11 +23,11 @@ function indexOf(a, v, dflt) {
 }
 
 /* I use the "new,prototype,etc..." mechanism of javascript here
-	 to distinguish future values from regular values
-	 using instanceof operator. */
+	 to distinguish promised values from regular values
+	 using instanceof operator. 
 
-/* Users of this library should not construct 
-	 future values themselves. Those values will be returned
+	 Users of this library should not construct 
+	 Promise objects themselves. Those values will be returned
 	 from defer/DOM api functions. */
 
 notYet = {debug: 'NOT_YET'};
@@ -39,11 +49,13 @@ Future.prototype.set = function(v) {
 			XXX
 			If v is a Promise, maybe we could just hang our listeners on it
 			instead of creating potentially huge promise chain.
+			But, "this" still should be usable to cancel v . 
+
 		*/
 		l.r.set(listen(l.act, v));
 	}
 	/*
-		Cleanup possible circular links.
+		Clean up possible circular links.
 	*/
 	this.listeners = [];
 	delete this.cancel;
@@ -111,8 +123,7 @@ function listen(f, thing) {
 */
 
 var pair = function(first, second, _construct) {
-	_construct = construct || 
-	function(a, b) { return [a,b]; };
+	_construct = _construct || function(a, b) { return [a,b]; };
 
 	return listen(function(valOfFirst) {
 			return listen(function(valOfSecond) {
@@ -187,8 +198,6 @@ var hold = function(time, val) {
 	return r;
 };
 
-// for POST
-
 var urlEncode = function(data, head) {
 	for(var key in data) {
 		head = (head ? head + '&' :	"") + 
@@ -230,26 +239,53 @@ var send = defer(function(url, data) {
 	});
 	
 
-// default is onclick
+/*
+	This call creates an observer value, which is set on on<evtName> call.
+	Default is onclick
+*/
 var getEvt = function(l, evtName) {
-	evtName = 'on' + (evtName || 'click');
-	var r = new Future();
+	evtName = evtName || 'click';
+	var hnName = 'on' + evtName, r = new Future(), oldHandler = l[hnName];
 
 	r.cancel = function() {
-		l.disabled = true;
-		l.className = l.className.replace(/disabled/g, '');
-		delete l[evtName];
+		// XXX function holds reference to r
+		// Also this is just plain wrong for
+		// a = getEvt(l);
+		// b = getEvt(l);
+		// cancel(a)
+		l[hnName] = oldHandler;
+		if(!oldHandler) {
+			// XXX maybe that should be for clicks only
+			l.disabled = true;
+			l.className += ' disabled';
+			/* Here we call a hook for custom objects, who need to adjust to
+				 making or not making events.	*/
+			if(evtName != 'prepareevt')
+				l.onprepareevt && l.onprepareevt(evtName);
+		}
 	};
 
-	l[evtName] = function(arg) {
-		delete l[evtName];
-		l.disabled = true;
-		l.className = l.className.replace(/disabled/g, '');
+	l[hnName] = function(arg) {
+		delete l[hnName];
+		if(oldHandler) {
+			oldHandler(arg);
+		} else {
+			l.disabled = true;
+			l.className += ' disabled';
+			if(evtName != 'prepareevt')
+				l.onprepareevt && l.onprepareevt(evtName);
+		}
+		/*
+			Client app reacts inside r.set(...) call. So it can set l[hnName] or 
+			basically do anything.
+		*/
 		r.set(arg || window.event);
 	};
 
 	l.disabled = false;
-	l.className += ' disabled';
+	l.className = l.className && l.className.replace(/disabled/g, '');
+	if(evtName != 'prepareevt')
+		l.onprepareevt && l.onprepareevt(evtName);
 	return r;
 };
 	
@@ -277,7 +313,7 @@ var clearFloats = function(l) {
 
 var __defer_indicate = defer(function(l, body, className) {
 		l.innerHTML = body;
-		l.className = className || l.className.replace(/wait/g, '');
+		l.className = className || l.className && l.className.replace(/wait/g, '');
 	});
 
 var indicate = function(l, body, className) {

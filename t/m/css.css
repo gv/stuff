@@ -62,10 +62,46 @@ body {
   User list browser.
 */
 
-.invitations {
+.listBrowser {
+	background: white;
+	border: 1px dotted #bbffbb;
+	position: absolute;
+	right: 0;
+	top: 0;
+	height: 100%;
+	width: 20%;
+}
+
+h3 {
+	margin: 2px;
+	font: 1em verdana;
+	font-weight: bold;
+}
+
+.listBrowser .users {
+	position: absolute;
+	top: 3px;
+	left: 3px;
+	right: 3px;
+	height: 50%;
+	overflow: auto;
+	border: 1px solid #d7d7d7;
+	padding: 6px;
+}
+	
+.listBrowser .midPanel {
+	position: absolute;
+	top: 55%;
+	left: 3px;
+	right: 3px;
+	height: 30%;
+	overflow: auto;
 	background: #ffffe0;
 	border: 1px solid #ffff80;
 	padding: 7px;
+}
+
+.invitations {
 	margin: 7px;
 }
 
@@ -78,21 +114,14 @@ body {
 }
 
 	
-.listBrowser {
-	background: white;
-	border: 1px dotted #bbffbb;
-	position: absolute;
-	right: 0;
-	top: 0;
-	height: 100%;
-	width: 20%;
-}
-
 .listBrowser .panel {
 	position: absolute;
+	top: 89%;
+	height: 8%;
 	bottom: 3px;
 	left: 3px; 
 	right: 3px;
+	overflow: auto;
 	border: 1px solid gray;
 	padding: 5px;
 }

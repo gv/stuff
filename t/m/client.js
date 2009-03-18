@@ -286,18 +286,40 @@ var setPlayer = defer(function(listBrowser, player) {
 		listBrowser.player = player;
 		listBrowser.onloggedinstatechange && listBrowser.onloggedinstatechange(player);
 	});
-    
-var browseList = defer(function(listBrowser, l, world) {
-		// housewarm
-		var usersDisplay = stick(l, 'UL', 'users'), lUsers = [];
 
-		// 
-		listBrowser.invitationPanel = stick(l, 'DIV', 'invitations');
+var getSelectedPlayers = defer(function(listBrowser) {
+		return filter(listBrowser.lUsers, function(w) {
+				return w.lCbx.checked;
+			});
+	});
+
+/*
+var getPlayersSelectionChangeEvt = defer(function(listBrowser) {
+		// This call enables checkboxes
+
+	});
+*/
+
+var browseList = defer(function(listBrowser, l, world) {
+		l.innerHTML = '';
+
+		// Housewarm
+		var usersDisplay = stick(l, 'DIV', 'users'), lUsers = [];
+		listBrowser.lUsers = lUsers;
+		stick(usersDisplay, 'H3', '', 'Users');
+
+		// We put invitation panel in a middle of the window.
+		// XXX Control it from browsePlayer and make invisible when not logged in.
+		var midPanel = stick(l, 'DIV', 'midPanel');
+		stick(midPanel, 'H3', '', 'Invitations');
+		listBrowser.invitationPanel = stick(midPanel, 'DIV', 'invitations');
+		var playBtn = stick(midPanel, 'BUTTON', 'play', 'Play');
 
 		var panel = stick(l, 'DIV', 'panel');
-		var inviteBtn = stick(panel, 'BUTTON', 'invite', 'Invite');
 		// manual reload
 		var reloadBtn = stick(panel, 'BUTTON', 'reload', 'Reload');
+		listBrowser.extPanel = stick(panel, 'DIV', 'extra'); // for browsePlayer
+		var inviteBtn = stick(panel, 'BUTTON', 'invite', '//Invite');
 
 		var refresh = defer(function(data) {
 				if(data.err) {
@@ -367,24 +389,28 @@ var browseList = defer(function(listBrowser, l, world) {
 				} 
 				
 				var canAlwaysHappen = race(getEvt(reloadBtn), 
-																	 getEvt(listBrowser, 'loggedinstatechange'));
+																	 getEvt(listBrowser, 'prepareevt'));
 
-				if(!listBrowser.player) {
+				/*if(!listBrowser.player) {
 					go(canAlwaysHappen);
 					return;
-				}
+					}*/
 
 				/* If we're logged in, other things can happen too.	
 				 */
-				var evts = map(map(lUsers, 
-													 prop('lCbx')),
-											 getEvt);
+				if(listBrowser.onplayersselectionchange) {
+					var evts = map(map(lUsers, 
+												 prop('lCbx')),
+										 getEvt);
+					go(race(canAlwaysHappen, 
+									race.apply(null, evts)));
+				} else {
+					go(canAlwaysHappen);
+				}
 				
-				if(getSelectedIds().length)
-					evts.push(getEvt(inviteBtn));
+				/*if(getSelectedIds().length)
+					evts.push(getEvt(inviteBtn));*/
 
-				go(race(canAlwaysHappen, 
-								race.apply(null, evts)));
 			});												
 			
 		var reload = function() {
