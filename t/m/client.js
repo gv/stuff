@@ -84,25 +84,25 @@ var browsePlayer = defer(function(l, player, listBrowser) {
 		var reloadBtn = stick(panel, 'BUTTON', 'reload', 'Reload');
 		clearFloats(panel);
 
-		// Also, we should handle invitaion messages in parallel message handling cycle.
+		// Also, we should handle invitation messages in parallel message handling cycle.
 		var invitationPanel = listBrowser.invitationPanel;
 		invitationPanel.innerHTML = '';
 		var invitationList = stick(invitationPanel, 'DIV', 'invitationList');
 		var invitationItems = [];
 
 		var listExtPanel = listBrowser.extPanel;
-		extPanel.innerHTML = '';
+		listExtPanel.innerHTML = '';
 		var inviteBtn = stick(listExtPanel, 'BUTTON', 'invite', 'Invite');
-
-		clearFloats(panel);
 
 		// XXX need more gamescreens
 		var gameScreen  = stick(l, 'DIV', 'gameScreen');
 
+		var state = {};
 		var refresh = defer(function(playerState) {
 				// update invitations
-				if(playerState.invitations) {
-					updateControls(playerState.invitations,
+				state = playerState;
+				if(state.invitations) {
+					updateControls(state.invitations,
 												 invitationItems,
 												 function() {
 													 var lIt = stick(invitationList, 'DIV', 'invitation');
@@ -153,26 +153,27 @@ var browsePlayer = defer(function(l, player, listBrowser) {
 												 });
 				}
 					
+				return go();
+			});
+
+		var go = defer(function() {
 				var commonBtnEvts = race(getEvt(logOutBtn), 
 																 getEvt(reloadBtn));
-				var gameState = first(playerState.games);
-				if(!gameState) {
-					return handleBtn(race(commonBtnEvts,
-																getEvt(inviteBtn)));
+				var gameState = first(state.games);
+				if(gameState) {
+					gameState.player = player;
+					return race(refresh(browseGame(gameScreen, gameState)),
+											handleBtn(commonBtnEvts));
+				} else {
+					return race(handleBtn(commonBtnEvts),
+											inviteWhenAsked());
 				}
-				
-				gameState.player = player;
-
-				return race(browseGame(gameScreen, gameState),
-										handleBtn(race(getEvt(logOutBtn),
-																	 getEvt(reloadBtn))));
 			});
 
 		var start = defer(function() {
 				return refresh(getPlayerState(player));
 			});
 
-		var inviteClickEvt;
 		var getIdsToInvite = defer(function(/*selChangeEvt*/) {
 				var selPlayers = getSelectedPlayers(listBrowser);
 				if(selPlayers.length) {
@@ -182,8 +183,19 @@ var browsePlayer = defer(function(l, player, listBrowser) {
 				}
 			});
 
-		var invite = defer(function(ids) {
-				return 
+		var inviteWhenAsked = defer(function(selectedIds) {
+				return go(race(invite(selectedIds, getEvt(inviteBtn)),
+											 inviteWhenAsked(getIdsToInvite(getEvt(listBrowser, 
+																														 'playersselectionchange')))));
+			});
+
+			var invite = defer(function(ids) {
+					return sendFromPlayer(player, {
+							what: 'invite', 
+							whatGame: 'thousand',
+							who: ids.join(',')
+						});
+				});
 																
 				
 
@@ -412,17 +424,16 @@ var browseList = defer(function(listBrowser, l, world) {
 					}
 				} 
 				
-				/*
-					When someone calls getEvt(listBrowser, 'playersselectionchange'
-					we need to enable checkboxes.
+				/* When someone calls getEvt(listBrowser, 'playersselectionchange'
+					 we need to enable checkboxes.
 				*/
 				var canAlwaysHappen = race(getEvt(reloadBtn), 
 																	 getEvt(listBrowser, 'prepareevt'));
 
 				if(listBrowser.onplayersselectionchange) {
 					var evts = map(map(lUsers, 
-												 prop('lCbx')),
-										 getEvt);
+														 prop('lCbx')),
+												 getEvt);
 					go(race(canAlwaysHappen, 
 									race.apply(null, evts)));
 				} else {

@@ -1,7 +1,7 @@
 /*
 	defer.js 
 	--------
-	This library defines operation on "Future" objects,
+	This library defines operation on "Promise" objects,
 	which are variables, whose values can be computed now
 	or not computed yet
 */
@@ -35,13 +35,13 @@ notYet = {debug: 'NOT_YET'};
 var nop = function() {};
 
 // constructs a deferred value
-function Future() {
+function Promise() {
 	this.v = notYet;
 	this.listeners = [];
 }
 
 // XXX make set a bound method maybe
-Future.prototype.set = function(v) {
+Promise.prototype.set = function(v) {
 	this.v = v;
 	for(var i in this.listeners) {
 		var l = this.listeners[i];
@@ -69,9 +69,9 @@ Future.prototype.set = function(v) {
 	*/
 };
 
-Future.prototype.cancel = nop;
+Promise.prototype.cancel = nop;
 
-Future.prototype.unlisten = function(f) {
+Promise.prototype.unlisten = function(f) {
 	for(var i in this.listeners) {
 		if(this.listeners[i].act == f)  {
 			this.listeners.splice(i, 1);
@@ -92,7 +92,7 @@ function listen(f, thing) {
 	/*
 		thing is a regular variable
 	*/
-	if(!(thing instanceof Future)) 
+	if(!(thing instanceof Promise)) 
 		return f(thing);
 	/*
 		thing is a fulfilled promise
@@ -107,7 +107,7 @@ function listen(f, thing) {
 		don't need f(thing) more, so if noone else needs g(thing) or eatConcrete(thing),
 		we can be almost sure we don't need thing itself!
 	*/
-	var promise = new Future();
+	var promise = new Promise();
 	promise.cancel = function() {
 		thing.unlisten(f);
 	};
@@ -157,12 +157,12 @@ var defer = function(f) {
 	 Unlistens all the rest, which can cause a cancellation.
 */
 var race = function() {
-	var r = new Future(), racers = arguments;
+	var r = new Promise(), racers = arguments;
 	var finishLine = function(val) {
 		// Run cancellations.
 		//alert('unlistening ' + racers.length);
 		for(var i = 0; i < racers.length; i++) {
-			if(racers[i] instanceof Future) {
+			if(racers[i] instanceof Promise) {
 				racers[i].unlisten(finishLine);
 			}
 		}
@@ -174,7 +174,7 @@ var race = function() {
 	for(var i = 0; i < arguments.length; i++) {
 		var arg = arguments[i];
 		listen(finishLine, arg);
-		if(!(arg instanceof Future)) {
+		if(!(arg instanceof Promise)) {
 			return arg;
 		}
 	}
@@ -191,7 +191,7 @@ var race = function() {
 
 var hold = function(time, val) {
 	val = val || {};
-	var r = new Future();
+	var r = new Promise();
 	setTimeout(function() {
 			r.set(val);
 		}, time);
@@ -207,7 +207,7 @@ var urlEncode = function(data, head) {
 };
 
 var __defer_askServer = function(method, url, data) {
-	var transport = new XMLHttpRequest(), r = new Future();
+	var transport = new XMLHttpRequest(), r = new Promise();
 	transport.onreadystatechange = function() {
 		switch(transport.readyState) {
 			// XXX handle other states
@@ -245,48 +245,53 @@ var send = defer(function(url, data) {
 */
 var getEvt = function(l, evtName) {
 	evtName = evtName || 'click';
-	var hnName = 'on' + evtName, r = new Future(), oldHandler = l[hnName];
+	var hnName = 'on' + evtName;
+
+	/* A promise created here is valid until fulfilled or abandoned */
+
+	if(l[hnName] && l[hnName]._deferjs_promisedResult)
+		return l[hnName]._deferjs_promisedResult;
+
+	/* XXX Save other (non getEvt) kinds of handlers */
+
+	var r = new Promise();//, oldHandler = l[hnName];
 
 	r.cancel = function() {
-		// XXX function holds reference to r
-		// Also this is just plain wrong for
-		// a = getEvt(l);
-		// b = getEvt(l);
-		// cancel(a)
-		l[hnName] = oldHandler;
-		if(!oldHandler) {
-			// XXX maybe that should be for clicks only
-			l.disabled = true;
-			l.className += ' disabled';
-			/* Here we call a hook for custom objects, who need to adjust to
-				 making or not making events.	*/
-			if(evtName != 'prepareevt')
-				l.onprepareevt && l.onprepareevt(evtName);
-		}
+		delete l[hnName]; // somehow doesn't work
+		l[hnName] = null;
+		// XXX maybe that should be for clicks only
+		l.disabled = true;
+		l.className += ' disabled';
+		/* Here we call a hook for custom objects, who need to adjust to
+			 making or not making events.	*/
+		if(evtName != 'prepareevt')
+			l.onprepareevt && l.onprepareevt(evtName);
 	};
 
 	l[hnName] = function(arg) {
+		var thisFunc = l[hnName];
 		delete l[hnName];
-		if(oldHandler) {
-			oldHandler(arg);
-		} else {
-			l.disabled = true;
-			l.className += ' disabled';
-			if(evtName != 'prepareevt')
-				l.onprepareevt && l.onprepareevt(evtName);
-		}
+		l[hnName] = null;
+		l.disabled = true;
+		l.className += ' disabled';
+		if(evtName != 'prepareevt')
+			l.onprepareevt && l.onprepareevt(evtName);
+		
 		/*
 			Client app reacts inside r.set(...) call. So it can set l[hnName] or 
 			basically do anything.
 		*/
-		r.set(arg || window.event);
+		thisFunc._deferjs_promisedResult.set(arg || window.event);
 	};
+
+	l[hnName]._deferjs_promisedResult = r;
+	r = null;
 
 	l.disabled = false;
 	l.className = l.className && l.className.replace(/disabled/g, '');
 	if(evtName != 'prepareevt')
 		l.onprepareevt && l.onprepareevt(evtName);
-	return r;
+	return l[hnName]._deferjs_promisedResult;
 };
 	
     
