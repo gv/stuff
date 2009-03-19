@@ -222,7 +222,8 @@ var __defer_askServer = function(method, url, data) {
 		transport.send(null);
 	} else {
 		transport.open('POST', url);
-		transport.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded;charset=utf-8');
+		transport.setRequestHeader('Content-Type', 
+															 'application/x-www-form-urlencoded;charset=utf-8');
 		transport.send(data ? urlEncode(data) : "")
 	}
 	
@@ -243,56 +244,56 @@ var send = defer(function(url, data) {
 	This call creates an observer value, which is set on on<evtName> call.
 	Default is onclick
 */
-var getEvt = function(l, evtName) {
-	evtName = evtName || 'click';
-	var hnName = 'on' + evtName;
-
+var getEvt = /*defer(*/function(l, evtName) {
+		evtName = evtName || 'click';
+		var hnName = 'on' + evtName;
+		
 	/* A promise created here is valid until fulfilled or abandoned */
-
+		
 	if(l[hnName] && l[hnName]._deferjs_promisedResult)
 		return l[hnName]._deferjs_promisedResult;
-
-	/* XXX Save other (non getEvt) kinds of handlers */
-
-	var r = new Promise();//, oldHandler = l[hnName];
-
-	r.cancel = function() {
-		delete l[hnName]; // somehow doesn't work
-		l[hnName] = null;
-		// XXX maybe that should be for clicks only
-		l.disabled = true;
-		l.className += ' disabled';
-		/* Here we call a hook for custom objects, who need to adjust to
-			 making or not making events.	*/
-		if(evtName != 'prepareevt')
-			l.onprepareevt && l.onprepareevt(evtName);
-	};
-
-	l[hnName] = function(arg) {
-		var thisFunc = l[hnName];
-		delete l[hnName];
-		l[hnName] = null;
-		l.disabled = true;
-		l.className += ' disabled';
-		if(evtName != 'prepareevt')
-			l.onprepareevt && l.onprepareevt(evtName);
 		
-		/*
-			Client app reacts inside r.set(...) call. So it can set l[hnName] or 
-			basically do anything.
-		*/
-		thisFunc._deferjs_promisedResult.set(arg || window.event);
-	};
+	/* XXX Save other (non getEvt) kinds of handlers */
+		
+		var r = new Promise();//, oldHandler = l[hnName];
 
-	l[hnName]._deferjs_promisedResult = r;
-	r = null;
+		r.cancel = function() {
+			delete l[hnName]; // somehow doesn't work
+			l[hnName] = null;
+			// XXX maybe that should be for clicks only
+			l.disabled = true;
+			l.className += ' disabled';
+			/* Here we call a hook for custom objects, who need to adjust to
+				 making or not making events.	*/
+			if(evtName != 'prepareevt')
+				l.onprepareevt && l.onprepareevt(evtName);
+		};
 
-	l.disabled = false;
-	l.className = l.className && l.className.replace(/disabled/g, '');
-	if(evtName != 'prepareevt')
-		l.onprepareevt && l.onprepareevt(evtName);
-	return l[hnName]._deferjs_promisedResult;
-};
+		l[hnName] = function(arg) {
+			var thisFunc = l[hnName];
+			delete l[hnName];
+			l[hnName] = null;
+			l.disabled = true;
+			l.className += ' disabled';
+			if(evtName != 'prepareevt')
+				l.onprepareevt && l.onprepareevt(evtName);
+		
+			/*
+				Client app reacts inside r.set(...) call. So it can set l[hnName] or 
+				basically do anything.
+			*/
+			thisFunc._deferjs_promisedResult.set(arg || window.event);
+		};
+
+		l[hnName]._deferjs_promisedResult = r;
+		r = null;
+
+		l.disabled = false;
+		l.className = l.className && l.className.replace(/disabled/g, '');
+		if(evtName != 'prepareevt')
+			l.onprepareevt && l.onprepareevt(evtName);
+		return l[hnName]._deferjs_promisedResult;
+	}/*)*/;
 	
     
 // helpers

@@ -156,60 +156,51 @@ var browsePlayer = defer(function(l, player, listBrowser) {
 				return go();
 			});
 
-		var go = defer(function() {
-				var commonBtnEvts = race(getEvt(logOutBtn), 
-																 getEvt(reloadBtn));
+		var go = defer(function(answer) {
+				if(answer) {
+					if(answer.err) {
+						alert(answer.err.msg);
+					}
+				}
+
+				var common = race(getEvt(logOutBtn),
+													 start(getEvt(reloadBtn)));
+				
 				var gameState = first(state.games);
 				if(gameState) {
 					gameState.player = player;
-					return race(refresh(browseGame(gameScreen, gameState)),
-											handleBtn(commonBtnEvts));
+					return race(common, 
+											go(browseGame(gameScreen, gameState)));
 				} else {
-					return race(handleBtn(commonBtnEvts),
-											inviteWhenAsked());
+					return race(common,
+											go(invitePeople()));
 				}
 			});
 
 		var start = defer(function() {
 				return refresh(getPlayerState(player));
 			});
-
-		var getIdsToInvite = defer(function(/*selChangeEvt*/) {
+		
+		var invitePeople = defer(function(/*selChange*/) {
+				var next = invitePeople(getEvt(listBrowser, 'playersselectionchange'));
+				/*if(!selChange)
+					return next;*/
 				var selPlayers = getSelectedPlayers(listBrowser);
-				if(selPlayers.length) {
-					return map(selPlayers, prop('id'));
-				} else {
-					return getIdsToInvite(getEvt(listBrowser, 'playersselectionchange'));
-				}
+				if(!selPlayers.length)
+					return next;
+				return race(sendInvitations(selPlayers, 
+																		getEvt(inviteBtn)),
+										next);
 			});
 
-		var inviteWhenAsked = defer(function(selectedIds) {
-				return go(race(invite(selectedIds, getEvt(inviteBtn)),
-											 inviteWhenAsked(getIdsToInvite(getEvt(listBrowser, 
-																														 'playersselectionchange')))));
-			});
-
-			var invite = defer(function(ids) {
+		var sendInvitations = defer(function(players) {
 					return sendFromPlayer(player, {
 							what: 'invite', 
 							whatGame: 'thousand',
-							who: ids.join(',')
+							who: map(players, prop('id')).join(',')
 						});
-				});
-																
+			});				
 				
-
-		var handleBtn = defer(function(evt) {
-				switch(evt.target) {
-				case logOutBtn:
-				return true;
-
-				case reloadBtn:
-				return start();
-
-				}
-			});
-
 		return start();
 	});
 
@@ -386,66 +377,32 @@ var browseList = defer(function(listBrowser, l, world) {
 					world.onupdateplayers && world.onupdateplayers();
 				}
 
-				go();
+				return go();
 			});
 
-		var getSelectedIds = function() {
-			return filter(map(lUsers, function(w) {
-						return w.lCbx.checked && w.id;
-					}), identity);
-		};
-
 		var go = defer(function(what) {
-				if(what instanceof Event) {
-					//alert(what);
-					switch(what.target) {
-					case reloadBtn:
-					return reload();
-
-					/*case inviteBtn:
-					var ids = getSelectedIds();
-
-					if(!listBrowser.player) {
-						alert("Can't invite when not logged in");
-						break;
-					}
-					if(!ids.length) {
-						alert('Select some players');
-						break;
-					}
-
-					refresh(sendFromPlayer(listBrowser.player, {
-								what: 'invite', 
-								whatGame: 'thousand',
-								who: ids.join(',')
-								}));*/
-					
-					break;
-					}
-				} 
-				
 				/* When someone calls getEvt(listBrowser, 'playersselectionchange'
 					 we need to enable checkboxes.
 				*/
-				var canAlwaysHappen = race(getEvt(reloadBtn), 
-																	 getEvt(listBrowser, 'prepareevt'));
+				var common = race(reload(getEvt(reloadBtn)), 
+													go(getEvt(listBrowser, 'prepareevt')));
 
-				if(listBrowser.onplayersselectionchange) {
-					var evts = map(map(lUsers, 
-														 prop('lCbx')),
-												 getEvt);
-					go(race(canAlwaysHappen, 
-									race.apply(null, evts)));
-				} else {
-					go(canAlwaysHappen);
-				}
+				if(!listBrowser.onplayersselectionchange) 
+					return common;
 				
-			});												
+				var evts = map(map(lUsers, 
+													 prop('lCbx')),
+											 getEvt);
+				return race(common, 
+										go(defer(listBrowser.onplayersselectionchange)
+											 (race.apply(null, evts))));
+			});
 			
-		var reload = function() {
-			refresh(askServer(world.prefix + 'clients'));
-		};
+		var reload = defer(function() {
+				return refresh(askServer(world.prefix + 'clients'));
+			});
 		
 		reload();
+		// XXX this result is still linked
 	});
 			
