@@ -54,6 +54,33 @@
 	  });
 	  iterTest3();
 	</script>
+
+	<div>
+	  <h3>long process test</h3>
+	  <div id="test4"></div>
+	</div>
+	<script>
+	  var ind = stick('test4', 'DIV');
+	  var startBtn = stick('test4', 'BUTTON', '', 'Start');
+	  var moveBtn = stick('test4', 'BUTTON', '', 'Forward');
+	  var backBtn = stick('test4', 'BUTTON', '', 'Back');
+	  var quitBtn = stick('test4', 'BUTTON', '', 'Quit');
+
+	  var state = 0;
+	  var round = defer(function() {
+	  state++;
+	  indicate(ind, state);
+
+	  DEBUG(res.toSource());
+
+	  return race(getEvt(quitBtn),
+	  round(race(getEvt(moveBtn),
+	  getEvt(backBtn))));
+	  });
+
+	  var res = round(getEvt(startBtn));
+	</script> 
+
   </body>
 </html>
 	  

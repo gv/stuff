@@ -380,6 +380,10 @@ var browseList = defer(function(listBrowser, l, world) {
 				return go();
 			});
 
+		var announcePsChange = defer(function() {
+				listBrowser.onplayersselectionchange && listBrowser.onplayersselectionchange();
+			});
+
 		var go = defer(function(what) {
 				/* When someone calls getEvt(listBrowser, 'playersselectionchange'
 					 we need to enable checkboxes.
@@ -394,8 +398,7 @@ var browseList = defer(function(listBrowser, l, world) {
 													 prop('lCbx')),
 											 getEvt);
 				return race(common, 
-										go(defer(listBrowser.onplayersselectionchange)
-											 (race.apply(null, evts))));
+										go(announcePsChange(race.apply(null, evts))));
 			});
 			
 		var reload = defer(function() {

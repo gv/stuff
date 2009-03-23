@@ -22,6 +22,12 @@ function indexOf(a, v, dflt) {
 	return dflt || -1;
 }
 
+var nop = function() {};
+
+var DEBUG = function(s) {
+	console && console.log(s);
+};
+
 /* I use the "new,prototype,etc..." mechanism of javascript here
 	 to distinguish promised values from regular values
 	 using instanceof operator. 
@@ -32,58 +38,96 @@ function indexOf(a, v, dflt) {
 
 notYet = {debug: 'NOT_YET'};
 
-var nop = function() {};
-
 // constructs a deferred value
-function Promise() {
+function Promise(_produce, source) {
 	this.v = notYet;
 	this.listeners = [];
+	this._produce = _produce;
+	this.source = source; // circular link
+	// source && source.listeners.push(this);
 }
 
-// XXX make set a bound method maybe
 Promise.prototype.set = function(v) {
-	this.v = v;
-	for(var i in this.listeners) {
-		var l = this.listeners[i];
-		/*
-			XXX
-			If v is a Promise, maybe we could just hang our listeners on it
-			instead of creating potentially huge promise chain.
-			But, "this" still should be usable to cancel v . 
+	if(!(v instanceof Promise)) {
+		this.v = v;
 
+		/*
+			Clean up possible circular links.
 		*/
-		l.r.set(listen(l.act, v));
+		delete this.source;
+		delete this._produce;
+		this.set = function(v) {
+			DEBUG('Second set to ' + v);
+		};
+		
+		for(var i in this.listeners) {
+			var l = this.listeners[i];
+			l.set(l._produce(v));
+		}
+
+		delete this.listeners;
+	} else if(v.v != notYet) {
+		this.set(v.v);
+	} else {
+		/*
+			this._produce returned a Promise.
+		*/
+		this.v = v;
+		delete this.source;
+		delete this._produce;
+
+		/*
+			Reconnect all listeners to v
+		*/
+		
+		for(var i in this.listeners) {
+			this.listeners[i].source = v;
+			v.listeners.push(this.listeners[i]);
+		}
+			
+		this.set = function(v) {
+			DEBUG('Second set to ' + v);
+		};
 	}
 	/*
-		Clean up possible circular links.
-	*/
-	this.listeners = [];
-	delete this.cancel;
-	/*
 		Also, what should we do if someone tries to 
-		 1) cancel	already performed evaluation?
-		 2) set a value twice?
-
+		1) cancel	already performed evaluation?
+		2) set a value twice?
+		
 		Both situations are kind of not right, and the second is
 		very not right.	Maybe we should throw an exception?
 	*/
 };
 
-Promise.prototype.cancel = nop;
-
-Promise.prototype.unlisten = function(f) {
-	for(var i in this.listeners) {
-		if(this.listeners[i].act == f)  {
-			this.listeners.splice(i, 1);
-			//alert('remains ' + this.listeners.length + ' ' + this.listeners);
-			if(!this.listeners.length) { 
-				this.cancel();
-				delete this.cancel;
-			}
-			return true;
-		}
+Promise.prototype._cancel = function() {
+	if(this.source) {
+		unlisten(this.source, this._produce);
 	}
-	return false;
+};
+
+var unlisten = function(p, f) {
+	if(!(p instanceof Promise)) {
+		// Damage is done
+		return false;
+	} if(p.v != notYet) {
+		return unlisten(p.v, f);
+	} else {
+		for(var i in p.listeners) {
+			if((p.listeners[i] == f) || 
+				 (p.listeners[i]._produce == f))  {
+				p.listeners.splice(i, 1);
+
+				//alert('remains ' + this.listeners.length + ' ' + this.listeners);
+				
+				if(!p.listeners.length) { 
+					p._cancel();
+					delete p._cancel;
+				}
+				return true;
+			}
+		}
+		return false;
+	}
 };
 	
 
@@ -105,13 +149,10 @@ function listen(f, thing) {
 		
 		It seems we should give them a link to us to, so they can let us know they 
 		don't need f(thing) more, so if noone else needs g(thing) or eatConcrete(thing),
-		we can be almost sure we don't need thing itself!
+		we can be sure we don't need thing itself!
 	*/
-	var promise = new Promise();
-	promise.cancel = function() {
-		thing.unlisten(f);
-	};
-	thing.listeners.push({act: f, r: promise});
+	var promise = new Promise(f, thing);
+	thing.listeners.push(promise);
 	return promise;
 }
 	
@@ -137,19 +178,23 @@ var pair = function(first, second, _construct) {
 */
 var defer = function(f) {
 	return function() {
+		if(!arguments.length)
+			return f();
+
 		var args = Array.prototype.slice.call(arguments), vals = [];
 		
-		var p = function(val) {
+		var whenArgIsReady = function(val) {
 			//alert(vals.length + ' ' + args.length + ' ' + val);
 			vals.push(val);
 			if(args.length) {
-				return listen(p, args.shift());
+				return listen(whenArgIsReady, args.shift());
 			}
-			vals.shift()
+			//vals.shift() // remove dummy
+			args = null;
 			return f.apply(null, vals);
 		};
 
-		return p(null); // dummy
+		return listen(whenArgIsReady, args.shift());
 	}
 };
 		
@@ -162,9 +207,7 @@ var race = function() {
 		// Run cancellations.
 		//alert('unlistening ' + racers.length);
 		for(var i = 0; i < racers.length; i++) {
-			if(racers[i] instanceof Promise) {
-				racers[i].unlisten(finishLine);
-			}
+			unlisten(racers[i], finishLine);
 		}
 		
 		// Run listeners.
@@ -178,6 +221,13 @@ var race = function() {
 			return arg;
 		}
 	}
+
+	r._cancel = function() {
+		for(var i = 0; i < racers.length; i++) { 
+			unlisten(racers[i], finishLine);
+		}
+		delete r._cancel;
+	};
 	return r;
 };
 		
@@ -257,7 +307,7 @@ var getEvt = /*defer(*/function(l, evtName) {
 		
 		var r = new Promise();//, oldHandler = l[hnName];
 
-		r.cancel = function() {
+		r._cancel = function() {
 			delete l[hnName]; // somehow doesn't work
 			l[hnName] = null;
 			// XXX maybe that should be for clicks only
