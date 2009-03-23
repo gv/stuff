@@ -45,6 +45,12 @@ function Promise(_produce, source) {
 	this._produce = _produce;
 	this.source = source; // circular link
 	// source && source.listeners.push(this);
+	
+	/*
+	this.DEBUG_name = 'P ' + 
+		(_produce ? _produce.DEBUG_name : '') + '(' + 
+		(source ? source.DEBUG_name : '') + ')';
+	*/
 }
 
 Promise.prototype.set = function(v) {
@@ -79,7 +85,6 @@ Promise.prototype.set = function(v) {
 		/*
 			Reconnect all listeners to v
 		*/
-		
 		for(var i in this.listeners) {
 			this.listeners[i].source = v;
 			v.listeners.push(this.listeners[i]);
@@ -176,10 +181,12 @@ var pair = function(first, second, _construct) {
 
 /*	Returns function that calls f when all the  arguments are ready.
 */
-var defer = function(f) {
-	return function() {
-		if(!arguments.length)
+var defer = function(f, DEBUG_name) {
+	var rv = function() {
+		if(!arguments.length) {
+			DEBUG_name && DEBUG('Calling ' + DEBUG_name + '()');
 			return f();
+		}
 
 		var args = Array.prototype.slice.call(arguments), vals = [];
 		
@@ -191,11 +198,16 @@ var defer = function(f) {
 			}
 			//vals.shift() // remove dummy
 			args = null;
+			
+			DEBUG_name && DEBUG('Calling ' + DEBUG_name + '(' + vals + ')');
 			return f.apply(null, vals);
 		};
 
 		return listen(whenArgIsReady, args.shift());
 	}
+
+	rv.DEBUG_name = DEBUG_name;
+	return rv;
 };
 		
 /* Returns the first evaluated result.
@@ -205,7 +217,7 @@ var race = function() {
 	var r = new Promise(), racers = arguments;
 	var finishLine = function(val) {
 		// Run cancellations.
-		//alert('unlistening ' + racers.length);
+		DEBUG('race: over, unlistening ' + racers.length);
 		for(var i = 0; i < racers.length; i++) {
 			unlisten(racers[i], finishLine);
 		}
@@ -223,6 +235,7 @@ var race = function() {
 	}
 
 	r._cancel = function() {
+		DEBUG('race: cancelled, unlistening ' + racers.length);
 		for(var i = 0; i < racers.length; i++) { 
 			unlisten(racers[i], finishLine);
 		}
