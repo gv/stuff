@@ -191,7 +191,7 @@ var browsePlayer = defer(function(l, player, listBrowser) {
 				return race(sendInvitations(selPlayers, 
 																		getEvt(inviteBtn)),
 										next);
-			});
+			}, 'invitePeople');
 
 		var sendInvitations = defer(function(players) {
 					return sendFromPlayer(player, {
@@ -380,9 +380,11 @@ var browseList = defer(function(listBrowser, l, world) {
 				return go();
 			});
 
-		var announcePsChange = defer(function() {
+		var announcePsChange = defer(function(what) {
+				if('playersselectionchange' == what)
+					return what;
 				listBrowser.onplayersselectionchange && listBrowser.onplayersselectionchange();
-			});
+			}, 'announcePsChange');
 
 		var go = defer(function(what) {
 				/* When someone calls getEvt(listBrowser, 'playersselectionchange'
@@ -396,16 +398,15 @@ var browseList = defer(function(listBrowser, l, world) {
 				
 				var evts = map(map(lUsers, 
 													 prop('lCbx')),
-											 getEvt);
-				return race(common, 
-										go(announcePsChange(race.apply(null, evts))));
-			});
+											 getEvt).concat([reload(getEvt(reloadBtn)),
+																			 getEvt(listBrowser, 'prepareevt')]);
+				return go(announcePsChange(race.apply(null, evts)));
+			}, 'bl_go');
 			
 		var reload = defer(function() {
 				return refresh(askServer(world.prefix + 'clients'));
 			});
 		
 		reload();
-		// XXX this result is still linked
 	});
 			
