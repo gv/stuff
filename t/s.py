@@ -287,14 +287,17 @@ class Entry(Server):
         worldPrefix = 'http://%s:2222/' % request.getRequestHostname()
         return """<html>
 <head>
-<link rel=stylesheet href="%(static)scss.css" />
-<script src="%(static)sdefer.js"></script>
-<script src="%(static)sclient.js"></script>
+<link rel=stylesheet href="%(static)scss.css" />""" + 
+#<script src="%(static)sdefer.js"></script>
+#<script src="%(static)sclient.js"></script>
+"""<SCRIPT TYPE="text/javascript" SRC="http://ajax.googleapis.com/ajax/libs/dojo/1.2/dojo/dojo.xd.js"></SCRIPT>
+<script src="%s(static)sclient2.js"></script>
 </head>
 <body>
 <div id="worldBrowser"></div>
 
 <script>
+dojo.registerModulePath('anxiety', '%s(static)s');
 browse("%(world)s", "worldBrowser");
 </script>
 </html>
