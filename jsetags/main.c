@@ -228,6 +228,8 @@ void processRegularFile(const char *fileName) {
       tagsTextSize += nameLen + 1;
     }
   }
+
+	fclose(fp);
   
   // write header
 	// XXX check ENOSPACE
@@ -298,6 +300,7 @@ int processDir(const char *path) {
 			processFile(filePath, 1);		
 		}
 	}
+	closedir(dp);
 	return 1;
 }
 		
