@@ -4,7 +4,8 @@
 
 # static files url prefix
 print "started"
-STATIC_PREFIX = "http://93.92.203.153:8008/t/"
+STATIC_COMMON_PREFIX = "http://93.92.203.153:8008/"
+STATIC_PREFIX = STATIC_COMMON_PREFIX + "t/"
 
 # imports
 import cjson
@@ -285,23 +286,30 @@ class Entry(Server):
         from static server.
         """
         worldPrefix = 'http://%s:2222/' % request.getRequestHostname()
-        return """<html>
+        return ("""<html>
 <head>
-<link rel=stylesheet href="%(static)scss.css" />""" + 
+<link rel=stylesheet href="%(static)scss.css" />
+<link rel=stylesheet href="%(dlib)sdijit/themes/nihilo/nihilo.css" />""" + 
 #<script src="%(static)sdefer.js"></script>
 #<script src="%(static)sclient.js"></script>
-"""<SCRIPT TYPE="text/javascript" SRC="http://ajax.googleapis.com/ajax/libs/dojo/1.2/dojo/dojo.xd.js"></SCRIPT>
-<script src="%s(static)sclient2.js"></script>
+"""<script>
+djConfig = { isDebug: true } 
+</script>
+<SCRIPT TYPE="text/javascript" SRC="%(dlib)sdojo/dojo.xd.js"></SCRIPT>
+<SCRIPT>
+dojo.registerModulePath('anxiety', '%(static)s');
+</SCRIPT>
+<script src="%(static)sclient2.js"></script>
 </head>
-<body>
+<body class="nihilo">
 <div id="worldBrowser"></div>
 
 <script>
-dojo.registerModulePath('anxiety', '%s(static)s');
 browse("%(world)s", "worldBrowser");
 </script>
 </html>
-""" % { 'static' : STATIC_PREFIX, 'world': worldPrefix }
+""") % { 'static' : STATIC_PREFIX, 'world': worldPrefix, 'dlib': STATIC_COMMON_PREFIX + 'dojod/'}
+    # fucking <script>s everywhere
 
     def handleNeedClient(self, request):
         # player must have a name, so we can show him in a list
