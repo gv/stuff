@@ -13,6 +13,7 @@ from base64 import urlsafe_b64encode, urlsafe_b64decode
 from random import randint, shuffle
 from twisted.web import server, resource
 from twisted.internet import reactor
+from cometd import cometd
 
 print "libraries imported"
 
@@ -51,7 +52,6 @@ class MessageDriven:
     def processMessage(self, msg):
         what = msg['what']
         handlingMethod = getattr(self, 'handle' + cfirst(what))
-        # del msg['what']
         handlingMethod(**msg)
 
     def getState(self):
@@ -68,25 +68,44 @@ class Client(MessageDriven, resource.Resource):
     This means a client object must be a JSON-serializable data structure,
     controllable by JSON-serializable messages.
     """
+
+    table = {}
+
+    def get(id):
+        return Client.table.get(id)
+
     def __init__(self, id = None):
         resource.Resource.__init__(self)
         self.id = id or urlsafe_b64encode(randomBinString(8))
+        self.revision = 0
+        Client.table[self.id] = self
+
+    def postMessage(self, msg=None, **kw):
+        msg = msg or kw
+        msg['revision'] = self.revision + 1
+        self.processMessage(msg)
+        self.revision = msg['revision'];
+        
+
+    # Resource interface
 
     def getChild(self, path, request):
         if "" == path: return self
         return resource.Resource.getChild(self, path, request)
-
-    def authenticate(self, request):
-        return True
 
     def render_GET(self, request):
         if self.authenticate(request):
             return cjson.encode(self.getState())
         else:
             return self.rejectNoAuth()
+
+    # Overridables
         
     def rejectNoAuth(self):
         return cjson.encode({'err':{'msg':'Not authentificated'}})
+
+    def authenticate(self, request):
+        return True
 
 
 
@@ -253,11 +272,24 @@ class Server(resource.Resource):
         else:
             result = handlingMethod(request)
             return cjson.encode(result)
-            
 
+
+#            
+#     Entry point
+#     ----- -----
+#
+#     This is a root resource. It routes GET and POST requests to following resources:
+#
+#     /         ->   Client manager input. Post to it if you need a client id.
+#                    Also, post to it if you have a client id but don't need it anymore.
+#                    Also if you GET it, you will retrieve browser client code.
+#     /clients  ->   Client manager. Reports clients' states and player list.
+#     /cometd   ->   Async message server.
+#     /games    ->   Game Manager. Routes POST requests from remotes to Game objects,
+#                    which handle them according to specific game rules.
+#
 class Entry(Server):
-    """ This is a main resouce, which dispatches requests
-    for other resources.
+    """ 
     """
 
     def __init__(self):
@@ -310,6 +342,8 @@ browse("%(world)s", "worldBrowser");
 </html>
 """) % { 'static' : STATIC_PREFIX, 'world': worldPrefix, 'dlib': STATIC_COMMON_PREFIX + 'dojod/'}
     # fucking <script>s everywhere
+
+    # Remote messages handlers
 
     def handleNeedClient(self, request):
         # player must have a name, so we can show him in a list
