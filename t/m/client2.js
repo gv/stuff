@@ -36,6 +36,7 @@ dojo.require('dijit.layout.BorderContainer');
 dojo.require('dijit.layout.ContentPane');
 dojo.require('dijit.form.Button');
 dojo.require('dijit.form.CheckBox');
+dojo.require('dijit.form.TextBox');
 dojo.require('dijit.Toolbar');
 
 dojo.require('dojox.cometd');
@@ -204,17 +205,17 @@ dojo.addOnLoad(function() {
 								 { 
 									 templateString: 
 									 '<div>' + 
-										 ('<div dojoType="dijit.layout.BorderContainer" ' + 
-											'style="width: 100%; height: 100%" ' + 
-											'design="sidebar" gutters="true" liveSplitters="true">' + 
-											('<div dojoType="dijit.layout.ContentPane" splitter="true" ' + 
-											 'region="center">Hi, Im center</div>') + 
-											('<div dojoType="dijit.layout.ContentPane" splitter="true" ' + 
-										 'region="trailing" style="width: 200px;">' + 
-											 '<div dojoAttachPoint="lList">fill me</div>' +
-											 ('<div dojoType="dijit.Toolbar" ' + 
-												'style="position:absolute; bottom:0; padding:10px;">' +
-												'<div dojoType="dijit.form.Button">Reload</div>' +
+										 ('<div dojoType="dijit.layout.BorderContainer" style="width: 100%; height: 100%" design="sidebar" gutters="true" liveSplitters="true">' + 
+											('<div dojoType="dijit.layout.BorderContainer" region="center" splitter="true">' +
+											 ('<div dojoType="dijit.layout.ContentPane" region="top">' +
+												('<input type="text" dojoType="dijit.form.TextBox" dojoAttachPoint="usernameBox" />' +
+												 '<button dojoType="dijit.form.Button">Login</button>') +
+												'</div>') +
+											 '</div>' + 
+											 '<div dojoType="dijit.layout.ContentPane" splitter="true" region="trailing" style="width: 200px;">' + 
+											 ('<div dojoAttachPoint="lList">fill me</div>' +
+												'<div dojoType="dijit.Toolbar" style="position:absolute; bottom:0; padding:4px;">' +
+												('<div dojoType="dijit.form.Button">Reload</div>') +
 												'</div>') +
 											 '</div>') + 
 											'</div>') + 

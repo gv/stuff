@@ -6,18 +6,31 @@
 print "started"
 STATIC_COMMON_PREFIX = "http://93.92.203.153:8008/"
 STATIC_PREFIX = STATIC_COMMON_PREFIX + "t/"
+PORT_NUMBER = 2222
 
 # imports
 import cjson
 from base64 import urlsafe_b64encode, urlsafe_b64decode
 from random import randint, shuffle
-from cometd import cometd
-from twisted.web import resource
+print "core libraries loaded"
 
-from world import In, Resource, cfirst, getArg
+# cometds setup.py is broken so i checked in entire cometd tree
+# who knows what else is broken there
+# it also lacks a server side API
+# so we will use twisted-cometd-client.py from there
+# which i renamed to twcocl.py
+# ---
+# so
+# first cometd is directory name
+# second cometd is filename
+from cometd import cometd, twcocl
+# bus = cometd.cometd()
+
+# our libs
+from world import In, Resource, cfirst, getArg, Game
 import thousand
 
-print "core libraries loaded"
+print "all libraries loaded"
 
 # utils
 
@@ -30,7 +43,7 @@ def randomBinString(length):
     return s
 
         
-class DictResource(resource.Resource):
+class DictResource(Resource):
     def __init__(self, dct):
         self.dct = dct
 
@@ -85,16 +98,19 @@ class Client(MessageDriven, Resource):
         return Client.table.get(id)
 
     def __init__(self, id = None):
-        resource.Resource.__init__(self)
+        Resource.__init__(self)
         self.id = id or urlsafe_b64encode(randomBinString(8))
         self.revision = 0
         Client.table[self.id] = self
 
     def postMessage(self, msg=None, **kw):
         msg = msg or kw
-        msg['revision'] = self.revision + 1
+        # Image with rev X can handle message with rev X.
+        msg['revision'] = self.revision
+        # postMessage is not reentrant.
+        # processMessage may not cause messages to be posted.
         self.processMessage(msg)
-        self.revision = msg['revision'];
+        self.revision = msg['revision'] + 1;
         
 
     # Resource interface
@@ -250,9 +266,10 @@ PlayerList()
 #
 class Entry(In):
     def __init__(self):
-        resource.Resource.__init__(self)
+        Resource.__init__(self)
         self.putChild('clients', DictResource(Client))
         self.putChild('games', DictResource(Game))
+        self.putChild('cometd', cometd.cometd())
 
     def _getPlayerById(self, id):
         rv = Client.get(id)
@@ -303,7 +320,7 @@ class Entry(In):
         # check everything
         ids = getArg(req, 'with').split(',')
         for id in ids:
-
+            return
             #start a game 
 
             # remove invitations
@@ -347,12 +364,19 @@ browse("%(world)s", "worldBrowser");
 
 if __name__ == '__main__':
     # serve all this
-    from twisted.web import server
+    print 'Starting server...'
+    from twisted.web2 import server, channel
     from twisted.internet import reactor
+    from twisted.application import service, strports
 
     site = server.Site(Entry())
-    reactor.listenTCP(2222, site)
-    print "running reactor"
+    #reactor.listenTCP(PORT_NUMBER, site)
+    
+    app = service.Application('worldd')
+    svc = strports.service('tcp:%d' % PORT_NUMBER, channel.HTTPFactory(site))
+    svc.setServiceParent(app)
+    
+    print "Running reactor..."
     reactor.run()
 
 
