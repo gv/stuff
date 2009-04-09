@@ -370,11 +370,14 @@ if __name__ == '__main__':
     from twisted.application import service, strports
 
     site = server.Site(Entry())
-    #reactor.listenTCP(PORT_NUMBER, site)
+    reactor.listenTCP(PORT_NUMBER, channel.HTTPFactory(site))
+    # For twisted.web it was
+    # reactor.listenTCP(PORT_NUMBER, site)
     
-    app = service.Application('worldd')
-    svc = strports.service('tcp:%d' % PORT_NUMBER, channel.HTTPFactory(site))
-    svc.setServiceParent(app)
+    # Complicated stuff
+    #app = service.Application('worldd')
+    #svc = strports.service('tcp:%d' % PORT_NUMBER, channel.HTTPFactory(site))
+    #svc.setServiceParent(app)
     
     print "Running reactor..."
     reactor.run()
