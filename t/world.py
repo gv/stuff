@@ -34,7 +34,7 @@ class Resource(resource.Resource):
 #    - returns JSON encoded responces just to know if request was accepted
 #
 class In(Resource):
-    def render_POST(self, request):
+    def http_POST(self, request):
         """ For now let's just handle all remote messages here.
         """
         # There must be a selector field

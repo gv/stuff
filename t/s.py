@@ -9,9 +9,10 @@ STATIC_PREFIX = STATIC_COMMON_PREFIX + "t/"
 PORT_NUMBER = 2222
 
 # imports
-import cjson
 from base64 import urlsafe_b64encode, urlsafe_b64decode
 from random import randint, shuffle
+import cjson
+from twisted.web2 import http
 print "core libraries loaded"
 
 # cometds setup.py is broken so i checked in entire cometd tree
@@ -116,7 +117,7 @@ class Client(MessageDriven, Resource):
     # Resource interface
     # -------- ---------
 
-    def render_GET(self, request):
+    def http_GET(self, request):
         if self.authenticate(request):
             return cjson.encode(self.getState())
         else:
@@ -332,9 +333,9 @@ class Entry(In):
     # Browser HTML code.
     # ------- ---- -----
 
-    def render_GET(self, request):
+    def render(self, request):
         worldPrefix = 'http://%s:2222/' % request.getRequestHostname()
-        return ("""<html>
+        return http.Response(200, stream=("""<html>
 <head>
 <link rel=stylesheet href="%(static)scss.css" />
 <link rel=stylesheet href="%(dlib)sdijit/themes/nihilo/nihilo.css" />""" + 
@@ -356,7 +357,9 @@ dojo.registerModulePath('anxiety', '%(static)s');
 browse("%(world)s", "worldBrowser");
 </script>
 </html>
-""") % { 'static' : STATIC_PREFIX, 'world': worldPrefix, 'dlib': STATIC_COMMON_PREFIX + 'dojod/'}
+""") % { 'static' : STATIC_PREFIX, 
+         'world': worldPrefix, 
+         'dlib': STATIC_COMMON_PREFIX + 'dojod/'})
     # fucking <script>s everywhere
 
 
