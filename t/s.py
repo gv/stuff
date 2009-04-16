@@ -266,6 +266,7 @@ PlayerList()
 #     /cometd         ->   Async message server.
 #
 class Entry(In):
+    addSlash = True
     def __init__(self):
         Resource.__init__(self)
         self.putChild('clients', DictResource(Client))
@@ -334,19 +335,22 @@ class Entry(In):
     # ------- ---- -----
 
     def render(self, request):
-        worldPrefix = 'http://%s:2222/' % request.getRequestHostname()
+        #worldPrefix = 'http://%s:%d/' % (request.getRequestHostname(), PORT_NUMBER)
+        # request.host is not documented in web2
+        # And request.headers.getHeader('host') is somehow 'bishop:2222'
+        worldPrefix = 'http://%s:%d/' % (request.host, PORT_NUMBER)
+        # registerModulePath must be before inclusion of client2.js
         return http.Response(200, stream=("""<html>
 <head>
 <link rel=stylesheet href="%(static)scss.css" />
 <link rel=stylesheet href="%(dlib)sdijit/themes/nihilo/nihilo.css" />""" + 
 #<script src="%(static)sdefer.js"></script>
 #<script src="%(static)sclient.js"></script>
-"""<script>
-djConfig = { isDebug: true } 
-</script>
-<SCRIPT TYPE="text/javascript" SRC="%(dlib)sdojo/dojo.xd.js"></SCRIPT>
+"""
+<SCRIPT TYPE="text/javascript" SRC="%(dlib)sdojo/dojo.xd.js" djConfig="isDebug: true"></SCRIPT>
 <SCRIPT>
 dojo.registerModulePath('anxiety', '%(static)s');
+dojo.registerModulePath('anxiety.templates', '%(tplPrefix)s');
 </SCRIPT>
 <script src="%(static)sclient2.js"></script>
 </head>
@@ -359,8 +363,9 @@ browse("%(world)s", "worldBrowser");
 </html>
 """) % { 'static' : STATIC_PREFIX, 
          'world': worldPrefix, 
-         'dlib': STATIC_COMMON_PREFIX + 'dojod/'})
-    # fucking <script>s everywhere
+         'dlib': STATIC_COMMON_PREFIX + 'dojod/',
+         'tplPrefix': worldPrefix + 'templates/'})
+    # TODO template path.
 
 
         

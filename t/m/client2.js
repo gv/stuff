@@ -45,7 +45,7 @@ dojo.require('dojox.cometd');
 	Browser code
 	------- ----
 
-	Cross-domain script loading is async and who know what else is
+	Cross-domain script loading is async and who knows what else is
 	So we need to define classes on load.
 */
 dojo.addOnLoad(function() {
@@ -56,12 +56,14 @@ dojo.addOnLoad(function() {
 			This class runs a sync mechanism with server.
 		*/
 		dojo.declare('anxiety.Client', null, {
-				constructor: function(world, id) {
+				constructor: function(world, id, priv) {
 					this.id = id;
+					this.priv = priv;
 					this.urlPrefix = world.urlPrefix;
 					this.revision = -1;
 
-					// subscribe to events
+					// Subscribe to events.
+					// TODO Authenticate.
 					dojox.cometd.subscribe('/' + id, this, function(msg) {
 							// processMessage
 							// any output we can't handle will be silently ignored
@@ -71,12 +73,12 @@ dojo.addOnLoad(function() {
 							}
 
 							if(msg.revision < this.revision) {
-								// our rev is older, this is a message from past
+								// Our rev is older, this is a message from past
 								return;
 							}
 
 							if(msg.revision == this.revision) {
-								// looks like something we can handle
+								// Looks like something we can handle
 								if(!msg.what) {
 									DBG('No selector field:' + msg.toSource());
 									return;
@@ -94,10 +96,11 @@ dojo.addOnLoad(function() {
 							}
 
 							if(msg.revision > this.revision) {
-								// got message from the future, must go there
+								// Got message from the future, must go there
 								this.reload();
 							}
 						});
+					this.reload();
 
 				},
 					
@@ -110,6 +113,10 @@ dojo.addOnLoad(function() {
 					dojo.xhrGet({
 							url: this.urlPrefix + 'clients/' + this.id,
 								handleAs: 'json',
+								// error:
+								content: {
+								priv: this.priv
+									},
 								load: dojo.hitch(this, '_updateState')
 								});
 					this._updating = true;
@@ -138,28 +145,29 @@ dojo.addOnLoad(function() {
 
 		dojo.declare('anxiety.PlayerList', anxiety.Client, {
 				// connect(...) or subclass???
-				onplayerschandged: nop,
+				onplayerschanged: nop,
 					
 					_updateState: function(state) {
 					this.players = state.players;
-					this.onplayerschandged();
+					this.onplayerschanged();
 				},
 					
 					handleAddPlayer: function(msg) {
 					this.players.push(msg);
-					this.onplayerschandged();
+					this.onplayerschanged();
 				},
 
 					handleRmPlayer: function(msg) {
 					// XXX
 				
-					this.onplayerschandged();
+					this.onplayerschanged();
 				}
 			});
 
 		
 		dojo.declare('anxiety.Player', anxiety.Client, {
-
+				constructor: function(world, id, priv) {
+					
 
 
 			});
@@ -177,7 +185,25 @@ dojo.addOnLoad(function() {
 					dojox.cometd.init(urlPrefix + 'cometd');
 
 					this.players = new anxiety.PlayerList(this, 'players');
-				}
+				},
+					
+					login: function(name) {
+					dojo.xhrPost({
+							url: this.urlPrefix,
+								handleAs: 'json',
+								content: {
+								what: 'needClient',
+									name: name
+									},
+
+								error: dojo.hitch(this, function(e) {
+										console.log(e);
+									},
+
+								load: dojo.hitch(this, function(rsp) {
+										var p = new anxiety.Player(this, rsp.id, rsp.priv);
+										
+					
 
 			});
 

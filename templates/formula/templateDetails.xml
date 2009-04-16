@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<mosinstall type="template">
+	<name>formula</name>
+	<creationDate>15 04 2009</creationDate>
+	<author>vg</author>
+	<copyright>none</copyright>
+	<authorEmail>none</authorEmail>
+	<authorUrl>none</authorUrl>
+	<version>1.0</version>
+	<description>none</description>
+	<files>
+        <filename>templateDetails.xml</filename>
+
+		<filename>index.html</filename>
+		<filename>js/index.html</filename>
+		<filename>css/index.html</filename>
+		<filename>images/index.html</filename>
+
+		<filename>index.php</filename>
+    </files>
+	<images>
+		<filename>images/marble4.jpg</filename>
+		<filename>images/curtains.jpg</filename>
+	</images>
+	<css>
+		<filename>css/template_css.css</filename>
+		<filename>css/color_black.css</filename>
+	</css>
+</mosinstall>
