@@ -6,8 +6,8 @@ echo '<?xml version="1.0" encoding="'. $iso[1] .'"?' .'>';
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
 <meta http-equiv="Content-Type" content="text/html; <?php echo _ISO; ?>" />
-<?php mosShowHead(); ?>
-<?php
+<?php 
+	mosShowHead(); 
 if ( $my->id ) {
 	initEditor();
 }
@@ -19,15 +19,36 @@ $thistemplate = "formula";
 <link href="<?php echo $mosConfig_live_site; ?>/templates/<?php echo $thistemplate; ?>/css/color_black.css" rel="stylesheet" type="text/css" />
 </head>
 
-<body>
-<div id="maindiv">
+	<body>
+	<div id="foreword">
+
+	<div class="nav">
+	<a href="/"><img src="<?php echo $mosConfig_live_site; ?>/templates/<?php echo $thistemplate; ?>/images/home.gif" /></a>&nbsp;&nbsp;&nbsp;
+<a href="mailto:reklama@formulaoflove.ru"><img src="<?php echo $mosConfig_live_site; ?>/templates/<?php echo $thistemplate; ?>/images/mail.gif" /></a>&nbsp;&nbsp;&nbsp;
+<a href="mailto:reklama@formulaoflove.ru"><img src="<?php echo $mosConfig_live_site; ?>/templates/<?php echo $thistemplate; ?>/images/star.gif" /></a>&nbsp;&nbsp;&nbsp;
+	</div>
+
+	<div class="words">
+	œ–Œ—“»“”“ » œ»“≈–¿ &nbsp;&nbsp;&nbsp;
+›À»“Õ€≈ œ–Œ—“»“”“ »  &nbsp;&nbsp;&nbsp;
+»Õ“»Ã ƒŒ—”√ &nbsp;&nbsp;&nbsp;
+›— Œ–“ ”—À”√»</div>
+
+</div>
+
+
+	<div id="maindiv">
   <div class="s">
 	<div class="s">
   <div id="leftcol">
+	<div id="mainmenu">
 	<?php
 	if (mosCountModules( "left" )) {
 		mosLoadModules ( 'left',-3);
 	}
+	?>
+	</div>
+	<?php
 if (mosCountModules( "newsflash" )) {
 	?>
 	 <div id="extraleft">
@@ -44,21 +65,35 @@ if (mosCountModules( "newsflash" )) {
    <a name="content"></a>
    <?php mosMainBody(); ?>
  </div>
-</div><!--end maincolumn-->
-
+</div><!--maincolumn-->
  </div><!-- midpage-->
+
  <div id="bottom">
   <?php mosLoadModules ( 'bottom',-3); ?>
-</div>
-<div id="footer" >
-  <?php /*include($mosConfig_absolute_path."/templates/".$thistemplate."/includes/footer.php"); */ ?>
-  <?php /*include_once( $mosConfig_absolute_path .'/includes/footer.php' ); */ ?>
-  <?php mosLoadModules( 'debug', -1 );?>
 </div>
 <!-- ÚÛÚ Ì‡‰Ó clear ˜ÚÓ·˚ ‚˚ÒÓÚ‡ maindiv .s .s ·˚Î‡ ÌÂ ÏÂÌ¸¯Â Ï‡ÍÒËÏ‡Î¸ÌÓÈ ‚˚ÒÓÚ˚ ‚ÒÂı ÍÓÎÓÌÓÍ -->
 <br style="clear: both;" />
 </div>
 </div>
 </div><!-- maindiv-->
+
+<div id="footer" >
+  <?php /*include($mosConfig_absolute_path."/templates/".$thistemplate."/includes/footer.php"); */ ?>
+  <?php /*include_once( $mosConfig_absolute_path .'/includes/footer.php' ); */ ?>
+  <?php mosLoadModules( 'debug', -1 );?>
+</div>
+
+<script>
+	// HACK
+	var divs = document.getElementsByTagName('DIV');
+for(var i = 0; i < divs.length; i++) {
+	var d = divs[i];
+	if('sobi2MenuMod' == d.className) {
+		var items = d.getElementsByTagName('LI');
+		for(var j = 0; j < items.length; j++)
+			items[j].style.backgroundPosition = j*10 + 'px 20px';
+	}
+}
+</script>	
 </body>
 </html>

@@ -56,32 +56,58 @@ a:hover {
  
 /* Layout */
 
-#maindiv{
+#maindiv, #foreword {
 	margin: auto;
 	width: 1001px;
 	position: relative;
 	overflow: hidden;
 }
 
+#foreword {
+	padding: 3px;
+}
+
+#foreword .nav {
+	float: left;
+}
+
+#foreword .words {
+	font-weight: bold;
+	color: #b71717;
+	float: right;
+}
+
 #leftcol { 
 	/*position: absolute;
 	top: 280px;
 	left: 40px;*/
+	clear: both;
 	float: left;
-	width: 300px;
-	margin: 280px 0 53px 35px;
+	width: 350px;
+	margin: 280px 0 6px 3px;
 }	
 
+#mainmenu {
+	margin: 0px 0 63px 53px
+}
+
 #extraleft {
+	margin: 180px 0 80px 0;
+}
+
+#extraleft .article {
 	border: 2px solid white;
 	background: black;
 	color: white;
 	opacity: .5;
-	filter:alpha(opacity=50);
 	margin: 5px;
 	padding: 5px 5px 29px 5px;
+	width: 156px;
 }
-  	
+
+#extraleft .article {
+	filter:alpha(opacity=50);
+}  	
 	
           
 #maincolumn { 
@@ -93,7 +119,7 @@ a:hover {
 	overflow-x: hidden;
 	overflow-y: auto;
 	*/
-	width: 526px;
+	width: 576px;
 	min-height: 500px;
 	margin: 277px 0 0 353px;
 }
@@ -144,12 +170,14 @@ margin:6px;
 	text-align: justify; 
 }
 
+/*
 td.contentheading{ font-weight: bold; font-size: 1.2em; text-decoration: underline; }
 td.modifydate, td.createdate{ font-size: 0.9em; font-style: italic; }
 
 #rightcol{ width: 170px; 
           float: left;
           margin-left: 0px;}	
+*/
 
 /* hide */
 #pathway, #accessibility, #source {
@@ -216,18 +244,26 @@ white-space: nowrap;
 #topmenu ul li{border-right-width: 2px; border-right-style: solid; border-left-width: 2px; border-left-style: solid; margin-right: 4px;}
 #topmenu ul li a:hover{ }
 
+#mainmenu {
+	margin-left: 78px;
+}
 
-#leftcol ul {
+#mainmenu h3 {
+	padding: 1px 3px 18px 68px;
+}	
+#mainmenu ul {
 	list-style: none;
+	padding: 0;
 }
      
-#leftcol ul li {
+#mainmenu ul li {
 	text-align: left;
-	padding: 1px 3px 18px 58px;
+	padding: 1px 3px 18px 68px;
 	background: transparent url(../images/flapper.png) no-repeat scroll 0 20px;
+	width: 200px;
 }
 
-#leftcol ul li a {
+#mainmenu ul li a {
 	color: white;
 	font: 12pt helvetica;
 }
@@ -246,9 +282,10 @@ white-space: nowrap;
 	color: black;
 }
 	
-#leftcol h3 {
-	padding: 1px 3px 18px 58px;
-}	
+
+.componentheading {
+	display: none;
+}
 
 table.sobi2Listing {
 	text-align: left;
@@ -271,7 +308,28 @@ table.sobi2Listing td .sobiGalleryImage {
 	margin: 5px;
 }
 
-/* правая колонка */
+table.sobi2Listing td p.sobi2ItemTitle {
+	clear: none;
+	margin: 1px;
+	padding: 1px;
+}
+
+table.sobi2Listing span {
+	display: block;
+	float: right;
+	clear: right;
+	width: 150px;
+}	
+
+table.sobi2Listing span span {
+	float: left;
+	width: 70px;
+	text-align: right;
+	font-weight: bold;
+	color: red;
+}
+
+/* левая колонка */
 table.sobi2Listing td.col0 .sobiGalleryImage {
 	float: right;
 }
@@ -280,8 +338,16 @@ table.sobi2Listing td.col0 {
 	padding: 3px 2px 4px 9px;
 }
 
-table.sobi2Listing td p.sobi2ItemTitle {
-	clear: none;
-	margin: 1px;
-	padding: 1px;
+table.sobi2Listing td.col0 span {
+	float: left;
+	clear: left;
+	width: 130px;
+}	
+
+table.sobi2Listing td.col0 span span {
+	float: left;
+	width: 70px;
+	text-align: right;
+	font-weight: bold;
+	color: red;
 }

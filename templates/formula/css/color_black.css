@@ -2,7 +2,7 @@
 body{
      color: #ffffff;
      background-color: #000000;
-     background-image: url(../images/marble4.jpg);
+     background-image: url(../images/dk.gif);
      SCROLLBAR-FACE-COLOR:#000000;
      SCROLLBAR-ARROW-COLOR:#ffffff;
      SCROLLBAR-TRACK-COLOR:#333333;
@@ -19,7 +19,6 @@ body{
 }
 
 #maindiv .s .s {
-	background: transparent url(../images/curtains-b.jpg) no-repeat scroll 0 100%;
 	padding: 1px;
 }
          
