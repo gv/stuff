@@ -119,7 +119,7 @@ a:hover {
 	overflow-x: hidden;
 	overflow-y: auto;
 	*/
-	width: 576px;
+	width: 586px;
 	min-height: 500px;
 	margin: 277px 0 0 353px;
 }
@@ -169,6 +169,45 @@ margin:6px;
 	padding: 6px; 
 	text-align: justify; 
 }
+
+#textlinks {
+	width: 980px;
+	color: white;
+	background: #b71717;
+	margin: 10px auto;
+	padding: 5px 10px 8px 0px;
+}
+
+#textlinks ul {
+	clear: left;
+	list-style: none;
+}
+
+#textlinks li {
+	float: left;
+	padding: 3px 2px 3px 50px;
+}
+
+#textlinks ul li a {
+	font: normal 10pt arial;
+	color: white;
+	text-decoration: underline;
+}
+	
+#banners {
+	text-align: center;
+}
+
+#banners table {
+	margin: auto;
+}
+
+#banners .moduletable {
+	float: left;
+	padding: 20px 3px;
+}
+
+
 
 /*
 td.contentheading{ font-weight: bold; font-size: 1.2em; text-decoration: underline; }
