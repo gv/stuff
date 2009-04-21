@@ -23,9 +23,12 @@ $thistemplate = "formula";
 	<div id="foreword">
 
 	<div class="nav">
-	<a href="/"><img src="<?php echo $mosConfig_live_site; ?>/templates/<?php echo $thistemplate; ?>/images/home.gif" /></a>&nbsp;&nbsp;&nbsp;
+	<!--<a href="/"><img src="<?php echo $mosConfig_live_site; ?>/templates/<?php echo $thistemplate; ?>/images/home.gif" /></a>&nbsp;&nbsp;&nbsp;
 <a href="mailto:reklama@formulaoflove.ru"><img src="<?php echo $mosConfig_live_site; ?>/templates/<?php echo $thistemplate; ?>/images/mail.gif" /></a>&nbsp;&nbsp;&nbsp;
 <a href="mailto:reklama@formulaoflove.ru"><img src="<?php echo $mosConfig_live_site; ?>/templates/<?php echo $thistemplate; ?>/images/star.gif" /></a>&nbsp;&nbsp;&nbsp;
+-->
+
+<?php mosLoadModules('top', -2); ?>
 </div>
 
 <div class="words">

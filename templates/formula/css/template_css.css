@@ -85,11 +85,8 @@ a:hover {
 	float: left;
 	width: 350px;
 	margin: 280px 0 6px 3px;
+	text-align: left;
 }	
-
-#mainmenu {
-	margin: 0px 0 63px 53px
-}
 
 #extraleft {
 	margin: 180px 0 80px 0;
@@ -122,6 +119,27 @@ a:hover {
 	width: 586px;
 	min-height: 500px;
 	margin: 277px 0 0 353px;
+}
+
+*+html #maincolumn {
+	margin: 277px 0 0 323px;
+}
+
+* html #maincolumn {
+	margin: 277px 0 0 323px;
+}
+
+/* that's weird */
+*+html #content {
+	padding: 0;
+	position: relative;
+	left: -20px;
+}
+
+* html #content {
+	padding: 0;
+	position: relative;
+	left: -30px;
 }
 
 * html #maincolumn {
@@ -280,11 +298,16 @@ margin-left: 5px;
 white-space: nowrap;
 }
 
-#topmenu ul li{border-right-width: 2px; border-right-style: solid; border-left-width: 2px; border-left-style: solid; margin-right: 4px;}
-#topmenu ul li a:hover{ }
-
 #mainmenu {
-	margin-left: 78px;
+	margin: 0px 0 63px 73px
+}
+
+*+html #mainmenu {
+	margin: 0px 0 63px 33px;
+}
+
+* html #mainmenu {
+	margin: 0px 0 63px 23px;
 }
 
 #mainmenu h3 {
@@ -300,6 +323,11 @@ white-space: nowrap;
 	padding: 1px 3px 18px 68px;
 	background: transparent url(../images/flapper.png) no-repeat scroll 0 20px;
 	width: 200px;
+}
+
+/* Не смог заставить iepngfix.htc работсть =( */
+* html #mainmenu ul li {
+	background: transparent url(../images/flapper.gif) no-repeat scroll 0 20px;
 }
 
 #mainmenu ul li a {
@@ -345,6 +373,11 @@ table.sobi2Listing td .sobiGalleryImage {
 	border : 1px solid white;
 	background: black;
 	margin: 5px;
+	overflow: hidden;
+}
+
+table.sobi2Listing td .sobiGalleryImage img {
+	padding: 0;
 }
 
 table.sobi2Listing td p.sobi2ItemTitle {
@@ -389,4 +422,65 @@ table.sobi2Listing td.col0 span span {
 	text-align: right;
 	font-weight: bold;
 	color: red;
+}
+
+table.sobi2Details {
+	border-left: none !important;
+	border-top: none !important;
+	background: #4B4B4B url(../images/gray-tlc.png) !important;
+}
+
+table.sobi2Details table.sobi_gallery td {
+	background: black;
+}
+
+#sobi2outer {
+	margin: 40px 5px;
+}
+
+#sobi2outer span {
+	display: block;
+	margin: 10px 5px;
+}
+
+#sobi2outer span span {
+	display: inline;
+}
+
+#sobi2outer span span#sobi2Listing_field_extra_label {
+	display: none;
+}
+
+/* HACK top menu */
+#foreword .moduletable {
+	float: left;
+}
+
+#foreword .moduletable table {
+	width: auto;
+}
+
+#foreword .nav img {
+	display: block;
+	float: left;
+}
+
+#foreword .nav a {
+	display: block;
+	float: left;
+	width: 17px;
+	height: 15px;
+	overflow: hidden;
+	position: relative;
+	left: -17px;
+	font: 10px arial;
+	opacity: 0;
+}
+	
+#foreword .nav a {
+	filter: alpha(opacity=0);
+}
+
+li {
+	behavior: url("../iepngfix.htc");
 }
