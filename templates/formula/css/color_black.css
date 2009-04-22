@@ -112,25 +112,25 @@ div.module h3 {
 }
 
 .sobi2Listing td {
-	border: 2px solid white !important; /* это пересиливает даже style="..." ух ты */
+	border: 1px solid white !important; /* это пересиливает даже style="..." ух ты */
 }
 
 /* левый верхний угол */
 .sobi2Listing td.cell0 {
 	border-left: none !important;
 	border-top: none !important;
-	border-right: 2px solid white !important;
-	border-bottom: 2px solid white !important;
-	background: transparent url(../images/gray-tlc.png) no-repeat scroll 0 0 !important;
+	border-right: 1px solid white !important;
+	border-bottom: 1px solid white !important;
+	background: transparent url(../images/gray-tcs.png) no-repeat scroll 0 0 !important;
 }
 
 /* это правый верхний угол */
 .sobi2Listing td.cell1 {
 	border-right: none !important;
 	border-top: none !important;
-	border-left: 2px solid white !important;
-	border-bottom: 2px solid white !important;
-	background: transparent url(../images/gray-trc.png) no-repeat scroll 100% 0 !important;
+	border-left: 1px solid white !important;
+	border-bottom: 1px solid white !important;
+	background: transparent url(../images/gray-tcs.png) no-repeat scroll 100% 0 !important;
 }
 .sobi2Listing td td {
 	border: none;

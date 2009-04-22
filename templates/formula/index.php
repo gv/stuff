@@ -31,11 +31,11 @@ $thistemplate = "formula";
 <?php mosLoadModules('top', -2); ?>
 </div>
 
-<div class="words">
+<h1 class="words">
 опнярхрсрйх охрепю &nbsp;&nbsp;&nbsp;
 щкхрмше опнярхрсрйх  &nbsp;&nbsp;&nbsp;
 хмрхл днясц &nbsp;&nbsp;&nbsp;
-щяйнпр сяксцх</div>
+щяйнпр сяксцх</h1>
 
 </div>
 
@@ -76,7 +76,9 @@ $thistemplate = "formula";
 	</div><!-- maindiv-->
 
 	<div id='textlinks'>
+	  <table><tr><td>
 	<?php mosLoadModules('toolbar', -2); ?>
+  </tr></td></table>
 						<br style="clear: both;" />
 						</div>
 

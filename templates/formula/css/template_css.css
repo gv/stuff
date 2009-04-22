@@ -71,10 +71,13 @@ a:hover {
 	float: left;
 }
 
-#foreword .words {
+#foreword h1.words {
+	font: 10pt verdana;
 	font-weight: bold;
 	color: #b71717;
 	float: right;
+	margin: 0;
+	padding: 0;
 }
 
 #leftcol { 
@@ -189,21 +192,33 @@ margin:6px;
 }
 
 #textlinks {
-	width: 980px;
+	width: 1001px;
 	color: white;
 	background: #b71717;
 	margin: 10px auto;
-	padding: 5px 10px 8px 0px;
+	padding: 2px 0px;
+	text-align: center;
 }
 
-#textlinks ul {
+#textlinks table {
+	margin: auto;
+}
+
+#textlinks .moduletable {
+	/*float: left;*/
+	margin: auto;
+}
+
+#textlinks ul, #textlinks .sobi2MenuMod {
 	clear: left;
 	list-style: none;
+	padding: 3px;
+	margin: 3px;
 }
 
 #textlinks li {
 	float: left;
-	padding: 3px 2px 3px 50px;
+	padding: 3px 25px 3px 25px;
 }
 
 #textlinks ul li a {
@@ -399,6 +414,7 @@ table.sobi2Listing span span {
 	text-align: right;
 	font-weight: bold;
 	color: red;
+	padding: 0 5px 0 0;
 }
 
 /* левая колонка */
@@ -408,6 +424,10 @@ table.sobi2Listing td.col0 .sobiGalleryImage {
 
 table.sobi2Listing td.col0 {
 	padding: 3px 2px 4px 9px;
+}
+
+table.sobi2Listing td.col1 {
+	padding: 3px 0px 4px 2px;
 }
 
 table.sobi2Listing td.col0 span {
@@ -427,7 +447,7 @@ table.sobi2Listing td.col0 span span {
 table.sobi2Details {
 	border-left: none !important;
 	border-top: none !important;
-	background: #4B4B4B url(../images/gray-tlc.png) !important;
+	background: #4B4B4B url(../images/gray-tcs.png) !important;
 }
 
 table.sobi2Details table.sobi_gallery td {
@@ -483,4 +503,16 @@ table.sobi2Details table.sobi_gallery td {
 
 li {
 	behavior: url("../iepngfix.htc");
+}
+
+table.sobi2Details table.sobi_gallery td.sobi_gallery_emptycell {
+	background: transparent;
+}
+
+table.sobi2Details table.sobi_gallery td {
+	vertical-align: top;
+}
+
+ul#mainlevel {
+	padding: 2px 2px 2px 20px;
 }
