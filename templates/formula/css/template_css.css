@@ -383,15 +383,17 @@ table.sobi2Listing td td {
 
 table.sobi2Listing td .sobiGalleryImage {
 	float: left;
-	width: 96px;
+	width: 78px;
 	height: 115px;
 	border : 1px solid white;
 	background: black;
 	margin: 5px;
 	overflow: hidden;
+	text-align: center;
 }
 
 table.sobi2Listing td .sobiGalleryImage img {
+	float: none;
 	padding: 0;
 }
 

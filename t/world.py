@@ -15,6 +15,7 @@ def getArg(req, argName):
     except: raise ValueError('"%s" parameter expected' % argName)
 
 class Resource(resource.Resource):
+    addSlash = True
     def getChild(self, path, request):
         # respond to '.../sd9fv6t' and '.../sd9fv6t/' the same way
         if "" == path: return self

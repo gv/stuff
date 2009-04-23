@@ -167,8 +167,9 @@ dojo.addOnLoad(function() {
 		
 		dojo.declare('anxiety.Player', anxiety.Client, {
 				constructor: function(world, id, priv) {
-					
-
+					// Called after Client.constructor
+					this.games = {};
+				}
 
 			});
 
@@ -198,13 +199,14 @@ dojo.addOnLoad(function() {
 
 								error: dojo.hitch(this, function(e) {
 										console.log(e);
-									},
+									}),
 
 								load: dojo.hitch(this, function(rsp) {
 										var p = new anxiety.Player(this, rsp.id, rsp.priv);
-										
-					
-
+										this.loggedIn(p);
+									})
+								});
+				}
 			});
 
 

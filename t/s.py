@@ -12,7 +12,7 @@ PORT_NUMBER = 2222
 from base64 import urlsafe_b64encode, urlsafe_b64decode
 from random import randint, shuffle
 import cjson
-from twisted.web2 import http
+from twisted.web2 import http, server
 print "core libraries loaded"
 
 # cometds setup.py is broken so i checked in entire cometd tree
@@ -45,12 +45,20 @@ def randomBinString(length):
 
         
 class DictResource(Resource):
+    addSlash = True
     def __init__(self, dct):
         self.dct = dct
 
-    def getChild(self, path, request):
-        if "" == path: return self
-        return self.dct.get(path)
+    #def getChild
+    #def locateChild(self, req, segs):
+    #    if "" == segs[0]: return (self, server.StopTraversal)
+    #    return self.dct.get(segs[0])
+
+    def childFactory(self, req, name):
+        return self.dct.get(name)
+
+    def render(self, request):
+        return http.Response(200, stream='not this')
         
 
 #    
@@ -95,8 +103,9 @@ class Client(MessageDriven, Resource):
 
     table = {}
 
-    def get(id):
-        return Client.table.get(id)
+    @classmethod 
+    def get(cls, id):
+        return cls.table.get(id)
 
     def __init__(self, id = None):
         Resource.__init__(self)
@@ -117,9 +126,9 @@ class Client(MessageDriven, Resource):
     # Resource interface
     # -------- ---------
 
-    def http_GET(self, request):
+    def render(self, request):
         if self.authenticate(request):
-            return cjson.encode(self.getState())
+            return http.Response(200, stream=cjson.encode(self.getState()))
         else:
             return self.rejectNoAuth()
 
@@ -266,7 +275,6 @@ PlayerList()
 #     /cometd         ->   Async message server.
 #
 class Entry(In):
-    addSlash = True
     def __init__(self):
         Resource.__init__(self)
         self.putChild('clients', DictResource(Client))
