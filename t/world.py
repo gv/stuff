@@ -14,13 +14,9 @@ def getArg(req, argName):
     try: return req.args[argName][0]
     except: raise ValueError('"%s" parameter expected' % argName)
 
-class Resource(resource.Resource):
+class Resource(resource.PostableResource):
     addSlash = True
 
-    def getChild(self, path, request):
-        # respond to '.../sd9fv6t' and '.../sd9fv6t/' the same way
-        if "" == path: return self
-        return resource.Resource.getChild(self, path, request)
 
 
 
@@ -65,6 +61,8 @@ class In(Resource):
             return cjson.encode(result)
 
         def getPlayer(self, req):
+            """" Returns a Player objects for a player who sent this message.
+            Also rases an exception in case we can't be sure. """
             try: who = req.args['who'][0]
             except: raise ValueError('"who" parameter expected')
             try: priv = req.args['priv'][0]

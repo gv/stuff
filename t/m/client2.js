@@ -39,6 +39,7 @@ dojo.require('dijit.form.CheckBox');
 dojo.require('dijit.form.TextBox');
 dojo.require('dijit.Toolbar');
 
+dojo.require('dojox.grid.DataGrid');
 dojo.require('dojox.cometd');
 
 /*
@@ -145,22 +146,22 @@ dojo.addOnLoad(function() {
 
 		dojo.declare('anxiety.PlayerList', anxiety.Client, {
 				// connect(...) or subclass???
-				onplayerschanged: nop,
+				playersChanged: nop,
 					
 					_updateState: function(state) {
 					this.players = state.players;
-					this.onplayerschanged();
+					this.playersChanged();
 				},
 					
 					handleAddPlayer: function(msg) {
 					this.players.push(msg);
-					this.onplayerschanged();
+					this.playersChanged();
 				},
 
 					handleRmPlayer: function(msg) {
 					// XXX
 				
-					this.onplayerschanged();
+					this.playersChanged();
 				}
 			});
 
@@ -187,8 +188,19 @@ dojo.addOnLoad(function() {
 
 					this.players = new anxiety.PlayerList(this, 'players');
 				},
+
+					/* Signals */
+					loggedIn: nop,
+					denied: nop,
+					heard: nop,
 					
 					login: function(name) {
+					/*
+						Initiates a login request. 
+						If successful, calls this.loggedIn(player), where player
+						is newly created Player instance.
+						If not, calls this.denied(rsp).
+					*/
 					dojo.xhrPost({
 							url: this.urlPrefix,
 								handleAs: 'json',
@@ -199,6 +211,7 @@ dojo.addOnLoad(function() {
 
 								error: dojo.hitch(this, function(e) {
 										console.log(e);
+										this.denied(e);
 									}),
 
 								load: dojo.hitch(this, function(rsp) {
@@ -214,62 +227,128 @@ dojo.addOnLoad(function() {
 			Browser widgets
 			------- -------
 
+			ChatBrowser
+			```````````
+			A window with chat messages in it. We see it in WorldBrowser, until we log in,
+			and then we see it in a PlayerBrowser as a part of a more complex setup.
+		*/
+		dojo.declare('anxiety.ChatBrowser', [dijit._Widget],
+								 {   constructor: function(opts) {
+										 this.world = opts.world;
+										 this.maxPhraseCnt = 50;
+									 },
+										 
+										 buildRendering: function() {
+										 this.domNode = dojo.create('DIV');
+									 },
+
+										 postCreate: function() {
+										 /*
+											 This is called after constructor and buildRendering.
+											 this.connect machinery was not initialized until now.
+										 */
+										 this.connect(this.world, 'heard', 'heard');
+									 },
+
+
+										 heard: function(phrase) {
+										 // Someone said something
+										 var phraseNode = dojo.create('DIV', {innerHTML: phrase.text}, this.domNode);
+										 // Keep displayed phrase count < maxPhraseCnt
+										 var nodes = dojo.query('DIV', this.domNode);
+										 if(nodes.length > this.maxPhraseCnt) 
+											 nodes.slice(0, nodes.length - this.maxPhraseCnt).orphan();
+									 }
+								 });
+
+
+		/*
 			WorldBrowser
 			````````````
 			A widget that shows us client list, allows to login and spawns a PlayerBrowser
 			when we do.
 		*/
-		/*
-			Would be nice to do 
-
-			var tplUrl = dojo.moduleUrl('anxiety', 'WorldBrowser.html');
-			DBG('Template URL is ' + tplUrl);
-			
-			but templatePath must be XHR reachable so i will use templateString for a while
-			until i figure how to do better
-		*/
-
 		dojo.declare('anxiety.WorldBrowser', [dijit._Widget, dijit._Templated],
-								 { 
-									 templateString: 
-									 '<div>' + 
-										 ('<div dojoType="dijit.layout.BorderContainer" style="width: 100%; height: 100%" design="sidebar" gutters="true" liveSplitters="true">' + 
-											('<div dojoType="dijit.layout.BorderContainer" region="center" splitter="true">' +
-											 ('<div dojoType="dijit.layout.ContentPane" region="top">' +
-												('<input type="text" dojoType="dijit.form.TextBox" dojoAttachPoint="usernameBox" />' +
-												 '<button dojoType="dijit.form.Button">Login</button>') +
-												'</div>') +
-											 '</div>' + 
-											 '<div dojoType="dijit.layout.ContentPane" splitter="true" region="trailing" style="width: 200px;">' + 
-											 ('<div dojoAttachPoint="lList">fill me</div>' +
-												'<div dojoType="dijit.Toolbar" style="position:absolute; bottom:0; padding:4px;">' +
-												('<div dojoType="dijit.form.Button">Reload</div>') +
-												'</div>') +
-											 '</div>') + 
-											'</div>') + 
-										 '</div>',
-										 
-										 templatePath: null, //tplUrl,
+								 {   templateString: null,
+										 templatePath: '/templates/worldbrowser.xml',
 										 widgetsInTemplate: true,
-
+										 
 										 constructor: function(opts) {
 										 this.world = opts.world;
+										 
+										 this.beLoggedOut();
+									 },
+
+										 postCreate: function() {
+										 this.connect(this.world, 'loggedIn',  'loggedIn');
+										 this.connect(this.world, 'denied', 'denied');
+										 /*
+											 Make a datastore for a player list
+										 */
 
 
+										 /*
+											 Connect PlayerList client command handlers to a datastore
+										 */
+
+
+									 },
+
+										 beLoggedOut: function() {
+										 // Setup a chat message view.
+										 this.chatBrowser = new anxiety.ChatBrowser({
+												 world: this.world
+											 }, this.viewport);
+									 },
+										 
+										 
+										 loginBtnClicked: function() {
+										 var loginName = this.usernameBox.attr('value');
+										 if(!loginName.length) {
+											 alert('Enter name to log in');
+											 return;
+										 }
+										 
+										 this.loginBtn.attr('disabled', true);
+										 this.world.login(loginName);
+									 },
+
+										 denied: function(why) {
+										 DBG(why);
+										 this.loginBtn.attr('disabled', false);
+									 },
+
+										 loggedIn: function(player) {
+										 this.chatBrowser.destroy();
+										 this.playerBrowser = new anxiety.PlayerBrowser({player: player}, 
+																																		this.viewport);
+									 }
+										 
+								 });
+		
+		/*
+			PlayerBrowser
+			`````````````
+			A tab container.
+			Tab 1  - chat view and send box.
+			Tab 2  - invitations view.
+			Other tabs show games.
+
+			XXX Where do we put 'Log out' button?
+		*/			
+		dojo.declare('anxiety.PlayerBrowser',
+								 [dijit._Widget/*, dijit._Templated*/],
+								 {   /*templateString: null,
+										 templatePath: '/templates/playerbrowser.xml',
+										 widgetsInTemplate: true,*/
+										 constructor: function(opts) {
+										 
+											 
+										 
 									 }
 								 });
 
-			dojo.declare('anxiety.PlayerBrowser',
-									 [dijit._Widget, dijit._Templated],
-									 { templateString: null,
-										 templatePath: dojo.moduleUrl('anxiety', 'PlayerBrowser.html'),
-											 widgetsInTemplate: true,
-											 constructor: function(opts) {
-											 
-											 
-
-									 }
-								 });
+		
 	});
 
 

@@ -1,3 +1,21 @@
+/* 
+   References
+*/
+
+@import "../dojod/dijit/themes/nihilo/nihilo.css";
+/* If i press TAB here emacs hangs until C-g is pressed */
+
+@import "../dojod/dojox/grid/resources/Grid.css";
+@import "../dojod/dojox/grid/resources/tundraGrid.css";
+
+.dojoxGrid table {
+    margin: 0;
+}
+
+
+/*
+  Widgets look
+*/
 body {
 	text-align: center;
 	background: #669977;
@@ -139,3 +157,4 @@ h3 {
 .listBrowser .user div {
 	float: left;
 }
+

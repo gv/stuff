@@ -9,15 +9,16 @@ STATIC_PREFIX = STATIC_COMMON_PREFIX + "t/"
 PORT_NUMBER = 2222
 
 # imports
+import os
 from base64 import urlsafe_b64encode, urlsafe_b64decode
 from random import randint, shuffle
 import cjson
-from twisted.web2 import http, server
+from twisted.web2 import http, server, static
 print "core libraries loaded"
 
 # cometds setup.py is broken so i checked in entire cometd tree
 # who knows what else is broken there
-# it also lacks a server side API
+# it also lacks a server side messaging API
 # so we will use twisted-cometd-client.py from there
 # which i renamed to twcocl.py
 # ---
@@ -36,7 +37,7 @@ print "all libraries loaded"
 # utils
 
 DEBUG = False
-#DEBUG = True
+DEBUG = True
 
 def randomBinString(length):
     s = ""
@@ -273,6 +274,9 @@ PlayerList()
 #     /games    (in)  ->   Game Manager. Routes POST requests from remotes to Game objects,
 #                          which handle them according to specific game rules.
 #     /cometd         ->   Async message server.
+#     /templates      ->   A static directory for dojo widget templates. Must be XHR reachable
+#                          from 'world' domain, so we put it here and not on a static server.
+#     /dlib           ->   Debug version of Dojo library.
 #
 class Entry(In):
     def __init__(self):
@@ -280,6 +284,8 @@ class Entry(In):
         self.putChild('clients', DictResource(Client))
         self.putChild('games', DictResource(Game))
         self.putChild('cometd', cometd.cometd())
+        self.putChild('templates', static.File(os.path.abspath("templates")))
+        self.putChild('dlib', static.File('/opt/share/www/dojod'))
 
     def _getPlayerById(self, id):
         rv = Client.get(id)
@@ -348,17 +354,15 @@ class Entry(In):
         # And request.headers.getHeader('host') is somehow 'bishop:2222'
         worldPrefix = 'http://%s:%d/' % (request.host, PORT_NUMBER)
         # registerModulePath must be before inclusion of client2.js
-        return http.Response(200, stream=("""<html>
-<head>
+        if DEBUG:
+            dojoLoaderUrl = "/dlib/dojo/dojo.js"
+        else:
+            dojoLoaderUrl = STATIC_COMMON_PREFIX + 'dojod/dojo/dojo.xd.js'
+        return http.Response(200, stream=("""<html><head>
 <link rel=stylesheet href="%(static)scss.css" />
-<link rel=stylesheet href="%(dlib)sdijit/themes/nihilo/nihilo.css" />""" + 
-#<script src="%(static)sdefer.js"></script>
-#<script src="%(static)sclient.js"></script>
-"""
-<SCRIPT TYPE="text/javascript" SRC="%(dlib)sdojo/dojo.xd.js" djConfig="isDebug: true"></SCRIPT>
+<SCRIPT TYPE="text/javascript" SRC="%(dldr)s" djConfig="isDebug: true"></SCRIPT>
 <SCRIPT>
 dojo.registerModulePath('anxiety', '%(static)s');
-dojo.registerModulePath('anxiety.templates', '%(tplPrefix)s');
 </SCRIPT>
 <script src="%(static)sclient2.js"></script>
 </head>
@@ -371,8 +375,7 @@ browse("%(world)s", "worldBrowser");
 </html>
 """) % { 'static' : STATIC_PREFIX, 
          'world': worldPrefix, 
-         'dlib': STATIC_COMMON_PREFIX + 'dojod/',
-         'tplPrefix': worldPrefix + 'templates/'})
+         'dldr': dojoLoaderUrl})
     # TODO template path.
 
 
