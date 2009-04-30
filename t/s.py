@@ -185,9 +185,16 @@ class Player(Client):
         self.invitations = []
         Client.get('players').postMessage({
                 'what': 'addPlayer',
-                'name': client.name,
-                'id': client.id
+                'name': self.name,
+                'id': self.id
                 })
+
+    def close(self):
+        Client.get['players'].postMessage({
+                'what': 'rmPlayer',
+                'id': self.id
+                })
+                
         
     # Client interface
     # ------ ---------
@@ -300,9 +307,9 @@ class Entry(In):
     #
     def handleNeedClient(self, request):
         # player must have a name, so we can show him in a list
-        # XXX check if name is taken
         try: name = request.args['name'][0]
         except: return {'err': {'msg': "needClient: say your name!"}}
+        # XXX check if name is taken
         player = Player(name)
         return dict(id = player.id, 
                     priv = player.priv, 
@@ -311,8 +318,19 @@ class Entry(In):
     #
     # Private messages (need authentication)
     #
-    def handleChat(self, request):
+    def handleLogOut(self, req):
         player = self.getPlayer(req)
+        return {}
+
+    def handleChat(self, req):
+        # It must support auth
+        player = self.getPlayer(req)
+        Client.get('players').postMessage(
+            what = 'chat',
+            phrase = req.args['phrase'][0]
+            )
+        return {}
+                
 
     def handleInvite(self, req):
         """ Any player can send 'invite' with list of target ids

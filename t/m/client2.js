@@ -253,7 +253,8 @@ dojo.addOnLoad(function() {
 
 										 heard: function(phrase) {
 										 // Someone said something
-										 var phraseNode = dojo.create('DIV', {innerHTML: phrase.text}, this.domNode);
+										 var phraseNode = dojo.create('DIV', {innerHTML: phrase.text}, 
+																									this.domNode);
 										 // Keep displayed phrase count < maxPhraseCnt
 										 var nodes = dojo.query('DIV', this.domNode);
 										 if(nodes.length > this.maxPhraseCnt) 
@@ -285,15 +286,37 @@ dojo.addOnLoad(function() {
 										 /*
 											 Make a datastore for a player list
 										 */
-
+										 // Put in current values.
+										 this.updatePlayers(this.world.players);
 
 										 /*
 											 Connect PlayerList client command handlers to a datastore
 										 */
-
-
+										 this.connect(this.world.players, '_updateState', 'updatePlayers');
+										 this.connect(this.world.players, 'handleAddPlayer', 
+																	function(m) {
+																		this.playerStore.newItem(m);
+																	});
+										 this.connect(this.world.players, 'handleRmPlayer', 
+																	function(m) {
+																		// m.id is identifier of the removed player
+																		var itm = this.playerStore._getItemByIdentity(m.id);
+																		this.playerStore.deleteItem(itm);
+																	});
 									 },
 
+										 updatePlayers: function(state) {
+										 // Update the whole store with state.players
+										 this.playerStore = new dojo.data.ItemFileWriteStore({
+												 data: {
+													 identifer: 'id',
+													 label: 'name',
+													 items : state.players
+												 }
+											 });
+										 this.playerListView.setStore(this.playerStore);
+									 },																	
+									 
 										 beLoggedOut: function() {
 										 // Setup a chat message view.
 										 this.chatBrowser = new anxiety.ChatBrowser({
