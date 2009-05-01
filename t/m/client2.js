@@ -35,6 +35,7 @@ dojo.require('dojo.data.ItemFileWriteStore');
 dojo.require('dijit._Widget');
 dojo.require('dijit._Templated');
 dojo.require('dijit.layout.BorderContainer');
+dojo.require('dijit.layout.TabContainer');
 dojo.require('dijit.layout.ContentPane');
 dojo.require('dijit.form.Button');
 dojo.require('dijit.form.CheckBox');
@@ -107,12 +108,12 @@ dojo.addOnLoad(function() {
 						});
 					this.reload();
 
-				},
+				}
 					
-					// fetch and update the whole client state
-					reload: function() {
-					// don't do second request
-					if(this._reloading)
+				,reload: function() {
+					/**  Fetch and update the whole client state.
+					 */ 
+					if(this._reloading) // Don't do more than one requests at a time.
 						return;
 					// XXX handle error
 					dojo.xhrGet({
@@ -125,21 +126,21 @@ dojo.addOnLoad(function() {
 								load: dojo.hitch(this, '_updateState')
 								});
 					this._updating = true;
-				},
+				}
 
-					_updateState: function(state) {
+				,_updateState: function(state) {
 					this._reloading = false;
 					if(!('revision' in state))
 						throw 'No revision in state!';
 					this.revision = state.revision;
 					this.updateState(state);
-				},
+				}
 					
 				
-					/*  Overridables
-							------------
-					*/
-					updateState: function(state) {
+				//   Overridables
+				//	 ````````````
+
+				,updateState: function(state) {
 					DBG(state);
 				}
 					
@@ -152,7 +153,6 @@ dojo.addOnLoad(function() {
 		*/
 
 		dojo.declare('anxiety.PlayerList', anxiety.Client, {
-				// connect(...) or subclass???
 				playersChanged: nop,
 					
 					updateState: function(state) {
@@ -178,7 +178,29 @@ dojo.addOnLoad(function() {
 					// Called after Client.constructor
 					this.games = {};
 				}
+					
+					/*  APIs
+							````
+					*/
+					
+				,say: function(phrase) {
+					
 
+				}
+
+				,rm: function() {
+
+				}
+
+				,invite: function(kindOfGame, playerIds) {
+					
+
+				}
+
+				,startGame: function(partnerIds) {
+
+				}
+					
 			});
 
 		/*
@@ -190,23 +212,21 @@ dojo.addOnLoad(function() {
 				constructor: function(urlPrefix) {
 					this.urlPrefix = urlPrefix;
 
-					// do handshakes and stuff
+					// Do handshakes and stuff
 					dojox.cometd.init(urlPrefix + 'cometd');
 
 					this.players = new anxiety.PlayerList(this, 'players');
-				},
+				}
+				
 
-					/* Signals */
-					loggedIn: nop,
-					denied: nop,
-					heard: nop,
+				//   APIs
+				//   ````
 					
-					login: function(name) {
-					/*
-						Initiates a login request. 
-						If successful, calls this.loggedIn(player), where player
-						is newly created Player instance.
-						If not, calls this.denied(rsp).
+				,login: function(name) {
+					/*	Initiates a login request. 
+							If successful, calls this.loggedIn(player), where player
+							is newly created Player instance.
+							If not, calls this.denied(rsp).
 					*/
 					dojo.xhrPost({
 							url: this.urlPrefix,
@@ -225,10 +245,16 @@ dojo.addOnLoad(function() {
 										var p = new anxiety.Player(this, rsp.id, rsp.priv);
 										this.loggedIn(p);
 									})
+								/*  It seems when load: function throws an exception,
+										error: is called. That's not what I want though.
+								*/
 								});
 				}
-			});
-
+				
+				/* Signals */
+				,loggedIn: nop, loggedOut: nop, denied: nop, heard: nop
+					 });
+		
 
 		/*
 			Browser widgets
@@ -239,35 +265,33 @@ dojo.addOnLoad(function() {
 			A window with chat messages in it. We see it in WorldBrowser, until we log in,
 			and then we see it in a PlayerBrowser as a part of a more complex setup.
 		*/
-		dojo.declare('anxiety.ChatBrowser', [dijit._Widget],
-								 {   constructor: function(opts) {
-										 this.world = opts.world;
-										 this.maxPhraseCnt = 50;
-									 },
+		dojo.declare('anxiety.ChatBrowser', [dijit.layout.ContentPane	], {   
+				constructor: function(opts) {
+					this.world = opts.world;
+					this.maxPhraseCnt = 50;
+				}
 										 
-										 buildRendering: function() {
-										 this.domNode = dojo.create('DIV');
-									 },
+					// baseClass: 'chatBrowser',
+										 
+				,postCreate: function() {
+					/*  This is called after constructor and buildRendering.
+							this.connect machinery was not initialized until now.
+					*/
+					this.connect(this.world, 'heard', 'heard');
+					this.inherited(arguments);
+				}
 
-										 postCreate: function() {
-										 /*
-											 This is called after constructor and buildRendering.
-											 this.connect machinery was not initialized until now.
-										 */
-										 this.connect(this.world, 'heard', 'heard');
-									 },
-
-
-										 heard: function(phrase) {
-										 // Someone said something
-										 var phraseNode = dojo.create('DIV', {innerHTML: phrase.text}, 
-																									this.domNode);
-										 // Keep displayed phrase count < maxPhraseCnt
-										 var nodes = dojo.query('DIV', this.domNode);
-										 if(nodes.length > this.maxPhraseCnt) 
-											 nodes.slice(0, nodes.length - this.maxPhraseCnt).orphan();
-									 }
-								 });
+				
+				,heard: function(phrase) {
+					// Someone said something!
+					var phraseNode = dojo.create('DIV', {innerHTML: phrase.text}, 
+																			 this.domNode);
+					// Don't display more then maxPhraseCnt phrases.
+					var nodes = dojo.query('DIV', this.domNode);
+					if(nodes.length > this.maxPhraseCnt) 
+						nodes.slice(0, nodes.length - this.maxPhraseCnt).orphan();
+				}
+			});
 
 
 		/*
@@ -276,110 +300,171 @@ dojo.addOnLoad(function() {
 			A widget that shows us client list, allows to login and spawns a PlayerBrowser
 			when we do.
 		*/
-		dojo.declare('anxiety.WorldBrowser', [dijit._Widget, dijit._Templated],
-								 {   templateString: null,
-										 templatePath: '/templates/worldbrowser.xml',
-										 widgetsInTemplate: true,
+		dojo.declare('anxiety.WorldBrowser', [dijit._Widget, dijit._Templated],	 {   
+				templateString: null,
+					/* templatePath must be in the same domain for now */
+					templatePath: '/templates/worldbrowser.xml',
+					widgetsInTemplate: true,
 										 
-										 constructor: function(opts) {
-										 this.world = opts.world;
+					constructor: function(opts) {
+					this.world = opts.world;
 										 
-										 this.beLoggedOut();
-									 },
+				}
 
-										 postCreate: function() {
-										 this.connect(this.world, 'loggedIn',  'loggedIn');
-										 this.connect(this.world, 'denied', 'denied');
-										 /*
-											 Make a datastore for a player list
-										 */
-										 // Put in current values.
-										 this.updatePlayers(this.world.players);
+				,postCreate: function() {
+					this.inherited(arguments);
+					this.loggedOut();
 
-										 /*
-											 Connect PlayerList client command handlers to a datastore
-										 */
-										 this.connect(this.world.players, 'updateState', 'updatePlayers');
-										 this.connect(this.world.players, 'handleAddPlayer', 
-																	function(m) {
-																		this.playerStore.newItem(m);
-																	});
-										 this.connect(this.world.players, 'handleRmPlayer', 
-																	function(m) {
-																		// m.id is identifier of the removed player
-																		var itm = this.playerStore._getItemByIdentity(m.id);
-																		this.playerStore.deleteItem(itm);
-																	});
-										 /* This thing is very necessary */
-										 /* inb4 worthless comment )) */
-										 this.mainLayout.resize();
-									 },
-											 
-										 updatePlayers: function(state) {
-										 // Update the whole store with state.players
-										 this.playerStore = new dojo.data.ItemFileWriteStore({
-												 data: {
-													 identifer: 'id',
-													 label: 'name',
-													 items : state.players
-												 }
+					this.connect(this.world, 'loggedIn',  'loggedIn');
+					this.connect(this.world, 'denied', 'denied');
+					this.connect(this.world, 'loggedOut', 'loggedOut');
+					/* FIXME Why do i always need to say it twice? */
+
+					/* Put in current values. */
+					this.updatePlayers(this.world.players);
+
+					/*
+						Connect PlayerList client command handlers to a datastore
+					*/
+					this.connect(this.world.players, 'updateState', 'updatePlayers');
+					this.connect(this.world.players, 'handleAddPlayer', 
+											 function(m) {
+												 this.playerStore.newItem(m);
 											 });
-										 this.playerListView.setStore(this.playerStore);
-									 },																	
+					this.connect(this.world.players, 'handleRmPlayer', 
+											 function(m) {
+												 // m.id is identifier of the removed player
+												 var itm = this.playerStore._getItemByIdentity(m.id);
+												 this.playerStore.deleteItem(itm);
+											 });
+					/* This thing is very important! */
+					this.mainLayout.resize();
+					/* inb4 worthless comment )) */
+				}
+
+
+				//   Utility methods
+				//   ``````` ```````
+											 
+				,moveIntoClientWindow: function(wdg) {
+					// TODO remove whatever is in the client window now
+					wdg.attr('region', 'center');
+					this.mainLayout.addChild(wdg);
+				}
+
+				,report: function(str) {
+					this.statusBarNode.innerHTML = str;
+					dojo.style(this.statusBarNode, {visibility: str ? 'visible' : 'hidden'});
+				}
+										 
+
+				//   UI event handlers
+				//	 `` ````` ````````
+										 
+				,loginBtnPressed: function() {
+					var loginName = this.usernameBox.attr('value');
+					if(!loginName.length) {
+						alert('Enter name to log in');
+						return;
+					}
+										 
+					this.loginBtn.attr('disabled', true);
+					this.usernameBox.attr('disabled', true);
+					this.report('Logging in...');
+					this.world.login(loginName);
+				}
+
+				,logoutBtnPressed: function() {
+					this.report('Logging out...');
+					this.playerBrowser.player.rm();
+				}
+										 
+
+				//   World & playerList event handlers  
+				//   ````` ` `````````` ````` ````````  
+											 
+				,updatePlayers: function(state) {
+					// Update the whole store with state.players
+					this.playerStore = new dojo.data.ItemFileWriteStore({
+							data: {
+								identifer: 'id',
+								label: 'name',
+								items : state.players
+							}
+						});
+					this.playerListView.setStore(this.playerStore);
+				}																	
 									 
-										 beLoggedOut: function() {
-										 // Setup a chat message view.
-										 this.chatBrowser = new anxiety.ChatBrowser({
-												 world: this.world
-											 }, this.viewport);
-									 },
-										 
-										 
-										 loginBtnClicked: function() {
-										 var loginName = this.usernameBox.attr('value');
-										 if(!loginName.length) {
-											 alert('Enter name to log in');
-											 return;
-										 }
-										 
-										 this.loginBtn.attr('disabled', true);
-										 this.world.login(loginName);
-									 },
+				,denied: function(why) {
+					this.report(); // clear status message
+					DBG(why);
+					this.loggedOut();
+				}
 
-										 denied: function(why) {
-										 DBG(why);
-										 this.loginBtn.attr('disabled', false);
-									 },
+				,loggedIn: function(player) {
+					this.report(); // clear status message
+					this.chatBrowser.destroy();
+					delete this.chatBrowser;
 
-										 loggedIn: function(player) {
-										 this.chatBrowser.destroy();
-										 this.playerBrowser = new anxiety.PlayerBrowser({player: player}, 
-																																		this.viewport);
-									 }
-										 
-								 });
+					this.playerBrowser = new anxiety.PlayerBrowser({player: player});
+					this.moveIntoClientWindow(this.playerBrowser);
+					this.logoutBtn.attr('disabled', false);
+				}
+
+				,loggedOut: function(player) {
+					this.loginBtn.attr('disabled', false);
+					this.usernameBox.attr('disabled', false);
+					this.logoutBtn.attr('disabled', true);
+					if(!this.chatBrowser) {
+						// Setup a chat message view.
+						this.chatBrowser = new anxiety.ChatBrowser({
+								world: this.world
+							});
+						this.moveIntoClientWindow(this.chatBrowser);
+					}
+				}
+
+			});
 		
 		/*
 			PlayerBrowser
 			`````````````
-			A tab container.
-			Tab 1  - chat view and send box.
-			Tab 2  - invitations view.
-			Other tabs show games.
-
-			XXX Where do we put 'Log out' button?
+			On design of this thing, it would be nice to have a chat eveywhere. 
+			So we'll keep a send bar always typeable at the bottom.
+			Upside, there should be tabs for invitations and games.
+			
 		*/			
-		dojo.declare('anxiety.PlayerBrowser',
-								 [dijit._Widget/*, dijit._Templated*/],
-								 {   /*templateString: null,
-										 templatePath: '/templates/playerbrowser.xml',
-										 widgetsInTemplate: true,*/
-										 constructor: function(opts) {
-										 
-											 
-										 
-									 }
-								 });
+		dojo.declare('anxiety.PlayerBrowser', [dijit.layout.BorderContainer],	{   
+				/*templateString: null,
+					templatePath: '/templates/playerbrowser.xml',
+					widgetsInTemplate: true,*/
+				constructor: function(opts) {
+					this.player = opts.player;
+					this.attr('gutters', true);
+				},
+					
+					postCreate: function() {
+					this.inherited(arguments);
+
+					this.talkBar = new dijit.layout.ContentPane({region: 'bottom'});
+					this.phraseBox = (new dijit.form.TextBox()).placeAt(this.talkBar.domNode);
+					this.sayBtn = (new dijit.form.Button({innerHTML: 'Send'})).
+						placeAt(this.talkBar.domNode);
+					this.addChild(this.talkBar);
+					
+					/* Make tabs. */
+					this.tabs = new dijit.layout.TabContainer({region: 'center'});
+					this.addChild(this.tabs);
+					
+					/* Set up our own chat browser */
+					this.chat = new anxiety.ChatBrowser({
+							title: 'Invitations & chat',
+							world: this.player.world
+											 });
+					this.tabs.addChild(this.chat);
+				}
+				
+			});
 
 		
 	});

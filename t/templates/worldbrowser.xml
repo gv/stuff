@@ -4,17 +4,22 @@
 	   design="sidebar" 
 	   gutters="true" liveSplitters="true"
 	   dojoAttachPoint="mainLayout">
-	<div dojoType="dijit.layout.BorderContainer" region="center" splitter="true">
-	  <div dojoType="dijit.layout.ContentPane" region="top">
-		<input type="text" dojoType="dijit.form.TextBox"
-			   dojoAttachPoint="usernameBox" />
-		<button dojoType="dijit.form.Button" 
-				dojoAttachEvent="onClick: loginBtnClicked" 
-				dojoAttachPoint="loginBtn">Login</button> 
-	  </div>
-	</div> 
-	<div dojoAttachPoint="viewport">
+
+	<div dojoType="dijit.layout.ContentPane" region="top">
+	  <input type="text" dojoType="dijit.form.TextBox"
+			 dojoAttachPoint="usernameBox" />
+	  <button dojoType="dijit.form.Button" 
+			  dojoAttachEvent="onClick: loginBtnPressed" 
+			  dojoAttachPoint="loginBtn">Log in</button> 
+	  <button dojoType="dijit.form.Button"
+			  dojoAttachEvent="onClick: logoutBtnPressed"
+			  dojoAttachPoint="logoutBtn">Log out</button>
+	  <div class="statusBar" dojoAttachPoint="statusBarNode"></div>
 	</div>
+
+	<!--<div dojoType="dijit.layout.ContentPane" dojoAttachPoint="viewport" region="center">
+	</div>-->
+
 	<div dojoType="dijit.layout.BorderContainer" splitter="true"
 		 region="trailing" 
 		 style="width: 250px;"> 
