@@ -3,9 +3,12 @@
 #
 
 import cjson
-from twisted.web2 import resource
+from twisted.web2 import resource, http
 
 # utils
+DEBUG = False
+DEBUG = True
+
 
 def cfirst(s):
     return s[0].capitalize() + s[1:]
@@ -15,8 +18,9 @@ def getArg(req, argName):
     except: raise ValueError('"%s" parameter expected' % argName)
 
 class Resource(resource.PostableResource):
-    addSlash = True
-
+    def child_(self, request):
+        if len(request.postpath) == 1:
+            return self
 
 
 
@@ -32,50 +36,48 @@ class Resource(resource.PostableResource):
 #    - returns JSON encoded responces just to know if request was accepted
 #
 class In(Resource):
-    def http_POST(self, request):
+    def _handleReq(self, request):
+        # There must be a selector field
+        what = getArg(request, 'what')
+        handlingMethod = getattr(self, 'handle' + cfirst(what))
+        #except AttributeError: raise ValueError("Don't know what '%s' is" % what)
+        return handlingMethod(request)
+
+
+    def render(self, request):
         """ For now let's just handle all remote messages here.
         """
-        # There must be a selector field
-        try: what = request.args['what'][0]
-        except: return cjson.encode(
-            {'err': 
-             {'msg': 'Posted message must have selector field'}
-             }
-            )
-        
-        try: handlingMethod = getattr(self, 'handle' + cfirst(what))
-        except: return cjson.encode({'err': {'msg': "Don't know what '%s' is" % what}})
-
         #if not self.authenticate(req):
         #    return cjson.encode({'err': {'msg': "Not authenticated"}})
 
         # maybe opposite
         if DEBUG:
-            try:
-                result = handlingMethod(request)
-                return cjson.encode(result)
-            except Exception, e:
-                return cjson.encode({'err': {'msg': repr(e)}})
+            # Use twisteds exception handling mechanism
+            result = self._handleReq(request)
+            return http.Response(200, stream=cjson.encode(result))
         else:
-            result = handlingMethod(request)
-            return cjson.encode(result)
+            try:
+                result = self._handleReq(request)
+                return http.Response(200, stream=cjson.encode(result))
+            except Exception, e:
+                return http.Response(500, stream=cjson.encode({'err': {'msg': repr(e)}}))
 
-        def getPlayer(self, req):
-            """" Returns a Player objects for a player who sent this message.
-            Also rases an exception in case we can't be sure. """
-            try: who = req.args['who'][0]
-            except: raise ValueError('"who" parameter expected')
-            try: priv = req.args['priv'][0]
-            except: raise ValueError('"priv" parameter expected')
-            p = self._getPlayerById(who)
-            if p.priv != priv: raise ValueError('priv token mismatch')
-            return p
+    def getPlayer(self, req):
+        """" Returns a Player objects for a player who sent this message.
+        Also raises an exception in case we can't be sure. """
+        try: who = req.args['who'][0]
+        except: raise ValueError('"who" parameter expected')
+        try: priv = req.args['priv'][0]
+        except: raise ValueError('"priv" parameter expected')
+        p = self._getPlayerById(who)
+        if p.priv != priv: raise ValueError('priv token mismatch')
+        return p
 
-        # Overridables
-        # ------------
-        
-        def _getPlayerById(self, id):
-            raise ValueError('Implement _getPlayerById !')
+    # Overridables
+    # ------------
+    
+    def _getPlayerById(self, id):
+        raise ValueError('Implement _getPlayerById !')
         
 
 class Game(In):

@@ -8,8 +8,10 @@ STATIC_COMMON_PREFIX = "http://93.92.203.153:8008/"
 STATIC_PREFIX = STATIC_COMMON_PREFIX + "t/"
 PORT_NUMBER = 2222
 
-# imports
-import os
+# Imports
+# -------
+
+import os, sys
 from base64 import urlsafe_b64encode, urlsafe_b64decode
 from random import randint, shuffle
 import cjson
@@ -26,18 +28,18 @@ print "core libraries loaded"
 # first cometd is directory name
 # second cometd is filename
 from cometd import cometd, twcocl
-# bus = cometd.cometd()
 
 # our libs
 from world import In, Resource, cfirst, getArg, Game
+import world
 import thousand
 
 print "all libraries loaded"
 
 # utils
-
 DEBUG = False
 DEBUG = True
+
 
 def randomBinString(length):
     s = ""
@@ -46,14 +48,8 @@ def randomBinString(length):
 
         
 class DictResource(Resource):
-    addSlash = True
     def __init__(self, dct):
         self.dct = dct
-
-    #def getChild
-    #def locateChild(self, req, segs):
-    #    if "" == segs[0]: return (self, server.StopTraversal)
-    #    return self.dct.get(segs[0])
 
     def childFactory(self, req, name):
         return self.dct.get(name)
@@ -73,6 +69,18 @@ class DictResource(Resource):
 #     - request the whole client's state
 #     - subscribe to get messages that control the client
 #
+
+"""
+bus = twcocl.CometdClient(port=PORT_NUMBER)
+bus.init()
+"""
+
+from twisted.python import log
+log.startLogging(sys.stderr)
+bus = cometd.cometd()
+bus.verbose = True
+
+
 class MessageDriven:
     """  A utility base class to control some objects by JSON-serializable messages
     """
@@ -118,10 +126,14 @@ class Client(MessageDriven, Resource):
         msg = msg or kw
         # Image with rev X can handle message with rev X.
         msg['revision'] = self.revision
-        # postMessage is not reentrant.
-        # processMessage may not cause messages to be posted.
         self.processMessage(msg)
-        self.revision = msg['revision'] + 1;
+        self.revision = msg['revision'] + 1
+        # post to remotes
+        bus.route(None, {
+                'channel': '/' + self.id,
+                'data': msg
+                })
+        
         
 
     # Resource interface
@@ -129,7 +141,9 @@ class Client(MessageDriven, Resource):
 
     def render(self, request):
         if self.authenticate(request):
-            return http.Response(200, stream=cjson.encode(self.getState()))
+            state = self.getState()
+            state['revision'] = self.revision
+            return http.Response(200, stream=cjson.encode(state))
         else:
             return self.rejectNoAuth()
 
@@ -290,7 +304,7 @@ class Entry(In):
         Resource.__init__(self)
         self.putChild('clients', DictResource(Client))
         self.putChild('games', DictResource(Game))
-        self.putChild('cometd', cometd.cometd())
+        self.putChild('cometd', bus) #cometd.cometd())
         self.putChild('templates', static.File(os.path.abspath("templates")))
         self.putChild('dlib', static.File('/opt/share/www/dojod'))
 
@@ -367,6 +381,9 @@ class Entry(In):
     # ------- ---- -----
 
     def render(self, request):
+        if 'POST' == request.method:
+            return In.render(self, request)
+
         #worldPrefix = 'http://%s:%d/' % (request.getRequestHostname(), PORT_NUMBER)
         # request.host is not documented in web2
         # And request.headers.getHeader('host') is somehow 'bishop:2222'
@@ -394,7 +411,6 @@ browse("%(world)s", "worldBrowser");
 """) % { 'static' : STATIC_PREFIX, 
          'world': worldPrefix, 
          'dldr': dojoLoaderUrl})
-    # TODO template path.
 
 
         

@@ -30,6 +30,8 @@ function browse(urlPrefix, l) {
 	Imports
 	-------
 */
+dojo.require('dojo.data.ItemFileWriteStore');
+
 dojo.require('dijit._Widget');
 dojo.require('dijit._Templated');
 dojo.require('dijit.layout.BorderContainer');
@@ -65,11 +67,13 @@ dojo.addOnLoad(function() {
 
 					// Subscribe to events.
 					// TODO Authenticate.
-					dojox.cometd.subscribe('/' + id, this, function(msg) {
+					dojox.cometd.subscribe('/' + id, this, function(fullMsg) {
+							DBG(fullMsg);
+							var msg = fullMsg.data;
 							// processMessage
 							// any output we can't handle will be silently ignored
 							if(!('revision' in msg)) {
-								DBG('No revision number:' + msg.toSource());
+								DBG('No revision number:' + msg);
 								return;
 							}
 
@@ -81,7 +85,7 @@ dojo.addOnLoad(function() {
 							if(msg.revision == this.revision) {
 								// Looks like something we can handle
 								if(!msg.what) {
-									DBG('No selector field:' + msg.toSource());
+									DBG('No selector field:' + msg);
 									return;
 								}
 								
@@ -108,7 +112,7 @@ dojo.addOnLoad(function() {
 					// fetch and update the whole client state
 					reload: function() {
 					// don't do second request
-					if(this._updating)
+					if(this._reloading)
 						return;
 					// XXX handle error
 					dojo.xhrGet({
@@ -124,7 +128,10 @@ dojo.addOnLoad(function() {
 				},
 
 					_updateState: function(state) {
-					this._updating = false;
+					this._reloading = false;
+					if(!('revision' in state))
+						throw 'No revision in state!';
+					this.revision = state.revision;
 					this.updateState(state);
 				},
 					
@@ -133,7 +140,7 @@ dojo.addOnLoad(function() {
 							------------
 					*/
 					updateState: function(state) {
-					DBG(state.toSource());
+					DBG(state);
 				}
 					
 			});
@@ -148,7 +155,7 @@ dojo.addOnLoad(function() {
 				// connect(...) or subclass???
 				playersChanged: nop,
 					
-					_updateState: function(state) {
+					updateState: function(state) {
 					this.players = state.players;
 					this.playersChanged();
 				},
@@ -292,7 +299,7 @@ dojo.addOnLoad(function() {
 										 /*
 											 Connect PlayerList client command handlers to a datastore
 										 */
-										 this.connect(this.world.players, '_updateState', 'updatePlayers');
+										 this.connect(this.world.players, 'updateState', 'updatePlayers');
 										 this.connect(this.world.players, 'handleAddPlayer', 
 																	function(m) {
 																		this.playerStore.newItem(m);
@@ -303,8 +310,11 @@ dojo.addOnLoad(function() {
 																		var itm = this.playerStore._getItemByIdentity(m.id);
 																		this.playerStore.deleteItem(itm);
 																	});
+										 /* This thing is very necessary */
+										 /* inb4 worthless comment )) */
+										 this.mainLayout.resize();
 									 },
-
+											 
 										 updatePlayers: function(state) {
 										 // Update the whole store with state.players
 										 this.playerStore = new dojo.data.ItemFileWriteStore({
