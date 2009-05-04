@@ -1,10 +1,13 @@
 /*
-	This is a client for a multiplayer card game using Dojo
+	Anxiety
+	-------
+
+	This is a client for a multiplayer card game using Dojo framework.
+
 */
 
-/*
-	Utils
-	-----
+/*	Utils
+		-----
 */
 function nop() {} 
 
@@ -26,9 +29,8 @@ function browse(urlPrefix, l) {
 		});
 }
 
-/*
-	Imports
-	-------
+/*	Imports
+		-------
 */
 dojo.require('dojo.data.ItemFileWriteStore');
 
@@ -63,6 +65,7 @@ dojo.addOnLoad(function() {
 				constructor: function(world, id, priv) {
 					this.id = id;
 					this.priv = priv;
+					this.world = world;
 					this.urlPrefix = world.urlPrefix;
 					this.revision = -1;
 
@@ -153,23 +156,35 @@ dojo.addOnLoad(function() {
 		*/
 
 		dojo.declare('anxiety.PlayerList', anxiety.Client, {
-				playersChanged: nop,
-					
-					updateState: function(state) {
+				stat: function(id) {
+					for(var i in this.players)
+						if(this.players[i].id == id)
+							return this.players[i];
+				}
+
+				//   Command handlers
+				//   ``````` ````````
+				,updateState: function(state) {
 					this.players = state.players;
 					this.playersChanged();
-				},
+				}
 					
-					handleAddPlayer: function(msg) {
+				,handleAddPlayer: function(msg) {
 					this.players.push(msg);
 					this.playersChanged();
-				},
-
-					handleRmPlayer: function(msg) {
-					// XXX
+				}
 				
+				,handleRmPlayer: function(msg) {
+					// XXX
+					
 					this.playersChanged();
 				}
+
+				,handleChat: function(m) {
+					this.heard(m);
+				}
+
+				, heard: nop, playersChanged: nop
 			});
 
 		
@@ -179,71 +194,75 @@ dojo.addOnLoad(function() {
 					this.games = {};
 				}
 					
-					/*  APIs
-							````
-					*/
+				//   APIs
+				//	 ````
 					
 				,say: function(phrase) {
-					
-
+					return this.send('chat', {
+							phrase: phrase
+								});
 				}
 
 				,rm: function() {
-
+					return this.send('iQuit');
 				}
 
 				,invite: function(kindOfGame, playerIds) {
-					
+					return this.send('invite', {
+
+						});
 
 				}
 
 				,startGame: function(partnerIds) {
+					return this.send('startGame', {
 
+
+						});
 				}
-					
+
+				//   Utils
+				//   `````
+
+				,send: function(what, whatElse, okHandler) {
+					whatElse = whatElse || {}; 
+					whatElse.who = this.id;
+					whatElse.priv = this.priv;
+					return this.world.send(what, whatElse, okHandler);
+				}
+
+				/* Signals */
+				, invited: nop, gameStarted: nop
 			});
 
 		/*
-			World object
-			````` ``````
+			Servers
+			-------
+
+			Base for Game and World classes.
 		*/
-				
-		dojo.declare('anxiety.World', null, {
+		dojo.declare('anxiety.Server', null, {
 				constructor: function(urlPrefix) {
 					this.urlPrefix = urlPrefix;
-
-					// Do handshakes and stuff
-					dojox.cometd.init(urlPrefix + 'cometd');
-
-					this.players = new anxiety.PlayerList(this, 'players');
 				}
-				
 
-				//   APIs
-				//   ````
-					
-				,login: function(name) {
-					/*	Initiates a login request. 
-							If successful, calls this.loggedIn(player), where player
-							is newly created Player instance.
-							If not, calls this.denied(rsp).
-					*/
-					dojo.xhrPost({
-							url: this.urlPrefix,
-								handleAs: 'json',
-								content: {
-								what: 'needClient',
-									name: name
-									},
-
-								error: dojo.hitch(this, function(e) {
-										console.log(e);
-										this.denied(e);
-									}),
-
-								load: dojo.hitch(this, function(rsp) {
-										var p = new anxiety.Player(this, rsp.id, rsp.priv);
-										this.loggedIn(p);
+				,send: function(what, whatElse, okHandler) {
+					whatElse = whatElse || {};
+					whatElse.what = what;
+					return dojo.xhrPost({url: this.urlPrefix,
+								content: whatElse, 
+								handleAs: 'json', // OK (2**) answer will be handled as JSON.
+								load: dojo.hitch(this, okHandler),
+								error: dojo.hitch(this, function(er) {
+										// Try to get some information we can use
+										if(er.responseText) {
+											if('{' == er.responseText.charAt(0))
+												er = dojo.fromJson(er);
+											else
+												er.msg = er.responseText;
+										} else 
+											er.msg = er + '';
+										this.error(er);
 									})
 								/*  It seems when load: function throws an exception,
 										error: is called. That's not what I want though.
@@ -251,9 +270,40 @@ dojo.addOnLoad(function() {
 								});
 				}
 				
+				,error: nop	});
+
+		/*
+			World object
+			````` ``````
+		*/
+		
+		dojo.declare('anxiety.World', anxiety.Server, {
+				constructor: function(urlPrefix) {
+					// Do handshakes and stuff
+					dojox.cometd.init(urlPrefix + 'cometd');
+					this.players = new anxiety.PlayerList(this, 'players');
+				}
+				
+
+				//   APIs
+				//   ````
+				
+				,login: function(name) {
+					/**	Initiates a login request. 
+							If successful, calls this.loggedIn(player), where player
+							is newly created Player instance.
+							If not, calls this.denied(rsp).
+							Returns a Deferred.
+					*/
+					return this.send('needClient', {name: name}, function(rsp) {
+							var p = new anxiety.Player(this, rsp.id, rsp.priv);
+							this.loggedIn(p);
+						});
+				}
+			
+				
 				/* Signals */
-				,loggedIn: nop, loggedOut: nop, denied: nop, heard: nop
-					 });
+				,loggedIn: nop, loggedOut: nop,  heard: nop });
 		
 
 		/*
@@ -265,26 +315,31 @@ dojo.addOnLoad(function() {
 			A window with chat messages in it. We see it in WorldBrowser, until we log in,
 			and then we see it in a PlayerBrowser as a part of a more complex setup.
 		*/
-		dojo.declare('anxiety.ChatBrowser', [dijit.layout.ContentPane	], {   
+		dojo.declare('anxiety.ChatBrowser', [dijit.layout.ContentPane], {   
 				constructor: function(opts) {
 					this.world = opts.world;
 					this.maxPhraseCnt = 50;
 				}
 										 
-					// baseClass: 'chatBrowser',
+				// baseClass: 'chatBrowser',
 										 
 				,postCreate: function() {
-					/*  This is called after constructor and buildRendering.
+					/** This is called after constructor and buildRendering.
 							this.connect machinery was not initialized until now.
 					*/
-					this.connect(this.world, 'heard', 'heard');
+					this.connect(this.world.players, 'heard', 'heard');
 					this.inherited(arguments);
 				}
 
 				
-				,heard: function(phrase) {
+				,heard: function(m) {
 					// Someone said something!
-					var phraseNode = dojo.create('DIV', {innerHTML: phrase.text}, 
+					var author = this.world.players.stat(m.author);
+					if(!author)
+						return DBG('Got a chat message from nonexistent player ' + m.author);
+
+					var phraseNode = dojo.create('DIV', {innerHTML: 
+																							 '<b>' + author.name + '</b>: ' + m.phrase}, 
 																			 this.domNode);
 					// Don't display more then maxPhraseCnt phrases.
 					var nodes = dojo.query('DIV', this.domNode);
@@ -316,16 +371,17 @@ dojo.addOnLoad(function() {
 					this.loggedOut();
 
 					this.connect(this.world, 'loggedIn',  'loggedIn');
-					this.connect(this.world, 'denied', 'denied');
 					this.connect(this.world, 'loggedOut', 'loggedOut');
 					/* FIXME Why do i always need to say it twice? */
+					this.connect(this.world, 'error', function(er) {
+							alert(er.msg);
+						});
 
 					/* Put in current values. */
 					this.updatePlayers(this.world.players);
 
-					/*
-						Connect PlayerList client command handlers to a datastore
-					*/
+					/*   Connect PlayerList client command handlers to a datastore
+					 */
 					this.connect(this.world.players, 'updateState', 'updatePlayers');
 					this.connect(this.world.players, 'handleAddPlayer', 
 											 function(m) {
@@ -352,9 +408,11 @@ dojo.addOnLoad(function() {
 					this.mainLayout.addChild(wdg);
 				}
 
-				,report: function(str) {
+				,report: function(str, deferred) {
 					this.statusBarNode.innerHTML = str;
 					dojo.style(this.statusBarNode, {visibility: str ? 'visible' : 'hidden'});
+					// Clear after done.
+					return deferred && deferred.addBoth(dojo.hitch(this, 'report', '', 0));
 				}
 										 
 
@@ -370,13 +428,12 @@ dojo.addOnLoad(function() {
 										 
 					this.loginBtn.attr('disabled', true);
 					this.usernameBox.attr('disabled', true);
-					this.report('Logging in...');
-					this.world.login(loginName);
+					this.report('Logging in...', this.world.login(loginName)).
+						addErrback(dojo.hitch(this, 'loggedOut'));
 				}
 
 				,logoutBtnPressed: function() {
-					this.report('Logging out...');
-					this.playerBrowser.player.rm();
+					this.report('Logging out...', this.playerBrowser.player.rm());
 				}
 										 
 
@@ -395,12 +452,6 @@ dojo.addOnLoad(function() {
 					this.playerListView.setStore(this.playerStore);
 				}																	
 									 
-				,denied: function(why) {
-					this.report(); // clear status message
-					DBG(why);
-					this.loggedOut();
-				}
-
 				,loggedIn: function(player) {
 					this.report(); // clear status message
 					this.chatBrowser.destroy();
@@ -430,7 +481,9 @@ dojo.addOnLoad(function() {
 			PlayerBrowser
 			`````````````
 			On design of this thing, it would be nice to have a chat eveywhere. 
-			So we'll keep a send bar always typeable at the bottom.
+			So we'll keep a send bar always typeable at the bottom,
+			and I'm planning to have some notifications on messages that will be visible 
+			whereever in the interface you are.
 			Upside, there should be tabs for invitations and games.
 			
 		*/			
@@ -448,7 +501,10 @@ dojo.addOnLoad(function() {
 
 					this.talkBar = new dijit.layout.ContentPane({region: 'bottom'});
 					this.phraseBox = (new dijit.form.TextBox()).placeAt(this.talkBar.domNode);
-					this.sayBtn = (new dijit.form.Button({innerHTML: 'Send'})).
+					this.sayBtn = (new dijit.form.Button({
+								label: 'Send',
+								onClick: dojo.hitch(this, 'sayThings')
+							})).
 						placeAt(this.talkBar.domNode);
 					this.addChild(this.talkBar);
 					
@@ -462,6 +518,12 @@ dojo.addOnLoad(function() {
 							world: this.player.world
 											 });
 					this.tabs.addChild(this.chat);
+				}
+
+				,sayThings: function() {
+					var phrase = this.phraseBox.attr('value');
+					if(phrase)
+						/*this.report('Sending...', */this.player.say(phrase)/*)*/;
 				}
 				
 			});

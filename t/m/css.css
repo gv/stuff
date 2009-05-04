@@ -2,11 +2,12 @@
    References
 */
 
-@import "../dojod/dijit/themes/nihilo/nihilo.css";
-/* If i press TAB here emacs hangs until C-g is pressed */
+@import "../dlib/dijit/themes/tundra/tundra.css";
+/* If i press TAB here emacs hangs until C-g is pressed. */
+/* Rebooted and now it doesn't. */
 
-@import "../dojod/dojox/grid/resources/Grid.css";
-@import "../dojod/dojox/grid/resources/tundraGrid.css";
+@import "../dlib/dojox/grid/resources/Grid.css";
+@import "../dlib/dojox/grid/resources/tundraGrid.css";
 
 .dojoxGrid table {
     margin: 0;
@@ -110,15 +111,15 @@ h3 {
 }
 	
 .listBrowser .midPanel {
-	position: absolute;
 	top: 55%;
 	left: 3px;
 	right: 3px;
 	height: 30%;
-	overflow: auto;
-	background: #ffffe0;
 	border: 1px solid #ffff80;
 	padding: 7px;
+	overflow: auto;
+	position: absolute;
+	background: #ffffe0;
 }
 
 .invitations {
@@ -159,4 +160,19 @@ h3 {
 .listBrowser .user div {
 	float: left;
 }
+
+.loginPane {
+	position: relative;
+}
+
+.loginPane .statusBar {
+	position: absolute;
+	top: 0;
+	right: 10px;
+	background: #118811;
+	color: #fff;
+	font: bold verdana 1em;
+}
+	
+	
 

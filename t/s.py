@@ -1,11 +1,21 @@
-# This program will not use any template system, because any 
-# data will be transmitted in JSON form by some kind
-# of AJAX.
+#
+#     A networked card game server
+#     - --------- ---- ---- ------
+#
+#     This program will not use any template system, because all the 
+#     data will be transmitted in JSON form by some kind
+#     of AJAX.
 
-# static files url prefix
-print "started"
-STATIC_COMMON_PREFIX = "http://93.92.203.153:8008/"
-STATIC_PREFIX = STATIC_COMMON_PREFIX + "t/"
+print "started" 
+# So we know how long does it take for our python to load
+
+# Servers setup
+# ------- -----
+# XXX Be able to serve everything from this program.
+
+#STATIC_PREFIX = "http://93.92.203.153:8008/"
+#STATIC_CLIENT_CODE_PREFIX = STATIC_PREFIX + "t/"
+STATIC_PREFIX = "/"
 PORT_NUMBER = 2222
 
 # Imports
@@ -168,17 +178,22 @@ class PlayerList(Client):
     def __init__(self):
         Client.__init__(self, 'players')
 
-    def handleAddPlayer(self, **k):
-        """  It's a message for remote, actual adding is already done.
-        """
-        pass
-
     def getState(self):
         return {
             'players': [dict(id = p.id, name = p.name) 
                         for p in Client.table.values()
                         if isinstance(p, Player)]
             }
+
+    def handleAddPlayer(self, **k):
+        """  It's a message for remote, actual adding is already done.
+        """
+        pass
+
+    def handleChat(self, **k):
+        """ Remote is free to store talk history, and we won't.
+        """
+        pass
 
 
 class Player(Client):
@@ -188,6 +203,13 @@ class Player(Client):
     classes. Each game must be a JSON-serializable object,
     that can be controlled by JSON-serializable messages.
     """
+    
+    @classmethod
+    def getByName(cls, name):
+        for cl in Client.table.values():
+            if isinstance(cl, Player) and cl.name == name:
+                return cl
+                
 
     def __init__(self, name):
         Client.__init__(self)
@@ -307,6 +329,10 @@ class Entry(In):
         self.putChild('cometd', bus) #cometd.cometd())
         self.putChild('templates', static.File(os.path.abspath("templates")))
         self.putChild('dlib', static.File('/opt/share/www/dojod'))
+        if not STATIC_PREFIX.startswith('http'): # got no static server
+            mediaPath = os.path.join(os.path.dirname(world.__file__), 'm')
+            self.child_m = static.File(mediaPath)
+            
 
     def _getPlayerById(self, id):
         rv = Client.get(id)
@@ -321,9 +347,9 @@ class Entry(In):
     #
     def handleNeedClient(self, request):
         # player must have a name, so we can show him in a list
-        try: name = request.args['name'][0]
-        except: return {'err': {'msg': "needClient: say your name!"}}
-        # XXX check if name is taken
+        name = getArg(request, 'name')
+        if Player.getByName(name):
+            raise ValueError('There already is a player named ' + name)
         player = Player(name)
         return dict(id = player.id, 
                     priv = player.priv, 
@@ -341,7 +367,8 @@ class Entry(In):
         player = self.getPlayer(req)
         Client.get('players').postMessage(
             what = 'chat',
-            phrase = req.args['phrase'][0]
+            phrase = getArg(req, 'phrase'),
+            author = player.id
             )
         return {}
                 
@@ -351,7 +378,7 @@ class Entry(In):
         Then each of the targets gets and keeps an invitation
         """
         inviter = self.getPlayer(req)
-        ids = req.args['target'][0].split(',')
+        ids = getArg(req, 'target').split(',')
         for id in ids:
             who = self.clients.get(id)
             if not who:
@@ -387,12 +414,20 @@ class Entry(In):
         #worldPrefix = 'http://%s:%d/' % (request.getRequestHostname(), PORT_NUMBER)
         # request.host is not documented in web2
         # And request.headers.getHeader('host') is somehow 'bishop:2222'
-        worldPrefix = 'http://%s:%d/' % (request.host, PORT_NUMBER)
+        # worldPrefix = 'http://%s:%d/' % (request.host, PORT_NUMBER)
+        worldPrefix = '/' # seems it's the same
         # registerModulePath must be before inclusion of client2.js
         if DEBUG:
             dojoLoaderUrl = "/dlib/dojo/dojo.js"
         else:
-            dojoLoaderUrl = STATIC_COMMON_PREFIX + 'dojod/dojo/dojo.xd.js'
+            dojoLoaderUrl = STATIC_PREFIX + 'dlib/dojo/dojo.xd.js'
+
+            
+        if STATIC_PREFIX.startswith('http'): 
+            mediaUrlPrefix = STATIC_PREFIX + 't/'
+        else:
+            mediaUrlPrefix = '/m/'
+
         return http.Response(200, stream=("""<html><head>
 <link rel=stylesheet href="%(static)scss.css" />
 <SCRIPT TYPE="text/javascript" SRC="%(dldr)s" djConfig="isDebug: true"></SCRIPT>
@@ -401,14 +436,14 @@ dojo.registerModulePath('anxiety', '%(static)s');
 </SCRIPT>
 <script src="%(static)sclient2.js"></script>
 </head>
-<body class="nihilo">
+<body class="tundra">
 <div id="worldBrowser"></div>
 
 <script>
 browse("%(world)s", "worldBrowser");
 </script>
 </html>
-""") % { 'static' : STATIC_PREFIX, 
+""") % { 'static' : mediaUrlPrefix, 
          'world': worldPrefix, 
          'dldr': dojoLoaderUrl})
 

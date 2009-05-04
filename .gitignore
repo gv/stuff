@@ -4,7 +4,8 @@
 Debug
 generated
 TAGS
-*~a.out
+*~
+a.out
 *.lst
 *.s
 *.pdb
