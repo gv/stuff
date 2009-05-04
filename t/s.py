@@ -11,7 +11,6 @@ print "started"
 
 # Servers setup
 # ------- -----
-# XXX Be able to serve everything from this program.
 
 #STATIC_PREFIX = "http://93.92.203.153:8008/"
 #STATIC_CLIENT_CODE_PREFIX = STATIC_PREFIX + "t/"
@@ -55,6 +54,7 @@ def randomBinString(length):
     s = ""
     while len(s) < length: s += chr(randint(0, 255))
     return s
+
 
         
 class DictResource(Resource):

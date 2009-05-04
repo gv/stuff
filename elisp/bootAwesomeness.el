@@ -139,7 +139,8 @@
 (global-set-key [f2]    'save-buffer)
 (global-set-key [f4]    'ispell-buffer)
 (global-set-key [M-f4]  'save-buffers-kill-emacs)
-(global-set-key [M-f7]  'isearch-forward)
+(global-set-key [C-f]  'isearch-forward)
+(global-set-key [M-f7]  'find-name-dired)
 (global-set-key [C-tab]  'other-window) 
 (global-set-key [M-left] 'pop-tag-mark)
 
@@ -185,6 +186,14 @@
 (require 'ecmascript-mode)
 
 (add-hook 'c-mode-common-hook 
+		  '(lambda ()
+			 (setq c-basic-offset 2)
+			 (setq tab-width 2)
+			 (setq indent-tabs-mode t)
+			 (setq case-fold-search nil)
+			 (setq case-replace nil)))
+
+(add-hook 'python-mode-hook 
 		  '(lambda ()
 			 (setq c-basic-offset 2)
 			 (setq tab-width 2)

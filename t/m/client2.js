@@ -310,6 +310,18 @@ dojo.addOnLoad(function() {
 			Browser widgets
 			------- -------
 
+		*/
+
+		dojo.declare('anxiety.Reporting', null, {
+				report: function(str, deferred) {
+					this.statusBarNode.innerHTML = str;
+					dojo.style(this.statusBarNode, {visibility: str ? 'visible' : 'hidden'});
+					// Clear after done.
+					return deferred && deferred.addBoth(dojo.hitch(this, 'report', '', 0));
+				}
+			});
+
+		/*
 			ChatBrowser
 			```````````
 			A window with chat messages in it. We see it in WorldBrowser, until we log in,
@@ -339,7 +351,8 @@ dojo.addOnLoad(function() {
 						return DBG('Got a chat message from nonexistent player ' + m.author);
 
 					var phraseNode = dojo.create('DIV', {innerHTML: 
-																							 '<b>' + author.name + '</b>: ' + m.phrase}, 
+																							 '<b>' + author.name + 
+																							 '</b>: ' + m.phrase}, 
 																			 this.domNode);
 					// Don't display more then maxPhraseCnt phrases.
 					var nodes = dojo.query('DIV', this.domNode);
@@ -408,14 +421,7 @@ dojo.addOnLoad(function() {
 					this.mainLayout.addChild(wdg);
 				}
 
-				,report: function(str, deferred) {
-					this.statusBarNode.innerHTML = str;
-					dojo.style(this.statusBarNode, {visibility: str ? 'visible' : 'hidden'});
-					// Clear after done.
-					return deferred && deferred.addBoth(dojo.hitch(this, 'report', '', 0));
-				}
-										 
-
+				
 				//   UI event handlers
 				//	 `` ````` ````````
 										 
@@ -487,17 +493,21 @@ dojo.addOnLoad(function() {
 			Upside, there should be tabs for invitations and games.
 			
 		*/			
-		dojo.declare('anxiety.PlayerBrowser', [dijit.layout.BorderContainer],	{   
-				/*templateString: null,
+		dojo.declare('anxiety.PlayerBrowser', [dijit.layout.BorderContainer, anxiety.Reporting],	{   
+									 /*templateString: null,
 					templatePath: '/templates/playerbrowser.xml',
 					widgetsInTemplate: true,*/
 				constructor: function(opts) {
 					this.player = opts.player;
 					this.attr('gutters', true);
-				},
+				}
 					
-					postCreate: function() {
+				,postCreate: function() {
 					this.inherited(arguments);
+					
+					dojo.style(this.domNode, {position: 'relative'});
+					this.statusBarNode = dojo.create('DIV', {className: 'statusBar'}, 
+																					 this.domNode);
 
 					this.talkBar = new dijit.layout.ContentPane({region: 'bottom'});
 					this.phraseBox = (new dijit.form.TextBox()).placeAt(this.talkBar.domNode);
@@ -515,15 +525,36 @@ dojo.addOnLoad(function() {
 					/* Set up our own chat browser */
 					this.chat = new anxiety.ChatBrowser({
 							title: 'Invitations & chat',
+							region: 'center'.
 							world: this.player.world
-											 });
+						});
+					this.invAndChatLo = new dijit.layout.BorderContainer({
+							title: 'Invitations & chat'
+						});
+					this.invPane = new dijit.layout.ContentPane({
+							title: 'Invitations',
+							region: 'leading'
+						});
+					this.invAndChatLo.addChild(this.invPane);
+					// this.invAndChatLo.addChild(this.chat);
+					// this.tabs.addChild(this.invAndChatLo);
 					this.tabs.addChild(this.chat);
+
+					this.connect(this.player, 'handleInvited', function(m) {
+
+						});
+
+					this.connect(this.player, 'handleAddGame'. function(m) {
+
+
+						});
 				}
 
 				,sayThings: function() {
 					var phrase = this.phraseBox.attr('value');
 					if(phrase)
-						/*this.report('Sending...', */this.player.say(phrase)/*)*/;
+						this.report('Sending...', this.player.say(phrase));
+					this.phraseBox.attr('value', '');
 				}
 				
 			});
