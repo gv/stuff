@@ -370,7 +370,7 @@ dojo.addOnLoad(function() {
 		*/
 		dojo.declare('anxiety.ChatBrowser', [dijit.layout.ContentPane], {   
 				constructor: function(opts) {
-					this.world = opts.world;
+					//this.world = opts.world;
 					this.maxPhraseCnt = 50;
 				}
 										 
@@ -409,17 +409,12 @@ dojo.addOnLoad(function() {
 			A widget that shows us client list, allows to login and spawns a PlayerBrowser
 			when we do.
 		*/
-		dojo.declare('anxiety.WorldBrowser', [dijit._Widget, dijit._Templated],	 {   
-				templateString: null,
+		dojo.declare('anxiety.WorldBrowser', [dijit._Widget, dijit._Templated, anxiety.Reporting], {  
+				templateString: null
 					/* templatePath must be in the same domain for now */
-					templatePath: '/templates/worldbrowser.xml',
-					widgetsInTemplate: true,
+					,templatePath: '/templates/worldbrowser.xml'
+					,widgetsInTemplate: true
 										 
-					constructor: function(opts) {
-					this.world = opts.world;
-										 
-				}
-
 				,postCreate: function() {
 					this.inherited(arguments);
 					this.loggedOut();
@@ -504,7 +499,7 @@ dojo.addOnLoad(function() {
 					this.chatBrowser.destroy();
 					delete this.chatBrowser;
 
-					this.playerBrowser = new anxiety.PlayerBrowser({player: player});
+					this.playerBrowser = new anxiety.PlayerBrowser({player: player, worldBrowser: this});
 					this.moveIntoClientWindow(this.playerBrowser);
 					this.logoutBtn.attr('disabled', false);
 				}
@@ -535,11 +530,12 @@ dojo.addOnLoad(function() {
 			
 		*/			
 		dojo.declare('anxiety.PlayerBrowser', [dijit.layout.BorderContainer, anxiety.Reporting],	{   
-									 /*templateString: null,
+				/*templateString: null,
 					templatePath: '/templates/playerbrowser.xml',
 					widgetsInTemplate: true,*/
 				constructor: function(opts) {
-					this.player = opts.player;
+					/*this.player = opts.player;
+						this.worldBrowser = opts.worldBrowser;*/
 					this.invs = {};
 
 					/* Setup BorderContainer */
@@ -548,6 +544,13 @@ dojo.addOnLoad(function() {
 					
 				,postCreate: function() {
 					this.inherited(arguments);
+
+					/* Make the 'Invite' button' */
+					this.inviteBtn = new dijit.form.Button({
+							label: 'Invite'
+						});
+					this.inviteBtn.placeAt(this.worldBrowser.toolbar);
+							
 					
 					dojo.style(this.domNode, {position: 'relative'});
 					this.statusBarNode = dojo.create('DIV', {className: 'statusBar'}, 
@@ -558,8 +561,7 @@ dojo.addOnLoad(function() {
 					this.sayBtn = (new dijit.form.Button({
 								label: 'Send',
 								onClick: dojo.hitch(this, 'sayThings')
-							})).
-						placeAt(this.talkBar.domNode);
+							})).placeAt(this.talkBar.domNode);
 					this.addChild(this.talkBar);
 					
 					/* Make tabs. */
@@ -569,7 +571,7 @@ dojo.addOnLoad(function() {
 					/* Set up our own chat browser */
 					this.chat = new anxiety.ChatBrowser({
 							title: 'Invitations & chat',
-							region: 'center'.
+							region: 'center',
 							world: this.player.world
 						});
 					this.invAndChatLo = new dijit.layout.BorderContainer({
@@ -577,12 +579,16 @@ dojo.addOnLoad(function() {
 						});
 					this.invPane = new dijit.layout.ContentPane({
 							title: 'Invitations',
-							region: 'leading'
+							region: 'leading',
+							splitter: true,
+							style: {
+								width: '25%'
+							}
 						});
 					this.invAndChatLo.addChild(this.invPane);
-					// this.invAndChatLo.addChild(this.chat);
-					// this.tabs.addChild(this.invAndChatLo);
-					this.tabs.addChild(this.chat);
+					this.invAndChatLo.addChild(this.chat);
+					this.tabs.addChild(this.invAndChatLo);
+					//this.tabs.addChild(this.chat);
 
 					this.connect(this.player, 'updateState', 'updateState');
 

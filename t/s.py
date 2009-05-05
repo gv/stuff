@@ -15,7 +15,9 @@ print "started"
 #STATIC_PREFIX = "http://93.92.203.153:8008/"
 #STATIC_CLIENT_CODE_PREFIX = STATIC_PREFIX + "t/"
 STATIC_PREFIX = "/"
+PORT_NUMBER = 6080 # for bishop
 PORT_NUMBER = 2222
+
 
 # Imports
 # -------
