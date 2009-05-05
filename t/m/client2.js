@@ -29,6 +29,12 @@ function browse(urlPrefix, l) {
 		});
 }
 
+function checkProps(o /*, ...*/) {
+	for(var i = arguments.length; i > 1; i--) 
+		if(!o[arguments[i]])
+			throw 'Property ' + arguments[i] + ' expected';
+}
+
 /*	Imports
 		-------
 */
@@ -96,8 +102,12 @@ dojo.addOnLoad(function() {
 								var methodName = 'handle' + cfirst(msg.what);
 								if(this[methodName]) {
 									// XXX game plugging code here
-									this[methodName](msg);
-									this.revision++;
+									try {
+										this[methodName](msg);
+										this.revision++;
+									} catch(e) {
+										DBG(e);
+									}
 								} else {
 									DBG('No handling method for ' + msg.what);
 								}
@@ -109,8 +119,8 @@ dojo.addOnLoad(function() {
 								this.reload();
 							}
 						});
-					this.reload();
 
+					this.reload();
 				}
 					
 				,reload: function() {
@@ -137,6 +147,7 @@ dojo.addOnLoad(function() {
 						throw 'No revision in state!';
 					this.revision = state.revision;
 					this.updateState(state);
+					this.updated();
 				}
 					
 				
@@ -146,7 +157,8 @@ dojo.addOnLoad(function() {
 				,updateState: function(state) {
 					DBG(state);
 				}
-					
+				
+				,updated: nop
 			});
 
 		/*
@@ -229,6 +241,35 @@ dojo.addOnLoad(function() {
 					whatElse.who = this.id;
 					whatElse.priv = this.priv;
 					return this.world.send(what, whatElse, okHandler);
+				}
+
+				//   Client message handlers
+				//   `````` ``````` ````````
+
+				,handleInvited: function(m) {
+					checkProps(m, 'who', 'gameType');
+					m.senderStat = this.world.players.stat(m.who);
+					if(!m.senderStat) throw 'Player #' + m.who + ' not found';
+					this.invited(m);
+				}
+
+				,handleAddGame: function(m) {
+
+
+				}
+
+				,updateState: function(s) {
+					/* Update invitations */
+					this.invitations = [];
+					for(var i in s.invitations) {
+						var inv = s.invitations[i];
+						inv.senderStat = this.world.players.stat(inv.who);
+						if(!inv.senderStat)
+							continue; // The player who sent this has gone.
+						this.invitations.push(inv);
+					}
+					
+					/* Update games */
 				}
 
 				/* Signals */
@@ -499,6 +540,9 @@ dojo.addOnLoad(function() {
 					widgetsInTemplate: true,*/
 				constructor: function(opts) {
 					this.player = opts.player;
+					this.invs = {};
+
+					/* Setup BorderContainer */
 					this.attr('gutters', true);
 				}
 					
@@ -540,15 +584,68 @@ dojo.addOnLoad(function() {
 					// this.tabs.addChild(this.invAndChatLo);
 					this.tabs.addChild(this.chat);
 
-					this.connect(this.player, 'handleInvited', function(m) {
+					this.connect(this.player, 'updateState', 'updateState');
 
-						});
+					this.connect(this.player, 'invited', 'addInv');
 
-					this.connect(this.player, 'handleAddGame'. function(m) {
+					this.connect(this.player, 'gameAdded', function(m) {
 
 
 						});
 				}
+
+				,updateState: function() {
+					/* Redraw invitations */
+					dojo.empty(this.invPane.containerNode);
+					this.invViews = {};
+
+					for(var i in this.invitations) {
+						this.addInv(this.invitations[i]);
+					}
+				}
+
+				,addInv: function(inv) {
+					if(!this.invViews[inv.gameType]) {
+						var node = dojo.create('DIV', {
+								className: 'gameType'
+							}, this.invPane.containerNode);
+						var listNode = dojo.create('DIV', {
+								className: 'list'
+							}, node);
+						//var startBtnNode = dojo.create('BUTTON', {
+						var startBtn = new dijit.form.Button({
+								label: 'Start "' + inv.gameType + '" game'
+							});
+						startBtn.placeAt(node);
+						
+						// Connect start button here.
+
+						this.invViews[inv.gameType] = {
+							node: node,
+							listNode: listNode,
+							startBtn: startBtn,
+							entries: []
+						};
+					}
+
+					var typeView = this.invViews[inv.gameType];
+					var entry = {
+						node: dojo.create('DIV', {
+								className: 'entry'
+							}, typeView.listNode),
+					};
+
+					entry.cbNode = dojo.create('INPUT', {
+							type: checkbox,
+							name: inv.who
+						}, entry.node);
+					entry.labelNode = dojo.create('LABEL', {
+							innerHTML: inv.senderStat.name
+						}, entry.node);
+					typeView.entries.push(entry);
+				}
+							
+					
 
 				,sayThings: function() {
 					var phrase = this.phraseBox.attr('value');

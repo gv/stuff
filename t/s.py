@@ -281,7 +281,7 @@ class Player(Client):
 
             def getState(self):
                 return dict(who = self.who,
-                            whatGame = self.what)
+                            gameType = self.what)
 
         inv = Invitation(who, whatGame)
         if not (inv in self.invitations):
@@ -308,17 +308,22 @@ PlayerList()
 #     Entry point
 #     ----- -----
 #
-#     This is a root resource. It routes GET and POST requests to following resources:
+#     This is a root resource. It routes GET and POST requests to following 
+#     resources:
 #
 #     /         (in)  ->   Client manager input. Post to it if you need a client id.
-#                          Also, post to it if you have a client id but don't need it anymore.
-#     /         (out) ->   Also if you GET it, you will retrieve browser client HTML page.
+#                          Also, post to it if you have a client id but don't 
+#                          need it anymore.
+#     /         (out) ->   Also if you GET it, you will retrieve browser client 
+#                          HTML page.
 #     /clients  (out) ->   Client manager. Reports clients' states and player list.
-#     /games    (in)  ->   Game Manager. Routes POST requests from remotes to Game objects,
-#                          which handle them according to specific game rules.
+#     /games    (in)  ->   Game Manager. Routes POST requests from remotes to Game 
+#                          objects,  which handle them according to specific game 
+#                          rules.
 #     /cometd         ->   Async message server.
-#     /templates      ->   A static directory for dojo widget templates. Must be XHR reachable
-#                          from 'world' domain, so we put it here and not on a static server.
+#     /templates      ->   A static directory for dojo widget templates. Must be 
+#                          XHR reachable from 'world' domain, so we put it here and 
+#                          not on a static server.
 #     /dlib           ->   Debug version of Dojo library.
 #
 class Entry(In):
