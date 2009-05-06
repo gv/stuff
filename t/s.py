@@ -30,9 +30,9 @@ from twisted.web2 import http, server, static
 print "core libraries loaded"
 
 # cometds setup.py is broken so i checked in entire cometd tree
-# who knows what else is broken there
-# it also lacks a server side messaging API
-# so we will use twisted-cometd-client.py from there
+# Who knows what else is broken there
+# It also lacks a server side messaging API
+# So we will use twisted-cometd-client.py from there,
 # which i renamed to twcocl.py
 # ---
 # so
@@ -462,14 +462,15 @@ if __name__ == '__main__':
     print 'Starting server...'
     from twisted.web2 import server, channel
     from twisted.internet import reactor
-    from twisted.application import service, strports
 
     site = server.Site(Entry())
     reactor.listenTCP(PORT_NUMBER, channel.HTTPFactory(site))
+
     # For twisted.web it was
     # reactor.listenTCP(PORT_NUMBER, site)
     
     # Complicated stuff
+    #from twisted.application import service , strports
     #app = service.Application('worldd')
     #svc = strports.service('tcp:%d' % PORT_NUMBER, channel.HTTPFactory(site))
     #svc.setServiceParent(app)
