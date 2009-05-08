@@ -91,6 +91,13 @@ from twisted.python import log
 log.startLogging(sys.stderr)
 bus = cometd.cometd()
 bus.verbose = True
+# Get needed client id
+cometd.BayeuxServer.cometClients.registerConnect(
+		client_id = 'world',
+		auth_type = 'none',
+		connection_type = 'long-polling' # make 'em happy
+)
+				
 
 
 class MessageDriven:
@@ -140,11 +147,16 @@ class Client(MessageDriven, Resource):
 				msg['revision'] = self.revision
 				self.processMessage(msg)
 				self.revision = msg['revision'] + 1
-				# post to remotes
-				bus.route(None, {
-								'channel': '/' + self.id,
-								'data': msg
-								})
+
+				# Post to cometd
+
+				bxMsg = {
+						'channel': '/' + self.id,
+						'clientId': 'world',
+						'data': msg
+						}
+				cometd.BayeuxServer.Publish(bxMsg, None)
+				bus.route(None, bxMsg)
 				
 				
 
@@ -163,7 +175,9 @@ class Client(MessageDriven, Resource):
 		# ------------
 				
 		def rejectNoAuth(self):
-				return cjson.encode({'err':{'msg':'Not authentificated'}})
+				return http.Response(
+						403, stream=cjson.encode({'err':{'msg':'Not authentificated'}})
+						)
 
 		def authenticate(self, request):
 				return True
