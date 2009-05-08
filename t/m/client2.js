@@ -219,10 +219,11 @@ dojo.addOnLoad(function() {
 					return this.send('iQuit');
 				}
 
-				,invite: function(kindOfGame, playerIds) {
+				,invite: function(gameType, playerIds) {
 					return this.send('invite', {
-
-						});
+							gameType: gameType,
+								target: playerIds.join(' ')
+								});
 
 				}
 
@@ -410,11 +411,17 @@ dojo.addOnLoad(function() {
 			when we do.
 		*/
 		dojo.declare('anxiety.WorldBrowser', [dijit._Widget, dijit._Templated, anxiety.Reporting], {  
-				templateString: null
-					/* templatePath must be in the same domain for now */
-					,templatePath: '/templates/worldbrowser.xml'
-					,widgetsInTemplate: true
-										 
+				
+				//   API
+				//   ```
+				
+				getSelectedPlayerIds: function() {
+					var rv = [], items = this.playerListView.selection.getSelected();
+					for(var i in items) 
+						rv.push(items[i].id);
+					return rv;
+				}
+
 				,postCreate: function() {
 					this.inherited(arguments);
 					this.loggedOut();
@@ -517,6 +524,12 @@ dojo.addOnLoad(function() {
 					}
 				}
 
+				/*  Variables  */
+				,templateString: null
+					 /* templatePath must be in the same domain for now */
+					 ,templatePath: '/templates/worldbrowser.xml'
+					 ,widgetsInTemplate: true
+					 
 			});
 		
 		/*
@@ -551,11 +564,12 @@ dojo.addOnLoad(function() {
 						});
 					this.inviteBtn.placeAt(this.worldBrowser.toolbar);
 							
-					
+					/* Make a status bar */
 					dojo.style(this.domNode, {position: 'relative'});
 					this.statusBarNode = dojo.create('DIV', {className: 'statusBar'}, 
 																					 this.domNode);
 
+					/* Make the always visible 'say' box */
 					this.talkBar = new dijit.layout.ContentPane({region: 'bottom'});
 					this.phraseBox = (new dijit.form.TextBox()).placeAt(this.talkBar.domNode);
 					this.sayBtn = (new dijit.form.Button({
@@ -591,12 +605,16 @@ dojo.addOnLoad(function() {
 					//this.tabs.addChild(this.chat);
 
 					this.connect(this.player, 'updateState', 'updateState');
-
 					this.connect(this.player, 'invited', 'addInv');
 
 					this.connect(this.player, 'gameAdded', function(m) {
 
 
+						});
+
+					this.connect(this.inviteBtn, 'onClick', function() {
+							var ids = this.worldBrowser.getSelectedPlayerIds();
+							this.player.invite('thousand', ids);
 						});
 				}
 
