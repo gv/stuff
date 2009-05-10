@@ -383,6 +383,8 @@ class CometTopics(Singleton):
 		if not self.clientsByTopic[topic_name].has_key(client_id):
 			self.clientsByTopic[topic_name][client_id] = existing_topic
 
+		self.quickTopicMatch.registerTopic(existing_topic, client_id);
+
 		GlobalLogger.debug("Client %s subscribed to topic %s" % (client_id,topic_name),debug=True)
 		return True
 

@@ -32,8 +32,8 @@
 		  </tr>
 		</thead>
 	  </table>
-	  <div dojoType="dijit.Toolbar" region="bottom" dojoAttachPoint="toolbar">
-		<div dojoType="dijit.form.Button">Reload</div>
+	  <div dojoType="dijit.layout.ContentPane" region="bottom" dojoAttachPoint="toolbar">
+		<!--<div dojoType="dijit.form.Button">Reload</div>-->
 	  </div>
 	</div>
   </div>

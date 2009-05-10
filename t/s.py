@@ -357,6 +357,8 @@ class Entry(In):
 				if not STATIC_PREFIX.startswith('http'): # got no static server
 						mediaPath = os.path.join(os.path.dirname(world.__file__), 'm')
 						self.child_m = static.File(mediaPath)
+				self.child_comettest = static.File(os.path.join(os.path.dirname(world.__file__), 
+																												'comettest.html'))
 						
 
 		def _getPlayerById(self, id):
@@ -405,15 +407,20 @@ class Entry(In):
 				"""
 				inviter = self.getPlayer(req)
 				ids = getArg(req, 'target').split(' ')
+				errMsgs = []
 				for id in ids:
+						if id == inviter.id:
+								errMsgs += ["You can't invite yourself"]
+								continue
 						who = Client.get(id)
 						if not who:
-								# better we could return list of errors in response
-								raise ValueError("No client %s" % id)
+								errMsgs += ["No client %s" % id]
 						# TODO Don't send if he already got equivalent invitation.
 						who.postMessage(what = 'invited',
 														who = inviter.id,
 														gameType = getArg(req, 'gameType'))
+				if errMsgs != []:
+						raise ValueError("\n".join(errMsgs))
 				return {}
 
 		def handleStartGame(self, req):

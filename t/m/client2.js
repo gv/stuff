@@ -30,7 +30,7 @@ function browse(urlPrefix, l) {
 }
 
 function checkProps(o /*, ...*/) {
-	for(var i = arguments.length; i > 1; i--) 
+	for(var i = arguments.length - 1; i > 0; i--) 
 		if(!o[arguments[i]])
 			throw 'Property ' + arguments[i] + ' expected';
 }
@@ -87,37 +87,35 @@ dojo.addOnLoad(function() {
 								return;
 							}
 
-							if(msg.revision < this.revision) {
-								// Our rev is older, this is a message from past
-								return;
-							}
-
-							if(msg.revision == this.revision) {
+							if(msg.revision > this.revision) {
+								// Got a message from the future, must go there
+								this.reload();
+							} else if(msg.revision == this.revision) {
 								// Looks like something we can handle
 								if(!msg.what) {
 									DBG('No selector field:' + msg);
 									return;
 								}
 								
+								var validatingMethodName = 'check' + cfirst(msg.what);
 								var methodName = 'handle' + cfirst(msg.what);
 								if(this[methodName]) {
 									// XXX game plugging code here
 									try {
+										this[validatingMethodName] && this[validatingMethodName](msg);
 										this[methodName](msg);
 										this.revision++;
 									} catch(e) {
+										DBG('In ' + methodName + ':');
 										DBG(e);
 									}
 								} else {
 									DBG('No handling method for ' + msg.what);
 								}
-								return;
-							}
-
-							if(msg.revision > this.revision) {
-								// Got message from the future, must go there
-								this.reload();
-							}
+							} 
+							// If msg.revision < this.revision , then
+							// Our rev is older, this is a message from past
+							// so we should do nothing
 						});
 
 					this.reload();
@@ -128,17 +126,19 @@ dojo.addOnLoad(function() {
 					 */ 
 					if(this._reloading) // Don't do more than one requests at a time.
 						return;
-					// XXX handle error
 					dojo.xhrGet({
 							url: this.urlPrefix + 'clients/' + this.id,
 								handleAs: 'json',
-								// error:
+								error: dojo.hitch(this, function(e) {
+										DBG('Failed reloading client ' + this.id + ':');
+										DBG(e);
+									}),
 								content: {
 								priv: this.priv
 									},
 								load: dojo.hitch(this, '_updateState')
 								});
-					this._updating = true;
+						this._updating = true;
 				}
 
 				,_updateState: function(state) {
@@ -149,7 +149,10 @@ dojo.addOnLoad(function() {
 					this.updateState(state);
 					this.updated();
 				}
-					
+
+				,close: function() {
+					return dojox.cometd.unsubscribe('/' + this.id);
+				}
 				
 				//   Overridables
 				//	 ````````````
@@ -164,10 +167,16 @@ dojo.addOnLoad(function() {
 		/*
 			All kinds of clients
 			--- ----- -- -------
-			
+
+			This classes:
+			  - check validity of messages
+				- expose APIs to use data from their states and manipulate server-side objects
 		*/
 
 		dojo.declare('anxiety.PlayerList', anxiety.Client, {
+				
+				//   API
+				//   ```
 				stat: function(id) {
 					for(var i in this.players)
 						if(this.players[i].id == id)
@@ -177,13 +186,22 @@ dojo.addOnLoad(function() {
 				//   Command handlers
 				//   ``````` ````````
 				,updateState: function(state) {
+					// We own this object, if anyone else wants to use it, make copy!
 					this.players = state.players;
 					this.playersChanged();
+				}
+				
+				,checkAddPlayer: function(m) {
+					checkProps(m, 'id', 'name');
 				}
 					
 				,handleAddPlayer: function(msg) {
 					this.players.push(msg);
 					this.playersChanged();
+				}
+
+				,checkRmPlayer: function(m) {
+					checkProps(m, 'who');
 				}
 				
 				,handleRmPlayer: function(msg) {
@@ -196,10 +214,15 @@ dojo.addOnLoad(function() {
 					this.heard(m);
 				}
 
+				/* Signals */
 				, heard: nop, playersChanged: nop
 			});
 
-		
+		/* 
+			 Player
+			 ``````
+
+		*/
 		dojo.declare('anxiety.Player', anxiety.Client, {
 				constructor: function(world, id, priv) {
 					// Called after Client.constructor
@@ -216,7 +239,18 @@ dojo.addOnLoad(function() {
 				}
 
 				,rm: function() {
-					return this.send('iQuit');
+					// Regardless of what server says, we're out of here
+					var rv = this.send('iQuit');/*.addBoth(dojo.hitch(this, function() {
+																				
+																				}));*/
+					// In fact, we don't have to wait for server's answer
+					// Tell everyone
+					this.loggedOut();
+					this.world.loggedOut(this);
+					// Clean up now
+					this.close();
+					// TODO Should we make sure signals don't get called after this
+					return rv;
 				}
 
 				,invite: function(gameType, playerIds) {
@@ -229,8 +263,7 @@ dojo.addOnLoad(function() {
 
 				,startGame: function(partnerIds) {
 					return this.send('startGame', {
-
-
+							partnerIds: partnerIds
 						});
 				}
 
@@ -274,7 +307,7 @@ dojo.addOnLoad(function() {
 				}
 
 				/* Signals */
-				, invited: nop, gameStarted: nop
+				, invited: nop, gameStarted: nop, loggedOut: nop
 			});
 
 		/*
@@ -299,7 +332,7 @@ dojo.addOnLoad(function() {
 										// Try to get some information we can use
 										if(er.responseText) {
 											if('{' == er.responseText.charAt(0))
-												er = dojo.fromJson(er);
+												er = dojo.fromJson(er.responseText);
 											else
 												er.msg = er.responseText;
 										} else 
@@ -346,11 +379,37 @@ dojo.addOnLoad(function() {
 				
 				/* Signals */
 				,loggedIn: nop, loggedOut: nop,  heard: nop });
-		
 
-		/*
-			Browser widgets
-			------- -------
+		/*  
+				Games
+				-----
+				
+				Each game is a module named anxiety.games[gameType]
+		*/
+		dojo.declare('anxiety.games.thousand.Game', null, {
+				
+			});
+		dojo.mixin(anxiety.games.thousand, {
+				getFriendlyName: function() {
+					return 'thousand';
+				}
+
+				,canStart: function(playerIds) {
+					return (2 == playerIds.length);
+				}
+				
+				,mkGame: function(state) {
+					
+
+
+				}
+			});
+
+
+
+		/*  
+				Browser widgets
+				------- -------
 
 		*/
 
@@ -421,7 +480,7 @@ dojo.addOnLoad(function() {
 						rv.push(items[i].id);
 					return rv;
 				}
-
+				
 				,postCreate: function() {
 					this.inherited(arguments);
 					this.loggedOut();
@@ -445,15 +504,65 @@ dojo.addOnLoad(function() {
 											 });
 					this.connect(this.world.players, 'handleRmPlayer', 
 											 function(m) {
-												 // m.id is identifier of the removed player
-												 var itm = this.playerStore._getItemByIdentity(m.id);
-												 this.playerStore.deleteItem(itm);
+												 // m.who is identifier of the removed player
+												 this.playerStore.fetch({
+														 query: {id: m.who},
+															 scope: this.playerStore,
+															 onItem: function(it) {
+															 this.deleteItem(it)
+																 }
+													 });
 											 });
 					/* This thing is very important! */
 					this.mainLayout.resize();
 					/* inb4 worthless comment )) */
 				}
 
+
+				//   World & playerList event handlers  
+				//   ````` ` `````````` ````` ````````  
+											 
+				,updatePlayers: function(state) {
+					// Update the whole store with state.players
+					// state.players array is used by Player class, so we make copy of it
+					this.playerStore = new dojo.data.ItemFileWriteStore({
+							data: {
+								identifer: 'id',
+								label: 'name',
+								items : dojo.clone(state.players)
+							}
+						});
+					this.playerListView.setStore(this.playerStore);
+				}																	
+									 
+				,loggedIn: function(player) {
+					this.chatBrowser.destroy();
+					delete this.chatBrowser;
+
+					this.playerBrowser = new anxiety.PlayerBrowser({player: player, worldBrowser: this});
+					this.moveIntoClientWindow(this.playerBrowser);
+					this.logoutBtn.attr('disabled', false);
+					this.usernameBox.attr('title', 'Id is ' + player.id);
+				}
+
+				,loggedOut: function(player) {
+					if(this.playerBrowser) {
+						this.playerBrowser.destroy();
+						delete this.playerBrowser;
+					}
+
+					this.loginBtn.attr('disabled', false);
+					this.usernameBox.attr('disabled', false);
+					this.logoutBtn.attr('disabled', true);
+
+					if(!this.chatBrowser) {
+						// Setup a chat message view.
+						this.chatBrowser = new anxiety.ChatBrowser({
+								world: this.world
+							});
+						this.moveIntoClientWindow(this.chatBrowser);
+					}
+				}
 
 				//   Utility methods
 				//   ``````` ```````
@@ -486,44 +595,6 @@ dojo.addOnLoad(function() {
 				}
 										 
 
-				//   World & playerList event handlers  
-				//   ````` ` `````````` ````` ````````  
-											 
-				,updatePlayers: function(state) {
-					// Update the whole store with state.players
-					this.playerStore = new dojo.data.ItemFileWriteStore({
-							data: {
-								identifer: 'id',
-								label: 'name',
-								items : state.players
-							}
-						});
-					this.playerListView.setStore(this.playerStore);
-				}																	
-									 
-				,loggedIn: function(player) {
-					this.report(); // clear status message
-					this.chatBrowser.destroy();
-					delete this.chatBrowser;
-
-					this.playerBrowser = new anxiety.PlayerBrowser({player: player, worldBrowser: this});
-					this.moveIntoClientWindow(this.playerBrowser);
-					this.logoutBtn.attr('disabled', false);
-				}
-
-				,loggedOut: function(player) {
-					this.loginBtn.attr('disabled', false);
-					this.usernameBox.attr('disabled', false);
-					this.logoutBtn.attr('disabled', true);
-					if(!this.chatBrowser) {
-						// Setup a chat message view.
-						this.chatBrowser = new anxiety.ChatBrowser({
-								world: this.world
-							});
-						this.moveIntoClientWindow(this.chatBrowser);
-					}
-				}
-
 				/*  Variables  */
 				,templateString: null
 					 /* templatePath must be in the same domain for now */
@@ -550,19 +621,32 @@ dojo.addOnLoad(function() {
 					/*this.player = opts.player;
 						this.worldBrowser = opts.worldBrowser;*/
 					this.invs = {};
+					this.inviteBtns = [];
 
 					/* Setup BorderContainer */
 					this.attr('gutters', true);
 				}
 					
+				,destroy: function() {
+					this.inherited(arguments);
+					for(var i in this.inviteBtns) {
+						this.inviteBtns[i].destroy();
+					}
+				}
+
 				,postCreate: function() {
 					this.inherited(arguments);
 
-					/* Make the 'Invite' button' */
-					this.inviteBtn = new dijit.form.Button({
-							label: 'Invite'
-						});
-					this.inviteBtn.placeAt(this.worldBrowser.toolbar);
+					/* Make the 'Invite' buttons */
+					for(var gameType in anxiety.games) {
+						var gmMod = anxiety.games[gameType];
+						var btn = new dijit.form.Button({
+								label: 'Invite to play "' + gameType + '"'
+							});
+						btn.placeAt(this.worldBrowser.toolbar.domNode);
+						this.connect(btn, 'onClick', 'invBtnPressed');
+						this.inviteBtns.push(btn);
+					}
 							
 					/* Make a status bar */
 					dojo.style(this.domNode, {position: 'relative'});
@@ -602,20 +686,15 @@ dojo.addOnLoad(function() {
 					this.invAndChatLo.addChild(this.invPane);
 					this.invAndChatLo.addChild(this.chat);
 					this.tabs.addChild(this.invAndChatLo);
-					//this.tabs.addChild(this.chat);
 
 					this.connect(this.player, 'updateState', 'updateState');
 					this.connect(this.player, 'invited', 'addInv');
 
-					this.connect(this.player, 'gameAdded', function(m) {
+					this.connect(this.player, 'gameAdded', function(gm) {
 
 
 						});
 
-					this.connect(this.inviteBtn, 'onClick', function() {
-							var ids = this.worldBrowser.getSelectedPlayerIds();
-							this.player.invite('thousand', ids);
-						});
 				}
 
 				,updateState: function() {
@@ -678,6 +757,11 @@ dojo.addOnLoad(function() {
 					this.phraseBox.attr('value', '');
 				}
 				
+				,invBtnPressed: function(evt) {
+					// XXX which button?
+					var ids = this.worldBrowser.getSelectedPlayerIds();
+					this.player.invite('thousand', ids);
+				}
 			});
 
 		
