@@ -419,24 +419,36 @@ class Entry(In):
 						who.postMessage(what = 'invited',
 														who = inviter.id,
 														gameType = getArg(req, 'gameType'))
+				rv  = {}
 				if errMsgs != []:
-						raise ValueError("\n".join(errMsgs))
-				return {}
+						# it's partial success so we don't raise exception
+						rv['err'] = {'msg': "\n".join(errMsgs)}
+				return rv
 
 		def handleStartGame(self, req):
 				""" When player has enough invitations, he can send a 'startGame'
 				"""
-				player = self.getPlayer(req)
+				starter = self.getPlayer(req)
 				# check everything
-				ids = getArg(req, 'with').split(',')
+				ids = getArg(req, 'with').split(' ')
+				partners = [starter]
+				errMsgs = []
 				for id in ids:
-						return
-						#start a game 
+						player = Client.get(id)
+						if not player:
+								errMsgs += ["No player %s" % id]
+								continue
+						partners += [player]
+						# remove invitation
+						starter.postMessage(what = 'uninvited',
+																gameType = getArg(req, 'gameType'),
+																who = player.id)
+				# Now let's start
+				# FIXME Account for other kinds of games here
+				import thousand
+				thousand.Game(partners)
+				return {}
 
-						# remove invitations
-						
-						
-												
 
 
 		# Browser HTML code.

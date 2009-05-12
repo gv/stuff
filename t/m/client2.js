@@ -4,6 +4,14 @@
 
 	This is a client for a multiplayer card game using Dojo framework.
 
+	TODO
+	 - don't load "Tabs" module until we log in 
+	 - make "Player" and "PlayerBrowser" separate modules and load them when we log in
+	 - get games to their own js files an don't load them until we use them
+
+	IDEAS
+ 	 - maybe we'd better use regular <button>s to save cycles
+	 - would be really cool if I made a 'loading...' progress bar, like in GMail
 */
 
 /*	Utils
@@ -48,7 +56,7 @@ dojo.require('dijit.layout.ContentPane');
 dojo.require('dijit.form.Button');
 dojo.require('dijit.form.CheckBox');
 dojo.require('dijit.form.TextBox');
-dojo.require('dijit.Toolbar');
+//dojo.require('dijit.Toolbar');
 
 dojo.require('dojox.grid.DataGrid');
 dojo.require('dojox.cometd');
@@ -65,9 +73,36 @@ dojo.addOnLoad(function() {
 			Client core
 			------ ----
 
+			This class calls handleXxx methods.
+		*/
+		dojo.declare('anxiety.MsgDriven', null, {
+				processMsg: function(msg) {
+					if(!msg.what) {
+						DBG('No selector field:' + msg);
+						return;
+					}
+								
+					var validatingMethodName = 'check' + cfirst(msg.what);
+					var methodName = 'handle' + cfirst(msg.what);
+					if(this[methodName]) {
+						try {
+							this[validatingMethodName] && this[validatingMethodName](msg);
+							this[methodName](msg);
+							this.revision++;
+						} catch(e) {
+							DBG('In ' + methodName + ':');
+							DBG(e);
+						}
+					} else {
+						DBG('No handling method for ' + msg.what);
+					}
+				}
+			});
+
+		/*
 			This class runs a sync mechanism with server.
 		*/
-		dojo.declare('anxiety.Client', null, {
+		dojo.declare('anxiety.Client', anxiety.MsgDriven, {
 				constructor: function(world, id, priv) {
 					this.id = id;
 					this.priv = priv;
@@ -92,26 +127,7 @@ dojo.addOnLoad(function() {
 								this.reload();
 							} else if(msg.revision == this.revision) {
 								// Looks like something we can handle
-								if(!msg.what) {
-									DBG('No selector field:' + msg);
-									return;
-								}
-								
-								var validatingMethodName = 'check' + cfirst(msg.what);
-								var methodName = 'handle' + cfirst(msg.what);
-								if(this[methodName]) {
-									// XXX game plugging code here
-									try {
-										this[validatingMethodName] && this[validatingMethodName](msg);
-										this[methodName](msg);
-										this.revision++;
-									} catch(e) {
-										DBG('In ' + methodName + ':');
-										DBG(e);
-									}
-								} else {
-									DBG('No handling method for ' + msg.what);
-								}
+								this.processMsg(msg);
 							} 
 							// If msg.revision < this.revision , then
 							// Our rev is older, this is a message from past
@@ -162,7 +178,7 @@ dojo.addOnLoad(function() {
 				}
 				
 				,updated: nop
-			});
+					 });
 
 		/*
 			All kinds of clients
@@ -215,8 +231,7 @@ dojo.addOnLoad(function() {
 				}
 
 				/* Signals */
-				, heard: nop, playersChanged: nop
-			});
+				, heard: nop, playersChanged: nop		});
 
 		/* 
 			 Player
@@ -229,6 +244,19 @@ dojo.addOnLoad(function() {
 					this.games = {};
 				}
 					
+				,processMsg: function(m) {
+					if(m.gameId) {
+						var gm = this.games[m.gameId];
+						if(!gm) {
+							DBG('Got message for nonexistent game ' + m.gameId);
+							return;
+						}
+						gm.processMsg(m, this);
+					} else {
+						this.inherited(arguments);
+					}
+				}
+
 				//   APIs
 				//	 ````
 					
@@ -240,19 +268,17 @@ dojo.addOnLoad(function() {
 
 				,rm: function() {
 					// Regardless of what server says, we're out of here
-					var rv = this.send('iQuit');/*.addBoth(dojo.hitch(this, function() {
-																				
-																				}));*/
-					// In fact, we don't have to wait for server's answer
+					var rv = this.send('iQuit');
+					// In fact, we don't have to wait for server's response
 					// Tell everyone
 					this.loggedOut();
 					this.world.loggedOut(this);
 					// Clean up now
 					this.close();
-					// TODO Should we make sure signals don't get called after this
+					// TODO Shouldn't we make sure signals don't get called after this
 					return rv;
 				}
-
+				
 				,invite: function(gameType, playerIds) {
 					return this.send('invite', {
 							gameType: gameType,
@@ -261,10 +287,24 @@ dojo.addOnLoad(function() {
 
 				}
 
-				,startGame: function(partnerIds) {
-					return this.send('startGame', {
-							partnerIds: partnerIds
-						});
+				,explainWhyWeCantStart: function(gameType, partnerIds) {
+					var mod = anxiety.games[gameType];
+					if(!mod) 
+						return 'Game "' + gameType + '" is not supported!';
+					return mod.explainWhyWeCantStart(partnerIds);
+				}
+					
+
+				,startGame: function(gameType, partnerIds) {
+					var excuse = this.explainWhyWeCantStart(gameType, partnerIds);
+					if(excuse) {
+						this.error({msg: excuse});
+					} else {
+						return this.send('startGame', {
+								gameType: gameType,
+									'with': partnerIds.join(' ')
+									});
+					}
 				}
 
 				//   Utils
@@ -283,13 +323,22 @@ dojo.addOnLoad(function() {
 				,handleInvited: function(m) {
 					checkProps(m, 'who', 'gameType');
 					m.senderStat = this.world.players.stat(m.who);
-					if(!m.senderStat) throw 'Player #' + m.who + ' not found';
+					if(!m.senderStat) 
+						throw 'Player #' + m.who + ' not found';
 					this.invited(m);
 				}
 
 				,handleAddGame: function(m) {
-
-
+					checkProps(m, 'gameType', 'id');
+					// Construct an appropriate game object.
+					var mod = anxiety.games[m.gameType];
+					if(!mod) 
+						throw 'Game "' + m.gameType + '" is not supported';
+					checkProps(mod, 'mkGame');
+					var game = mod.mkGame(m);
+					game.mod = mod;
+					this.games[game.id] = game;
+					this.gameStarted(game);
 				}
 
 				,updateState: function(s) {
@@ -304,11 +353,13 @@ dojo.addOnLoad(function() {
 					}
 					
 					/* Update games */
+
+
+
 				}
 
 				/* Signals */
-				, invited: nop, gameStarted: nop, loggedOut: nop
-			});
+				, invited: nop, gameStarted: nop, loggedOut: nop	});
 
 		/*
 			Servers
@@ -384,35 +435,74 @@ dojo.addOnLoad(function() {
 				Games
 				-----
 				
-				Each game is a module named anxiety.games[gameType]
+				Each game type is a module named anxiety.games[gameType]
 		*/
-		dojo.declare('anxiety.games.thousand.Game', null, {
+		dojo.declare('anxiety.Game', anxiety.MsgDriven, {
+				constructor: function(s) {
+
+				}
+
+			});
+
+		dojo.declare('anxiety.GameBrowser', [dijit.layout.ContentPane], {
+				constructor: function(opts) {
+
+				}
 				
 			});
+
+
+		/*  
+			  Thousand
+				--------
+
+				TODO Make a module
+		*/
+		dojo.declare('anxiety.games.thousand.GameFor3', anxiety.Game, {
+				handleCards: function(m) {
+
+				}
+			});
+			
 		dojo.mixin(anxiety.games.thousand, {
 				getFriendlyName: function() {
 					return 'thousand';
 				}
-
-				,canStart: function(playerIds) {
-					return (2 == playerIds.length);
+					
+				,explainWhyWeCantStart: function(partnerIds) {
+					return (2 != partnerIds.length) && "Need exactly 2 partners";
 				}
 				
 				,mkGame: function(state) {
-					
+					return new anxiety.games.thousand.GameFor3(state);
+				}
 
-
+				,browse: function(game) {
+					return new anxiety.games.thousand.BrowserFor3({game: game});
 				}
 			});
+			
+		dojo.declare('anxiety.games.thousand.BrowserFor3', anxiety.GameBrowser, {
+				postCreate: function() {
+					browse(this.game);
+				}
 
-
+				,browse: function(game) {
+					if(this.game) {
+						// TODO Cleanup connections.
+					}
+					
+					this.game = game;
+				}
+			});
+				
 
 		/*  
 				Browser widgets
 				------- -------
-
+				
 		*/
-
+			
 		dojo.declare('anxiety.Reporting', null, {
 				report: function(str, deferred) {
 					this.statusBarNode.innerHTML = str;
@@ -454,7 +544,7 @@ dojo.addOnLoad(function() {
 					var phraseNode = dojo.create('DIV', {innerHTML: 
 																							 '<b>' + author.name + 
 																							 '</b>: ' + m.phrase}, 
-																			 this.domNode);
+						this.domNode);
 					// Don't display more then maxPhraseCnt phrases.
 					var nodes = dojo.query('DIV', this.domNode);
 					if(nodes.length > this.maxPhraseCnt) 
@@ -469,8 +559,9 @@ dojo.addOnLoad(function() {
 			A widget that shows us client list, allows to login and spawns a PlayerBrowser
 			when we do.
 		*/
-		dojo.declare('anxiety.WorldBrowser', [dijit._Widget, dijit._Templated, anxiety.Reporting], {  
-				
+		// To keep line short
+		var wbBase = [dijit._Widget, dijit._Templated, anxiety.Reporting];
+		dojo.declare('anxiety.WorldBrowser', wbBase, {  
 				//   API
 				//   ```
 				
@@ -601,7 +692,7 @@ dojo.addOnLoad(function() {
 					 ,templatePath: '/templates/worldbrowser.xml'
 					 ,widgetsInTemplate: true
 					 
-			});
+					 });
 		
 		/*
 			PlayerBrowser
@@ -622,6 +713,7 @@ dojo.addOnLoad(function() {
 						this.worldBrowser = opts.worldBrowser;*/
 					this.invs = {};
 					this.inviteBtns = [];
+					this.gameViews = {};
 
 					/* Setup BorderContainer */
 					this.attr('gutters', true);
@@ -687,13 +779,10 @@ dojo.addOnLoad(function() {
 					this.invAndChatLo.addChild(this.chat);
 					this.tabs.addChild(this.invAndChatLo);
 
-					this.connect(this.player, 'updateState', 'updateState');
+					this.connect(this.player, 'updated', 'updateState');
 					this.connect(this.player, 'invited', 'addInv');
 
-					this.connect(this.player, 'gameAdded', function(gm) {
-
-
-						});
+					this.connect(this.player, 'gameStarted', 'updateGame');
 
 				}
 
@@ -702,9 +791,35 @@ dojo.addOnLoad(function() {
 					dojo.empty(this.invPane.containerNode);
 					this.invViews = {};
 
-					for(var i in this.invitations) {
-						this.addInv(this.invitations[i]);
+					for(var i in this.player.invitations) {
+						this.addInv(this.player.invitations[i]);
 					}
+
+					/* Update games */
+					for(var whatever in this.player.games) {
+						this.updateGame(this.player.games[whatever]);
+					}
+					/* Remove browsers for games which aren't there */
+					for(var id in this.gameViews)
+						if(!(id in this.player.games))
+							this.removeGameView(id);
+				}
+
+				,removeGameView: function(id) {
+
+
+				}
+
+
+				,updateGame: function(gm) {
+					if(!this.gameViews[gm.id]) {
+						/* Make a game browser */
+						var wdg = gm.mod.browse(gm);
+						wdg.attr({title: gm.id});
+						this.tabs.addChild(wdg);
+						this.gameViews[gm.id] = wdg;
+					} else 
+						this.gameViews[gm.id].browse(gm);
 				}
 
 				,addInv: function(inv) {
@@ -721,8 +836,33 @@ dojo.addOnLoad(function() {
 							});
 						startBtn.placeAt(node);
 						
-						// Connect start button here.
-
+						// Hack
+						startBtn.anxiety = {
+							playerBrowser: this,
+							gameType: inv.gameType
+						};
+						startBtn.onClick = function() {
+							var pb = this.anxiety.playerBrowser, gameType = this.anxiety.gameType;
+							// Get selected ids
+							var view = pb.invViews[gameType], ids = [];
+							for(var i in view.entries) {
+								var en = view.entries[i];
+								if(en.cbNode.checked) 
+									ids.push(en.inviterId);
+							}
+							if(ids.length) {
+								this.attr('disabled', true);
+								pb.report('Starting game...', pb.player.startGame(gameType, ids))
+								.addBoth(dojo.hitch(this, function() {
+											this.attr('disabled', false);
+										}));
+								// XXX 'uninvited' message could come first and delete a button
+								// so there will be nothing to enable
+							} else 
+								DBG('startGame: no partners selected!');
+						};
+								
+						
 						this.invViews[inv.gameType] = {
 							node: node,
 							listNode: listNode,
@@ -736,10 +876,11 @@ dojo.addOnLoad(function() {
 						node: dojo.create('DIV', {
 								className: 'entry'
 							}, typeView.listNode),
+						inviterId: inv.who
 					};
 
 					entry.cbNode = dojo.create('INPUT', {
-							type: checkbox,
+							type: 'checkbox',
 							name: inv.who
 						}, entry.node);
 					entry.labelNode = dojo.create('LABEL', {
@@ -747,8 +888,11 @@ dojo.addOnLoad(function() {
 						}, entry.node);
 					typeView.entries.push(entry);
 				}
-							
 					
+				,rmInv: function(inv) {
+
+
+				}
 
 				,sayThings: function() {
 					var phrase = this.phraseBox.attr('value');
