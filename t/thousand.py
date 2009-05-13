@@ -3,33 +3,11 @@
 #
 
 import world
-
-def Card(suit, rank):
-    """  Completely serializable
-    """
-    return suit + rank
-
-def suit(card):
-    return card - card % 20
-
-def rank(card):
-    return card % 20
-
-SPADES = 40
-CLUBS = 60
-DIAMONDS = 80
-HEARTS = 100
-
-NINE = 0
-JACK = 2
-QUEEN = 3
-KING = 4
-TEN = 10
-ACE = 11
+from cards import *
 
 deck = [Card(s, r) for 
         s in [SPADES, CLUBS, DIAMONDS, HEARTS] for
-        r in [NINE, JACK, QUEEN, KING, TEN, ACE]]
+        r in [9, JACK, QUEEN, KING, 10, ACE]]
 
 class Round:
     """ Round object holds state of a single round of a thousand game.
@@ -159,7 +137,7 @@ class Round:
 
 class Game(world.Game):
     """  This class is a server plugin. 
-    It processes commands from clients, related to any thousand game.
+    It processes commands from clients, related to any 3 player thousand game.
     """
     def __init__(self, players):
         if (len(players)) != 3:
@@ -230,3 +208,9 @@ class Game(world.Game):
 
         def handleCards(self, msg):
             self.round.cards += msg['cards']
+
+
+
+#   API
+#   ---
+

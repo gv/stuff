@@ -145,6 +145,7 @@ dojo.addOnLoad(function() {
 					dojo.xhrGet({
 							url: this.urlPrefix + 'clients/' + this.id,
 								handleAs: 'json',
+								preventCache: true,
 								error: dojo.hitch(this, function(e) {
 										DBG('Failed reloading client ' + this.id + ':');
 										DBG(e);
@@ -190,6 +191,7 @@ dojo.addOnLoad(function() {
 		*/
 
 		dojo.declare('anxiety.PlayerList', anxiety.Client, {
+				
 				
 				//   API
 				//   ```
@@ -296,9 +298,13 @@ dojo.addOnLoad(function() {
 					
 
 				,startGame: function(gameType, partnerIds) {
+					/** Returns a Deferred for caller to know when operation is over
+					 */
 					var excuse = this.explainWhyWeCantStart(gameType, partnerIds);
 					if(excuse) {
-						this.error({msg: excuse});
+						var er = {msg: excuse};
+						this.error(er);
+						return (new Deferred()).errback(er);
 					} else {
 						return this.send('startGame', {
 								gameType: gameType,
@@ -359,7 +365,7 @@ dojo.addOnLoad(function() {
 				}
 
 				/* Signals */
-				, invited: nop, gameStarted: nop, loggedOut: nop	});
+				, invited: nop, gameStarted: nop, loggedOut: nop, error: nop	});
 
 		/*
 			Servers
@@ -375,6 +381,8 @@ dojo.addOnLoad(function() {
 				,send: function(what, whatElse, okHandler) {
 					whatElse = whatElse || {};
 					whatElse.what = what;
+					DBG('Posting to ' + this.urlPrefix + ':');
+					DBG(whatElse);
 					return dojo.xhrPost({url: this.urlPrefix,
 								content: whatElse, 
 								handleAs: 'json', // OK (2**) answer will be handled as JSON.
@@ -382,9 +390,10 @@ dojo.addOnLoad(function() {
 								error: dojo.hitch(this, function(er) {
 										// Try to get some information we can use
 										if(er.responseText) {
-											if('{' == er.responseText.charAt(0))
-												er = dojo.fromJson(er.responseText);
-											else
+											if('{' == er.responseText.charAt(0)) {
+												var data = dojo.fromJson(er.responseText);
+												er = data.err;
+											}	else
 												er.msg = er.responseText;
 										} else 
 											er.msg = er + '';
@@ -583,12 +592,16 @@ dojo.addOnLoad(function() {
 							alert(er.msg);
 						});
 
-					/* Put in current values. */
-					this.updatePlayers(this.world.players);
+					
 
 					/*   Connect PlayerList client command handlers to a datastore
 					 */
 					this.connect(this.world.players, 'updateState', 'updatePlayers');
+
+					// The problem is, we don't know if PlayerList object has it's data already
+					// FIXME
+					this.world.players.reload();
+					
 					this.connect(this.world.players, 'handleAddPlayer', 
 											 function(m) {
 												 this.playerStore.newItem(m);
@@ -616,13 +629,17 @@ dojo.addOnLoad(function() {
 				,updatePlayers: function(state) {
 					// Update the whole store with state.players
 					// state.players array is used by Player class, so we make copy of it
+					var items = dojo.clone(state.players);
+					DBG('Initializing a store with following items:');
+					DBG(items);
 					this.playerStore = new dojo.data.ItemFileWriteStore({
 							data: {
 								identifer: 'id',
 								label: 'name',
-								items : dojo.clone(state.players)
+								items : items
 							}
 						});
+					DBG('Calling setStore');
 					this.playerListView.setStore(this.playerStore);
 				}																	
 									 
