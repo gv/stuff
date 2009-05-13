@@ -14,7 +14,7 @@ def cfirst(s):
 		return s[0].capitalize() + s[1:]
 
 def getArg(req, argName):
-		try: return req.args[argName][0]
+		try: return unicode(req.args[argName][0], 'utf-8')
 		except: raise ValueError('"%s" parameter expected' % argName)
 
 class Resource(resource.PostableResource):
