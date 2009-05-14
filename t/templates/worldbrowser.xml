@@ -8,7 +8,8 @@
 
 	<div dojoType="dijit.layout.ContentPane" region="top" class="loginPane">
 	  <input type="text" dojoType="dijit.form.TextBox"
-			 dojoAttachPoint="usernameBox" />
+			 dojoAttachPoint="usernameBox" 
+			 dojoAttachEvent="onKeyDown: usernameBoxKeyDown" />
 	  <button dojoType="dijit.form.Button" 
 			  dojoAttachEvent="onClick: loginBtnPressed" 
 			  dojoAttachPoint="loginBtn">Log in</button> 

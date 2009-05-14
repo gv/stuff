@@ -165,7 +165,7 @@ h3 {
 	position: relative;
 }
 
-.loginPane .statusBar {
+.statusBar {
 	position: absolute;
 	top: 0;
 	right: 10px;

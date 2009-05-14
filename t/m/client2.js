@@ -701,6 +701,11 @@ dojo.addOnLoad(function() {
 				,logoutBtnPressed: function() {
 					this.report('Logging out...', this.playerBrowser.player.rm());
 				}
+
+				,usernameBoxKeyDown: function(ev) {
+					if(13 == ev.keyCode)  // ENTER
+						return this.loginBtnPressed();
+				}
 										 
 
 				/*  Variables  */
@@ -765,10 +770,12 @@ dojo.addOnLoad(function() {
 					/* Make the always visible 'say' box */
 					this.talkBar = new dijit.layout.ContentPane({region: 'bottom'});
 					this.phraseBox = (new dijit.form.TextBox()).placeAt(this.talkBar.domNode);
+					this.connect(this.phraseBox, 'onKeyDown', 'sayThings');
+
 					this.sayBtn = (new dijit.form.Button({
-								label: 'Send',
-								onClick: dojo.hitch(this, 'sayThings')
+								label: 'Say'
 							})).placeAt(this.talkBar.domNode);
+					this.connect(this.sayBtn, 'onClick', 'sayThings');
 					this.addChild(this.talkBar);
 					
 					/* Make tabs. */
@@ -911,7 +918,11 @@ dojo.addOnLoad(function() {
 
 				}
 
-				,sayThings: function() {
+				,sayThings: function(ev) {
+					if(13 != ev.keyCode) 
+						if('click' != ev.type)
+							return;
+
 					var phrase = this.phraseBox.attr('value');
 					if(phrase)
 						this.report('Sending...', this.player.say(phrase));
