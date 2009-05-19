@@ -6,8 +6,8 @@
 
 	TODO
 	 - don't load "Tabs" module until we log in 
-	 - make "Player" and "PlayerBrowser" separate modules and load them when we log in
-	 - get games to their own js files an don't load them until we use them
+	 - make "Player" and "PlayerBrowser" a separate module and load them when we log in
+	 - get games to their own js files an don't load them until we must use them
 
 	IDEAS
  	 - maybe we'd better use regular <button>s to save cycles
@@ -113,9 +113,9 @@ dojo.addOnLoad(function() {
 					// Subscribe to events.
 					// TODO Authenticate.
 					dojox.cometd.subscribe('/' + id, this, function(fullMsg) {
-							DBG(fullMsg);
 							var msg = fullMsg.data;
-							// processMessage
+							DBG('Message from cometd:');
+							DBG(msg);
 							// any output we can't handle will be silently ignored
 							if(!('revision' in msg)) {
 								DBG('No revision number:' + msg);
@@ -304,7 +304,7 @@ dojo.addOnLoad(function() {
 					if(excuse) {
 						var er = {msg: excuse};
 						this.error(er);
-						return (new Deferred()).errback(er);
+						return (new dojo.Deferred()).errback(er);
 					} else {
 						return this.send('startGame', {
 								gameType: gameType,
@@ -334,14 +334,19 @@ dojo.addOnLoad(function() {
 					this.invited(m);
 				}
 
+				,checkUninvited: function(m) {
+					checkProps(m, 'who', 'gameType');
+				}
+
 				,handleAddGame: function(m) {
-					checkProps(m, 'gameType', 'id');
+					checkProps(m, 'game');
+					checkProps(m.game, 'gameType', 'id');
 					// Construct an appropriate game object.
-					var mod = anxiety.games[m.gameType];
+					var mod = anxiety.games[m.game.gameType];
 					if(!mod) 
-						throw 'Game "' + m.gameType + '" is not supported';
+						throw 'Game "' + m.game.gameType + '" is not supported';
 					checkProps(mod, 'mkGame');
-					var game = mod.mkGame(m);
+					var game = mod.mkGame(m.game);
 					game.mod = mod;
 					this.games[game.id] = game;
 					this.gameStarted(game);
@@ -447,8 +452,9 @@ dojo.addOnLoad(function() {
 				Each game type is a module named anxiety.games[gameType]
 		*/
 		dojo.declare('anxiety.Game', anxiety.MsgDriven, {
-				constructor: function(s) {
-
+				constructor: function(state) {
+					this.id = state.id;
+					this.gameType = state.gameType;
 				}
 
 			});
@@ -493,7 +499,7 @@ dojo.addOnLoad(function() {
 			
 		dojo.declare('anxiety.games.thousand.BrowserFor3', anxiety.GameBrowser, {
 				postCreate: function() {
-					browse(this.game);
+					this.browse(this.game);
 				}
 
 				,browse: function(game) {
@@ -805,7 +811,7 @@ dojo.addOnLoad(function() {
 
 					this.connect(this.player, 'updated', 'updateState');
 					this.connect(this.player, 'invited', 'addInv');
-
+					this.connect(this.player, 'handleUninvited', 'rmInv');
 					this.connect(this.player, 'gameStarted', 'updateGame');
 
 				}
@@ -847,6 +853,9 @@ dojo.addOnLoad(function() {
 				}
 
 				,addInv: function(inv) {
+					/** Displays a checkbox with a name of invitation sender in a specific 
+							gameType section. If section doesn't exist, it is created
+					*/
 					if(!this.invViews[inv.gameType]) {
 						var node = dojo.create('DIV', {
 								className: 'gameType'
@@ -914,8 +923,25 @@ dojo.addOnLoad(function() {
 				}
 					
 				,rmInv: function(inv) {
-
-
+					var section = this.invViews[inv.gameType];
+					if(section) {
+						for(var i in section.entries) {
+							var en = section.entries[i];
+							if(en.inviterId == inv.who) {
+								dojo.destroy(en.node);
+								section.entries.splice(i, 1);
+								if(!section.entries.length) { 
+									DBG('Removing empty section');
+									delete this.invViews[inv.gameType];
+									dojo.destroy(section.node);
+								}
+								return;
+							}
+						}
+						DBG('rmInv: found nothing from ' + inv.who);
+					} else {
+						DBG('rmInv: no invitations for ' + inv.gameType);
+					}
 				}
 
 				,sayThings: function(ev) {

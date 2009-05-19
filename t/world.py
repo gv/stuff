@@ -24,6 +24,23 @@ class Resource(resource.PostableResource):
 
 
 
+class MessageDriven:
+		"""	 A utility base class to control some objects by JSON-serializable messages
+		"""
+		def postMessage(self, msg=None, **kw):
+				msg = msg or kw
+				self.processMessage(msg)
+				
+		def processMessage(self, msg):
+				what = msg['what']
+				handlingMethod = getattr(self, 'handle' + cfirst(what))
+				handlingMethod(**msg)
+
+		def getState(self):
+				"""	 If browser asks, we must give him something
+				"""
+				raise "Implement getState!"
+
 #
 #		 Servers (ins)
 #		 ------- -----
@@ -53,9 +70,11 @@ class In(Resource):
 				# maybe opposite
 				if DEBUG:
 						# Use twisteds exception handling mechanism
+						# so we can see a stack trace
 						result = self._handleReq(request)
 						return http.Response(200, stream=cjson.encode(result))
 				else:
+						# Pass error to browser
 						try:
 								result = self._handleReq(request)
 								return http.Response(200, stream=cjson.encode(result))
@@ -85,13 +104,14 @@ class Game(In):
 		All this means we also must authenticate everyone who sends us stuff.
 		"""
 		table = {}
-		gameType = 'override'
+		gameType = 'override_this'
 
-		def get(id):
+		@classmethod
+		def get(cls, id):
 				return Game.table.get(id)
 
 		def __init__(self, players):
-				sort(players)
+				players.sort()
 				self.id = self.gameType + ''.join([p.id for p in players])
 				self.players = players
 				Game.table[self.id] = self
@@ -101,4 +121,21 @@ class Game(In):
 						if p.id == who: return p
 				raise ValueError("No player %s in game %s" % (id, self.id))
 				
+
+		def getView(self, player):
+				return player.games[self.id]
+
+class GameView(MessageDriven):
+		def __init__(self, player, game):
+				self.id = game.id
+				self.gameType = game.gameType
+				self.init(player, game)
+				# Send it away in a first message related to this game
+				player.addGame(self)
+
+		def mkState(self, **k):
+				k['id'] = self.id
+				k['gameType'] = self.gameType
+				return k
+
 

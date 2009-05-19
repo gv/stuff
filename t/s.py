@@ -41,7 +41,7 @@ print "core libraries loaded"
 from cometd import cometd, twcocl
 
 # our libs
-from world import In, Resource, cfirst, getArg, Game
+from world import In, Resource, cfirst, getArg, Game, MessageDriven
 import world
 import thousand
 
@@ -99,23 +99,6 @@ cometd.BayeuxServer.cometClients.registerConnect(
 )
 				
 
-
-class MessageDriven:
-		"""	 A utility base class to control some objects by JSON-serializable messages
-		"""
-		def postMessage(self, msg=None, **kw):
-				msg = msg or kw
-				self.processMessage(msg)
-				
-		def processMessage(self, msg):
-				what = msg['what']
-				handlingMethod = getattr(self, 'handle' + cfirst(what))
-				handlingMethod(**msg)
-
-		def getState(self):
-				"""	 If browser asks, we must give him something
-				"""
-				raise "Implement getState!"
 
 
 class Client(MessageDriven, Resource):
@@ -244,8 +227,20 @@ class Player(Client):
 								'id': self.id
 								})
 
+		# API
+		# ---------
+
+		def addGame(self, view):
+				"""	 Adds a new game view to a client.
+				"""
+				self.games[view.id] = view
+				# This messages will pass a view state to remote.
+				# Remote client should construct game object from this state.
+				self.postMessage(what = 'addGame',
+												 game = view.getState())
+
 		def close(self):
-				# TODO do something about my games
+				# TODO do something about my games and invitations which i sent
 				Client.get('players').postMessage({
 								'what': 'rmPlayer',
 								'who': self.id
@@ -261,7 +256,9 @@ class Player(Client):
 				"""
 				gameId = msg.get('gameId')
 				if gameId:
-						self.games[gameId].processMessage(self, msg)
+						msg['player'] = self
+						self.games[gameId].processMessage(msg)
+						del msg['player']
 				else:
 						Client.processMessage(self, msg)
 
@@ -275,14 +272,14 @@ class Player(Client):
 		# Output handlers.
 		# ------ ---------
 
-		def handleAddGame(self, game):
+		def handleAddGame(self, game, **k):
 				""" Remote should reconstruct a game object from it's state
 				We can't we're kind of too lame for that
 				"""
 				pass
 				
 
-		def handleRmGame(self, gameId):
+		def handleRmGame(self, gameId, **k):
 				"""	 Removes a game view from client when a game is over
 				"""
 				del self.games[gameId]
@@ -307,17 +304,10 @@ class Player(Client):
 				if not (inv in self.invitations):
 						self.invitations += [inv]
 
-		# Interface
-		# ---------
-
-		def addGame(self, view):
-				"""	 Adds a new game view to a client.
-				"""
-				self.games[view.id] = view
-				# This messages will pass a view state to remote.
-				# Remote client should construct game object from this state.
-				self.postMessage(what = 'addGame',
-												 game = view.getState())
+		def handleUninvited(self, who, gameType, **whatever):
+				self.invitations = [inv for inv in self.invitations	if(
+								inv.who != who or inv.gameType != gameType)]
+						
 
 
 # Set up a 'players' client
