@@ -6,7 +6,8 @@
 
 	TODO
 	 - don't load "Tabs" module until we log in 
-	 - make "Player" and "PlayerBrowser" a separate module and load them when we log in
+	 - make "Player" and "PlayerBrowser" a separate module and load them when we 
+       log in
 	 - get games to their own js files an don't load them until we must use them
 
 	IDEAS
@@ -187,7 +188,8 @@ dojo.addOnLoad(function() {
 
 			This classes:
 			  - check validity of messages
-				- expose APIs to use data from their states and manipulate server-side objects
+				- expose APIs to use data from their states and manipulate server-side 
+				  objects
 		*/
 
 		dojo.declare('anxiety.PlayerList', anxiety.Client, {
@@ -466,6 +468,33 @@ dojo.addOnLoad(function() {
 				
 			});
 
+		dojo.declare('anxiety.CardWidget', null, {
+				constructor: function() {
+					this.cardNodes = {};
+				}
+
+				,getCardNode: function(card) {
+					if(!this.cardNodes[card]) {
+						var cn = dojo.create('IMG', {
+								src: dojo.moduleUrl('anxiety', 'cards/' + card + '.gif');
+							});
+						this.cardNodes[card] = cn;
+					}
+					return this.cardNodes[card];
+				}
+
+				,putCard: function(card, parentNode) {
+					dojo.place(this.getCardNode(card), parentNode);
+				}
+
+				,unputCard: function(card) {
+					dojo.orphan(this.getCardNode(card));
+				}
+
+				,cardClicked: nop
+			});
+					
+
 
 		/*  
 			  Thousand
@@ -474,9 +503,43 @@ dojo.addOnLoad(function() {
 				TODO Make a module
 		*/
 		dojo.declare('anxiety.games.thousand.GameFor3', anxiety.Game, {
-				handleCards: function(m) {
+				constructor: function(s) {
+					// This will be called any time we update a whole state
+					this.score = s.score;
+					this.round = s.round;
+				}
+
+				//   Message handlers
+				//   ``````` ````````
+
+				,checkSetRound: function(m) {
+					checkProps(m, 'round');
+					checkProps(m.round, 'hand', 'table');
+				}
+
+				,handleSetRound: function(m) {
 
 				}
+
+				,checkCards: function(m) {
+					checkProps(m, 'cards');
+				}
+
+				,handleCards: function(m) {
+					this.round.hand = m.cards.concat(this.round.hand);
+					this.tookCards(m.cards);
+				}
+
+				,handleBid: function(m) {
+
+				}
+
+				,handlePass: function(m) {
+
+
+				}
+				
+				,tookCards: nop, PASSED: -1
 			});
 			
 		dojo.mixin(anxiety.games.thousand, {
@@ -492,13 +555,19 @@ dojo.addOnLoad(function() {
 					return new anxiety.games.thousand.GameFor3(state);
 				}
 
-				,browse: function(game) {
-					return new anxiety.games.thousand.BrowserFor3({game: game});
+				,browse: function(game, player) {
+					return new anxiety.games.thousand.BrowserFor3({game: game, 
+								player: player});
 				}
 			});
-			
-		dojo.declare('anxiety.games.thousand.BrowserFor3', anxiety.GameBrowser, {
+
+		var bs = [anxiety.GameBrowser, anxiety.CardWidget];
+		dojo.declare('anxiety.games.thousand.BrowserFor3', bs, {
 				postCreate: function() {
+					/* Buid a display for non round variables */
+					this.gameScore = dojo.create('DIV', {className: 'gameScore'}, 
+																			 this.domNode);
+
 					this.browse(this.game);
 				}
 
@@ -507,7 +576,80 @@ dojo.addOnLoad(function() {
 						// TODO Cleanup connections.
 					}
 					
+					this.connect(game, 'handleSetRound', 'browseRound');
+					this.connect(game, 'tookCards', 'takeCards');
 					this.game = game;
+				}
+
+				,takeCards: function(cards) {
+					if(!this.mySector) 
+						throw "Can't take cards, probably didn't receive setRound";
+				}
+
+					for(var i in cards) 
+						this.putCard(cards[i], this.mySector.hand);
+				}
+
+				,browseRound: function(m) {
+					var round = m.round;
+					
+					var tableToken = '';
+					for(var i in round.table) 
+						tableToken += round.table[i].playerId;
+
+					if(this.tableToken != tableToken) {
+						/* Erase current table DOM */
+
+						this.table = [];
+						/* Set up a table */
+						// round.table array is arranged in moving order
+						for(var i in round.table) {
+							var part = round.table[i];
+							var stat = this.game.world.players.stat(part.playerId);
+							if(!stat) {
+								DBG('No stat for player ' + part.playerId);
+								continue;
+							}
+
+							var sector = {
+								node: dojo.create('DIV', {className: 'sector'});
+							};
+							
+							dojo.create('h1', {innerHTML: stat.name}, sector.node);
+							sector.card = dojo.create('DIV', {className: 'card'}, sector.node);
+							sector.bid = dojo.create('DIV', {className: 'bid'}, sector.node);
+							if(part.id == this.player.id) {
+								this.mySector = sector;
+								sector.hand = dojo.create('DIV', {className: 'hand'}, sector.node);
+
+							}
+							
+							this.table.push(sector);
+						}
+
+						this.tableToken = tableToken;
+					}
+					
+					/* Display sector states */
+					for(var i in round.table) {
+						var part = round.table[i], sector = this.table[i];
+									
+						if(part.card)
+							this.putCard(part.card, sector.card);
+						
+						if(part.bid)
+							sector.bid.innerHTML = (part.bid == this.game.PASSED) ?
+								'PASSED' :
+								part.bid;
+					}
+
+					/* Display the hand */
+					for(var i in round.hand) {
+						this.putCard(round.hand[i], this.mySector.hand);
+					}
+
+					/* Display the trump suit */
+
 				}
 			});
 				
@@ -653,7 +795,8 @@ dojo.addOnLoad(function() {
 					this.chatBrowser.destroy();
 					delete this.chatBrowser;
 
-					this.playerBrowser = new anxiety.PlayerBrowser({player: player, worldBrowser: this});
+					this.playerBrowser = new anxiety.PlayerBrowser({player: player, 
+																													worldBrowser: this});
 					this.moveIntoClientWindow(this.playerBrowser);
 					this.logoutBtn.attr('disabled', false);
 					this.usernameBox.attr('title', 'Id is ' + player.id);

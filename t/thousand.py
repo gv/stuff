@@ -22,6 +22,8 @@ class Round:
 				self.trump = None
 				self.declarer = None
 
+				# XXX Deal cards before we send 'setRound'
+
 				# XXX Do we need this link?
 				self.views = []
 				for index, player in enumerate(game.players):
@@ -47,7 +49,8 @@ class Round:
 				if mustHave and not self.declarer:
 						raise ValueError("This can't be done until nobody declared!")
 				elif self.declarer and not mustHave:
-						raise ValueError("This can't be done when %s already has declared!" % self.declarer)
+						raise ValueError("This can't be done when %s already has declared!" % 
+														 self.declarer)
 						
 
 		def bid(self, game, bidder, amount):
@@ -131,7 +134,7 @@ class Round:
 								hand = self.hand,
 								trump = self.trump,
 								bid = self.bid,
-								table = [dict(id = pv.id,
+								table = [dict(playerId = pv.id,
 															bid = pv.bid,
 															card = pv.card) 
 												 for pv in self.table]
