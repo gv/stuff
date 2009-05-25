@@ -476,7 +476,7 @@ dojo.addOnLoad(function() {
 				,getCardNode: function(card) {
 					if(!this.cardNodes[card]) {
 						var cn = dojo.create('IMG', {
-								src: dojo.moduleUrl('anxiety', 'cards/' + card + '.gif');
+								src: dojo.moduleUrl('anxiety', 'cards/' + card + '.gif')
 							});
 						this.cardNodes[card] = cn;
 					}
@@ -584,7 +584,7 @@ dojo.addOnLoad(function() {
 				,takeCards: function(cards) {
 					if(!this.mySector) 
 						throw "Can't take cards, probably didn't receive setRound";
-				}
+				
 
 					for(var i in cards) 
 						this.putCard(cards[i], this.mySector.hand);
@@ -612,7 +612,7 @@ dojo.addOnLoad(function() {
 							}
 
 							var sector = {
-								node: dojo.create('DIV', {className: 'sector'});
+								node: dojo.create('DIV', {className: 'sector'})
 							};
 							
 							dojo.create('h1', {innerHTML: stat.name}, sector.node);
