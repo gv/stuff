@@ -125,6 +125,8 @@
 ;;
 (global-set-key [home] 'beginning-of-line)
 (global-set-key [end] 'end-of-line)
+; Workaround for windows remote terminals
+(global-set-key [select] 'end-of-line)
 (global-set-key [\C-home] 'beginning-of-buffer)
 (global-set-key [\C-end] 'end-of-buffer)
 ;;удаляем строку целиком

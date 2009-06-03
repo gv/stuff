@@ -62,13 +62,14 @@ class DictResource(Resource):
 class PlayerList(Client):
 		def __init__(self):
 				Client.__init__(self, 'players')
+				self.chatLog = []
 
 		def getState(self):
 				return {
 						'players': [dict(id = p.id, name = p.name) 
 												for p in Client.table.values()
 												if isinstance(p, Player)],
-						'chatLog': []
+						'chatLog': self.chatLog
 						}
 
 		def handleRmPlayer(self, who, **k):
@@ -79,17 +80,20 @@ class PlayerList(Client):
 				"""
 				pass
 
-		def handleChat(self, **k):
-				""" TODO Store last 10
+		def handleChat(self, author, phrase,**k):
+				""" 
 				"""
-				pass
+				self.chatLog += [{'author': author,
+													'phrase': phrase}]
+				self.chatLog = self.chatLog[-10:]
+				
 
 # Set up a 'players' client
 PlayerList()
 
 # Now we can load games
 
-import thousand
+import thousand, tictactoe
 
 
 #						 
@@ -213,9 +217,12 @@ class Entry(In):
 																who = player.id)
 				# Now let's start
 				# FIXME Account for other kinds of games here
-				import thousand
 				thousand.Game(partners)
-				return {}
+				rv  = {}
+				if errMsgs != []:
+						# it's partial success so we don't raise exception
+						rv['err'] = {'msg': "\n".join(errMsgs)}
+				return rv
 
 
 

@@ -11,7 +11,7 @@
 	 - get games to their own js files an don't load them until we must use them
 
 	IDEAS
- 	 - maybe we'd better use regular <button>s to save cycles
+ 	 - maybe we'd better use regular <button>s to save cycles and they look nicer too
 	 - would be really cool if I made a 'loading...' progress bar, like in GMail
 */
 
@@ -48,6 +48,10 @@ function checkProps(o /*, ...*/) {
 		-------
 */
 dojo.require('dojo.data.ItemFileWriteStore');
+dojo.require('dojo.cookie');
+// TODO We sure need to use cookies to relogin,
+// but in the same time I want to allow multiple sessions in 
+// different browser windows
 
 dojo.require('dijit._Widget');
 dojo.require('dijit._Templated');
@@ -104,12 +108,17 @@ dojo.addOnLoad(function() {
 			This class runs a sync mechanism with server.
 		*/
 		dojo.declare('anxiety.Client', anxiety.MsgDriven, {
+				
+				//   API
+				//   ```
+
 				constructor: function(world, id, priv) {
 					this.id = id;
 					this.priv = priv;
 					this.world = world;
 					this.urlPrefix = world.urlPrefix;
 					this.revision = -1;
+					this.listeners = [];
 
 					// Subscribe to events.
 					// TODO Authenticate.
@@ -159,18 +168,18 @@ dojo.addOnLoad(function() {
 						this._updating = true;
 				}
 
-				,_updateState: function(state) {
-					this._reloading = false;
-					if(!('revision' in state))
-						throw 'No revision in state!';
-					this.revision = state.revision;
-					this.updateState(state);
-					this.updated();
-				}
-
 				,close: function() {
 					return dojox.cometd.unsubscribe('/' + this.id);
 				}
+				
+				,callWhenLoaded: function(f) {
+					if(this.revision >= 0) {
+						f(this);
+					} else {
+						this.listeners.push(f);
+					}
+				}
+					
 				
 				//   Overridables
 				//	 ````````````
@@ -178,7 +187,28 @@ dojo.addOnLoad(function() {
 				,updateState: function(state) {
 					DBG(state);
 				}
+
+				//   Utils
+				//   `````
 				
+				,_updateState: function(state) {
+					this._reloading = false;
+					if(!('revision' in state))
+						throw 'No revision in state!';
+					this.updateState(state);
+
+					if(this.revision < 0) {
+						for(var i in this.listeners) 
+							this.listeners[i](this);
+						delete this.listeners;
+					}
+
+					this.revision = state.revision;
+					this.updated();
+				}
+
+				//   Signals
+				//   ```````
 				,updated: nop
 					 });
 
@@ -206,6 +236,7 @@ dojo.addOnLoad(function() {
 				//   Command handlers
 				//   ``````` ````````
 				,updateState: function(state) {
+					this.chatLog = state.chatLog;
 					// We own this object, if anyone else wants to use it, make copy!
 					this.players = state.players;
 					this.playersChanged();
@@ -689,23 +720,37 @@ dojo.addOnLoad(function() {
 					*/
 					this.connect(this.world.players, 'heard', 'heard');
 					this.inherited(arguments);
+
+					this.world.players.callWhenLoaded(dojo.hitch(this, 'update'));
+				}
+
+				,update: function() {
+					this.domNode.innerHTML = '';
+					for(var i in this.world.players.chatLog) {
+						this.heard(this.world.players.chatLog[i]);
+					}
 				}
 
 				
 				,heard: function(m) {
 					// Someone said something!
 					var author = this.world.players.stat(m.author);
-					if(!author)
-						return DBG('Got a chat message from nonexistent player ' + m.author);
+					if(author) {
+						var nameBody = '<b>' + author.name + '</b>';
+					} else {
+						// Player's gone
+						var nameBody = '*<b>' + m.author + '</b>*';
+					}
 
 					var phraseNode = dojo.create('DIV', {innerHTML: 
-																							 '<b>' + author.name + 
-																							 '</b>: ' + m.phrase}, 
+																							 nameBody + ': ' + m.phrase}, 
 						this.domNode);
 					// Don't display more then maxPhraseCnt phrases.
 					var nodes = dojo.query('DIV', this.domNode);
 					if(nodes.length > this.maxPhraseCnt) 
 						nodes.slice(0, nodes.length - this.maxPhraseCnt).orphan();
+					
+					// TODO Scroll
 				}
 			});
 
