@@ -24,7 +24,7 @@ PORT_NUMBER = 6080 # for bishop
 
 import os, sys
 import cjson
-from twisted.web2 import http, server, static
+from twisted.web2 import http, server, static, http_headers
 print "core libraries loaded"
 
 # our libs
@@ -251,7 +251,9 @@ class Entry(In):
 				else:
 						mediaUrlPrefix = '/m/'
 
-				return http.Response(200, stream=("""<html><head>
+				hdrs = http_headers.Headers()
+				hdrs.addRawHeader("Content-Type", "text/html; charset=utf-8")
+				return http.Response(200, headers=hdrs, stream=("""<html><head>
 <link rel=stylesheet href="%(static)scss.css" />
 <SCRIPT TYPE="text/javascript" SRC="%(dldr)s" djConfig="isDebug: true"></SCRIPT>
 <SCRIPT>
