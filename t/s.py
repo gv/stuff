@@ -95,6 +95,8 @@ PlayerList()
 
 import thousand, tictactoe
 
+# TODO how do we register a gameType
+
 
 #						 
 #			Entry point
@@ -131,6 +133,10 @@ class Entry(In):
 						self.child_m = static.File(mediaPath)
 				self.child_comettest = static.File(os.path.join(os.path.dirname(world.__file__), 
 																												'comettest.html'))
+				Client.get('players').postMessage(what = 'chat',
+																					author = 'World',
+																					phrase = 'Started working...')
+																					
 						
 
 		def _getPlayerById(self, id):
