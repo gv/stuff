@@ -213,7 +213,7 @@
 ;
 (set-default-font 
  (if (equal window-system 'x)
-     "Bitstream Vera Sans Mono-8"
+     "Bitstream Vera Sans Mono-9"
          "Courier New 9")
 )
          
