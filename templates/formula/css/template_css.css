@@ -81,14 +81,12 @@ a:hover {
 }
 
 #leftcol { 
-	/*position: absolute;
-	top: 280px;
-	left: 40px;*/
 	clear: both;
 	float: left;
 	width: 350px;
 	margin: 280px 0 6px 3px;
 	text-align: left;
+	overflow: hidden;
 }	
 
 #extraleft {
@@ -111,25 +109,18 @@ a:hover {
 	
           
 #maincolumn { 
-	/*position: absolute;
-	top: 277px;
-	left: 353px;
-	height: 435px;
-	overflow: auto;
-	overflow-x: hidden;
-	overflow-y: auto;
-	*/
 	width: 586px;
 	min-height: 500px;
-	margin: 277px 0 0 353px;
+	margin: 277px 0 0 355px;
 }
 
-*+html #maincolumn {
-	margin: 277px 0 0 323px;
+*+html #maincolumn { /*IE 7 and also Opera 9.2x*/
+	/*margin: 277px 0 0 323px;*/
 }
 
-* html #maincolumn {
-	margin: 277px 0 0 323px;
+* html #maincolumn { /*IE 6*/
+	/*margin: 277px 0 0 323px;*/
+	height: 500px;
 }
 
 /* that's weird */
@@ -144,46 +135,6 @@ a:hover {
 	position: relative;
 	left: -30px;
 }
-
-* html #maincolumn {
-	height: 500px;
-}
-
-/*	    
-#search{float: right;
-        margin: 6px; }
-        
-#topmenu{ margin: 10px; }        
-        
-        
-#banner { 
-float:right;
-margin:6px;
-        border-right-width: 6px;
-        border-right-style: double;
-        border-bottom-width: 6px;
-        border-bottom-style: double;
-        }
-        
-#mylogo {float: left;
-        margin: 20px;
-	margin-top: 20px;
-	margin-right: 20px;
-	width: 120px;
-	padding: 2px;
-	text-align: center;
-} 
-
-#mylink { 
-	text-decoration: none;
-}
-*/
-
-          
-/*
-#user1, #user2{ width: 180px; float: left;}
-#user3{ width: 360px; }
-*/
 
 #content{ 
 	margin: 10px; 
@@ -239,17 +190,6 @@ margin:6px;
 	float: left;
 	padding: 20px 3px;
 }
-
-
-
-/*
-td.contentheading{ font-weight: bold; font-size: 1.2em; text-decoration: underline; }
-td.modifydate, td.createdate{ font-size: 0.9em; font-style: italic; }
-
-#rightcol{ width: 170px; 
-          float: left;
-          margin-left: 0px;}	
-*/
 
 /* hide */
 #pathway, #accessibility, #source {
@@ -346,6 +286,8 @@ white-space: nowrap;
 }
 
 #mainmenu ul li a {
+	white-space: nowrap;
+	text-wrap: none;
 	color: white;
 	font: 12pt helvetica;
 }
