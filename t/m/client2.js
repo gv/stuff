@@ -742,8 +742,8 @@ dojo.addOnLoad(function() {
 						var nameBody = '*<b>' + m.author + '</b>*';
 					}
 
-					var phraseNode = dojo.create('DIV', {innerHTML: 
-																							 nameBody + ': ' + m.phrase}, 
+					var phraseNode = dojo.create('DIV', 
+						{innerHTML: nameBody + ': ' + m.phrase}, 
 						this.domNode);
 					// Don't display more then maxPhraseCnt phrases.
 					var nodes = dojo.query('DIV', this.domNode);
@@ -958,8 +958,9 @@ dojo.addOnLoad(function() {
 							
 					/* Make a status bar */
 					dojo.style(this.domNode, {position: 'relative'});
-					this.statusBarNode = dojo.create('DIV', {className: 'statusBar'}, 
-																					 this.domNode);
+					this.statusBarNode = dojo.create('DIV', 
+						{className: 'statusBar'}, 
+						this.domNode);
 
 					/* Make the always visible 'say' box */
 					this.talkBar = new dijit.layout.ContentPane({region: 'bottom'});

@@ -24,9 +24,9 @@
 ;; Scratch buffer settings. Очищаем его.
 (setq initial-scratch-message nil)
 ;;гладкий скроллинг с полями
-(setq scroll-conservatively 50)
-(setq scroll-preserve-screen-position 't)
-(setq scroll-margin 10)
+;(setq scroll-conservatively 50)
+;(setq scroll-preserve-screen-position 't)
+;(setq scroll-margin 10)
 ;; show column & line numbers in status bar
 (setq column-number-mode t)
 (setq line-number-mode t)
@@ -111,7 +111,7 @@
 ;(set-frame-position (selected-frame) 60 0)
 ;;;
 ;;установка цветов экрана
-;(set-background-color "white")
+(set-background-color "white")
 ;(set-foreground-color "black")
 
 ;;установка режимов работы курсора
@@ -145,10 +145,6 @@
 (global-set-key [M-f7]  'find-name-dired)
 (global-set-key [C-tab]  'other-window) 
 (global-set-key [M-left] 'pop-tag-mark)
-
-;;
-
-;; GNU Stuff.
 
 ; for syntax highlighting
 (global-font-lock-mode 1 t)
@@ -184,8 +180,8 @@
 ; Загрузим другие программы 
 (load "php-mode.el")
 (require 'php-mode)
-(load "ecmascript-mode.el")
-(require 'ecmascript-mode)
+;(load "ecmascript-mode.el")
+;(require 'ecmascript-mode)
 
 (add-hook 'c-mode-common-hook 
 		  '(lambda ()
@@ -193,7 +189,11 @@
 			 (setq tab-width 2)
 			 (setq indent-tabs-mode t)
 			 (setq case-fold-search nil)
-			 (setq case-replace nil)))
+			 (setq case-replace nil)
+			 (c-set-offset 'arglist-intro '+)
+			 (c-set-offset 'arglist-cont-nonempty '+)
+			 (c-set-offset 'arglist-close 0)
+			 ))
 
 (add-hook 'python-mode-hook 
 		  '(lambda ()
