@@ -111,8 +111,8 @@
 ;(set-frame-position (selected-frame) 60 0)
 ;;;
 ;;установка цветов экрана
-(set-background-color "white")
-;(set-foreground-color "black")
+(set-background-color "black")
+(set-foreground-color "white")
 
 ;;установка режимов работы курсора
 (set-cursor-color "red")
@@ -191,7 +191,7 @@
 			 (setq case-fold-search nil)
 			 (setq case-replace nil)
 			 (c-set-offset 'arglist-intro '+)
-			 (c-set-offset 'arglist-cont-nonempty '+)
+			 (c-set-offset 'arglistv-cont-nonempty '+)
 			 (c-set-offset 'arglist-close 0)
 			 ))
 
@@ -214,8 +214,8 @@
 (set-default-font 
  (if (equal window-system 'x)
      "Bitstream Vera Sans Mono-9"
-         "Courier New 9")
-)
+   "Courier New 9")
+ )
          
 
 ;;

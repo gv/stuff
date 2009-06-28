@@ -920,7 +920,9 @@ dojo.addOnLoad(function() {
 			Upside, there should be tabs for invitations and games.
 			
 		*/			
-		dojo.declare('anxiety.PlayerBrowser', [dijit.layout.BorderContainer, anxiety.Reporting],	{   
+		dojo.declare('anxiety.PlayerBrowser', 
+			[dijit.layout.BorderContainer, anxiety.Reporting],	
+			{   
 				/*templateString: null,
 					templatePath: '/templates/playerbrowser.xml',
 					widgetsInTemplate: true,*/
