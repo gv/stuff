@@ -57,8 +57,8 @@ var fs = new ActiveXObject('Scripting.FileSystemObject'),
 function IcqStat() {
 	// defaults
 	this.stopWords = ('в на от не и что я а это что по то у ок как ты да ' +
-										'там все ' +
-										'нет из так есть мне с если к но для еще или за ну о').
+		'там все ' +
+		'нет из так есть мне с если к но для еще или за ну о').
 		split(' ');
 	this.lim = 40;
 	this.page = 0;
@@ -167,10 +167,11 @@ IcqStat.prototype.run = function() {
 					var word = bodyWords[i];
 
 					if(!wordsMap[word]) {
-						wordsArr.push(wordsMap[word] = {count: 0, 
-																						word: word, 
-																						incoming: [],
-																						outgoing: []});
+						wordsArr.push(wordsMap[word] = {
+								count: 0, 
+								word: word, 
+								incoming: [],
+								outgoing: []});
 					}
 					wordsMap[word]
 						[('me' == msg.from) ? 'outgoing' : 'incoming'].
@@ -258,42 +259,42 @@ IcqStat.prototype.addCommand = function(names, desc, run) {
 IcqStat.prototype.initShell = function() {
 	this.commands = [];
 	this.addCommand(['help', 'usage'/*, '?'*/],
-									'Напечатать сводку команд',
-									function(prog) {
-										var UsageDisplay = extend(Display, function(prog) {
-												this.prevDisplay = prog.display;
-											});
+		'Напечатать сводку команд',
+		function(prog) {
+			var UsageDisplay = extend(Display, function(prog) {
+					this.prevDisplay = prog.display;
+				});
 										
-										UsageDisplay.prototype.render = function(prog) {
-											for(var i in prog.commands) {
-												var cmd = prog.commands[i], text = null;
-												for(var j in cmd.names) {
-													var name = cmd.names[j];
-													for(var k = 1; k <= name.length; k++) {
-														var part = name.substring(0, k);
-														//trace('resolving ' + part);
-														var resolutions = prog.resolveCmd(part);
-														if(resolutions.length < 2) break;
-													}
-													if(name.length > part.length)
-													part += '[' + name.substring(part.length) + ']';
-													text = text ? text + "\n" + part : part;
-												}
-												// align
-												for(var width = part.length; width < 20; width++)
-													text += ' ';
-												print(text + cmd.desc);
-											}
-											print("Пустая команда показывает продолжение текущего вида");
-										};
+			UsageDisplay.prototype.render = function(prog) {
+				for(var i in prog.commands) {
+					var cmd = prog.commands[i], text = null;
+					for(var j in cmd.names) {
+						var name = cmd.names[j];
+						for(var k = 1; k <= name.length; k++) {
+							var part = name.substring(0, k);
+							//trace('resolving ' + part);
+							var resolutions = prog.resolveCmd(part);
+							if(resolutions.length < 2) break;
+						}
+						if(name.length > part.length)
+							part += '[' + name.substring(part.length) + ']';
+						text = text ? text + "\n" + part : part;
+					}
+					// align
+					for(var width = part.length; width < 20; width++)
+						text += ' ';
+					print(text + cmd.desc);
+				}
+				print("Пустая команда показывает продолжение текущего вида");
+			};
 										
-										UsageDisplay.prototype.getNextDisplay = function() {
-											return this.prevDisplay;
-										}
+			UsageDisplay.prototype.getNextDisplay = function() {
+				return this.prevDisplay;
+			}
 
-										trace('setting UsageDisplay');
-										prog.display = new UsageDisplay(prog);
-									});
+			trace('setting UsageDisplay');
+			prog.display = new UsageDisplay(prog);
+		});
 };
 													
 													
