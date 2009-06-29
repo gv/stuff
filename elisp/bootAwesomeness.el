@@ -191,7 +191,7 @@
 			 (setq case-fold-search nil)
 			 (setq case-replace nil)
 			 (c-set-offset 'arglist-intro '+)
-			 (c-set-offset 'arglistv-cont-nonempty '+)
+			 (c-set-offset 'arglist-cont-nonempty '+)
 			 (c-set-offset 'arglist-close 0)
 			 ))
 
