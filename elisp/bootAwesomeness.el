@@ -169,7 +169,6 @@
 ;(set-default-coding-systems 'utf-8-dos)
 ;(set-terminal-coding-system 'utf-8-dos)
 ;(set-selection-coding-system 'utf-8-dos)
-(define-coding-system-alias 'windows-1251 'cp1251)
 ;; Установки автоопределения кодировок. Первой будет определяться utf-8-dos
 (prefer-coding-system 'cp866-dos)
 (prefer-coding-system 'koi8-r-dos)
@@ -178,10 +177,13 @@
 
 
 ; Загрузим другие программы 
-(load "php-mode.el")
-(require 'php-mode)
+(autoload 'php-mode "php-mode.el" "XXX" t)
 ;(load "ecmascript-mode.el")
 ;(require 'ecmascript-mode)
+(autoload 'wikipedia-mode "wikipedia-mode.el"
+"Major mode for editing documents in Wikipedia markup." t)
+; for ViewSourceWith Firefox extension
+(add-to-list 'auto-mode-alist '("index.\\.*" . wikipedia-mode))
 
 (add-hook 'c-mode-common-hook 
 		  '(lambda ()
