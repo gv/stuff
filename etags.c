@@ -5668,40 +5668,45 @@ static void
 Js_functions (inf) 
      FILE *inf;
 {
-  register char *name, *cp, *end_of_token, *token, c;
+  register char *name = NULL, *cp, *end_of_token, *token, c;
+  bool got_function = FALSE;
   
   LOOP_ON_INPUT_LINES(inf, lb, cp)
     {
-      name = NULL;
       while(*cp) {
 	cp = skip_spaces(cp);
 	if(!*cp)
 	  break;
 
-	if(LOOKING_AT(cp, "function")) {
-	  cp = skip_spaces(cp);
-	  if(!*cp)
-	    break;
-
+	if(got_function) {
+	  got_function = FALSE;
 	  if('(' == *cp) { // anonymous
 	    if(name) { // Goes by name of var it's assigned to
-	      make_tag(name, end_of_token - name, TRUE, lb.buffer, cp - lb.buffer + 1, lineno, linecharno);
+	      make_tag(name, end_of_token - name, TRUE, lb.buffer, 
+		       cp - lb.buffer + 1, lineno, linecharno);
+	      name = NULL;
 	    } 
 	  } else { // read a name
 	    name = cp;
-	    while(!notinname(cp))
+	    while(midtk(cp))
 	      cp++;
 	    if(cp > name)
-	      make_tag(name, cp - name, TRUE, lb.buffer, cp - lb.buffer + 1, lineno, linecharno);
+	      make_tag(name, cp - name, TRUE, lb.buffer, 
+		       cp - lb.buffer + 1, lineno, linecharno);
 	  }
-	  name = NULL;
-	} else {
-	  name = NULL;
-	  
-	  while(notinname(cp))
+	  continue;
+	}
+
+	if(LOOKING_AT(cp, "function")) {
+	  got_function = TRUE;
+	  continue;
+	}
+
+
+	while(notinname(cp) && *cp)
 	    cp++;
-	  if(!*cp)
-	    break;
+	if(!*cp)
+	  break;
 	  token = cp;
 	  
 	  while(!notinname(cp))
@@ -5712,15 +5717,14 @@ Js_functions (inf)
 
 	  c =*cp;
 	  *cp = 0;
-	  printf(token);
+	  printf("%s+", token);
 	  *cp = c;
 
-	  while(notinname(cp)) {
-	    if('=' == *cp || ':' == *cp)
-	      name = token;
+	  cp = skip_spaces(cp);
+	  if('=' == *cp || ':' == *cp) {
+	    name = token;
 	    cp++;
 	  }
-
 	}
       }
     }
