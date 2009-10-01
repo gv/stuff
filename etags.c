@@ -5668,7 +5668,7 @@ static void
 Js_functions (inf) 
      FILE *inf;
 {
-  register char *name = NULL, *cp, *end_of_token, *token, c;
+  register char *name = NULL, *cp, *end_of_token, *token = NULL, c;
   bool got_function = FALSE;
   
   LOOP_ON_INPUT_LINES(inf, lb, cp)
@@ -5677,7 +5677,7 @@ Js_functions (inf)
 	cp = skip_spaces(cp);
 	if(!*cp)
 	  break;
-
+	
 	if(got_function) {
 	  got_function = FALSE;
 	  if('(' == *cp) { // anonymous
@@ -5688,7 +5688,7 @@ Js_functions (inf)
 	    } 
 	  } else { // read a name
 	    name = cp;
-	    while(midtk(cp))
+	    while(intoken(cp))
 	      cp++;
 	    if(cp > name)
 	      make_tag(name, cp - name, TRUE, lb.buffer, 
@@ -5702,30 +5702,23 @@ Js_functions (inf)
 	  continue;
 	}
 
-
-	while(notinname(cp) && *cp)
-	    cp++;
-	if(!*cp)
-	  break;
-	  token = cp;
-	  
-	  while(!notinname(cp))
-	    printf("%c+", *cp++);
-	  if(!*cp)
-	    break;
-	  end_of_token = cp;
-
-	  c =*cp;
-	  *cp = 0;
-	  printf("%s+", token);
-	  *cp = c;
-
-	  cp = skip_spaces(cp);
-	  if('=' == *cp || ':' == *cp) {
-	    name = token;
-	    cp++;
-	  }
+	if('=' == *cp || ':' == *cp) {
+	  name = token;
+	  cp++;
+	  continue;
 	}
+	
+	if(begtoken(*cp)) {
+	  token = cp++;
+	  while(intoken(*cp))
+	    cp++;
+	  end_of_token = cp++;
+	  continue;
+	}
+	
+	cp++;
+	token = NULL;
+	continue;
       }
     }
 }
