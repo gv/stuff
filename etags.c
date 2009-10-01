@@ -5668,7 +5668,7 @@ static void
 Js_functions (inf) 
      FILE *inf;
 {
-  register char *name = NULL, *cp, *end_of_token, *token = NULL, c;
+  register char *name = NULL, *cp, *end_of_token, *token = NULL, c, *line_start;
   bool got_function = FALSE;
   
   LOOP_ON_INPUT_LINES(inf, lb, cp)
@@ -5682,17 +5682,23 @@ Js_functions (inf)
 	  got_function = FALSE;
 	  if('(' == *cp) { // anonymous
 	    if(name) { // Goes by name of var it's assigned to
-	      make_tag(name, end_of_token - name, TRUE, lb.buffer, 
-		       cp - lb.buffer + 1, lineno, linecharno);
+	      line_start = skip_spaces(lb.buffer);
+	      make_tag(name, end_of_token - name, TRUE, 
+		line_start, cp - line_start + 1, 
+		lineno, linecharno);
 	      name = NULL;
 	    } 
 	  } else { // read a name
 	    name = cp;
-	    while(intoken(cp))
+	    while(intoken(*cp))
 	      cp++;
-	    if(cp > name)
-	      make_tag(name, cp - name, TRUE, lb.buffer, 
-		       cp - lb.buffer + 1, lineno, linecharno);
+	    if(cp > name) {
+	      puts(cp);
+	      line_start = skip_spaces(lb.buffer);
+	      make_tag(name, cp - name, TRUE, 
+		line_start, cp - line_start + 1, 
+		lineno, linecharno);
+	    }
 	  }
 	  continue;
 	}
@@ -5708,6 +5714,8 @@ Js_functions (inf)
 	  continue;
 	}
 	
+	name = NULL;
+
 	if(begtoken(*cp)) {
 	  token = cp++;
 	  while(intoken(*cp))
@@ -5721,6 +5729,7 @@ Js_functions (inf)
 	continue;
       }
     }
+  //make_tag("syrup", 5, TRUE, "umbrella", 8, 2, 2);
 }
 	  
 	  
