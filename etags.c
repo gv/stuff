@@ -5668,8 +5668,10 @@ static void
 Js_functions (inf) 
      FILE *inf;
 {
-  register char *name = NULL, *cp, *end_of_token, *token = NULL, c, *line_start;
+  register char *name = NULL, *cp, *end_of_token, *token = NULL;
+	char buf[100];
   bool got_function = FALSE;
+  buf[sizeof(buf) - 1] = 0;
   
   LOOP_ON_INPUT_LINES(inf, lb, cp)
     {
@@ -5679,14 +5681,12 @@ Js_functions (inf)
 	  break;
 	
 	if(got_function) {
-	  got_function = FALSE;
-	  if('(' == *cp) { // anonymous
-	    if(name) { // Goes by name of var it's assigned to
-	      line_start = skip_spaces(lb.buffer);
+	  if(name) { 
+	    if('(' == *cp) { 
 	      make_tag(name, end_of_token - name, TRUE, 
-		line_start, cp - line_start + 1, 
-		lineno, linecharno);
-	      name = NULL;
+		       lb.buffer, cp - lb.buffer + 1, 
+		       lineno, linecharno);
+	      cp++;
 	    } 
 	  } else { // read a name
 	    name = cp;
@@ -5694,12 +5694,12 @@ Js_functions (inf)
 	      cp++;
 	    if(cp > name) {
 	      puts(cp);
-	      line_start = skip_spaces(lb.buffer);
-	      make_tag(name, cp - name, TRUE, 
-		line_start, cp - line_start + 1, 
-		lineno, linecharno);
+	      end_of_token = cp;
+	      continue;
 	    }
 	  }
+	  name = NULL;
+	  got_function = FALSE;
 	  continue;
 	}
 
@@ -5720,7 +5720,7 @@ Js_functions (inf)
 	  token = cp++;
 	  while(intoken(*cp))
 	    cp++;
-	  end_of_token = cp++;
+	  end_of_token = cp;
 	  continue;
 	}
 	
@@ -5728,6 +5728,14 @@ Js_functions (inf)
 	token = NULL;
 	continue;
       }
+      if(token) {
+	unsigned len = min(end_of_token - token, sizeof(buf) - 1);
+	strncpy(buf, token, len);
+	token = buf;
+	end_of_token = buf + len;
+	if(name)
+	  name = buf;
+	  }
     }
   //make_tag("syrup", 5, TRUE, "umbrella", 8, 2, 2);
 }
