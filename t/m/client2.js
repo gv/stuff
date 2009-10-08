@@ -4,6 +4,18 @@
 
 	This is a client for a multiplayer card game using Dojo framework.
 
+	EVENT MODEL / POLICY
+	
+	If user initiates an operation, we're interested in status of that. This status 
+	should be shown on screen, and then when we get a result, it should be associated
+	with that particular operation. This operation should be represented as a 
+	Deferred. 
+	An exeception is the state watching/updateing process, which should not be 
+	reported, because it runs all the time.
+
+	If some event is not result of an user-requested operation, we should present it
+	as a signal (dojo.connect()).
+
 	TODO
 	 - don't load "Tabs" module until we log in 
 	 - make "Player" and "PlayerBrowser" a separate module and load them when we 
@@ -56,15 +68,23 @@ dojo.require('dojo.cookie');
 dojo.require('dijit._Widget');
 dojo.require('dijit._Templated');
 dojo.require('dijit.layout.BorderContainer');
-dojo.require('dijit.layout.TabContainer');
 dojo.require('dijit.layout.ContentPane');
-dojo.require('dijit.form.Button');
 dojo.require('dijit.form.CheckBox');
 dojo.require('dijit.form.TextBox');
 //dojo.require('dijit.Toolbar');
 
 dojo.require('dojox.grid.DataGrid');
 dojo.require('dojox.cometd');
+
+//dojo.require('dijit.form.Button');
+
+function mkBtn(opts) {
+	var b = dojo.create('BUTTON', opts);
+	b.onclick = function(e) {
+		return this.onClick && this.onClick(e);
+	};
+	return b;
+}
 
 /*
 	Browser code
@@ -74,6 +94,9 @@ dojo.require('dojox.cometd');
 	So we need to define classes on load.
 */
 dojo.addOnLoad(function() {
+		DBG('Before require...');
+		dojo.require('dijit.layout.TabContainer');
+		DBG('After require');
 		/*
 			Client core
 			------ ----
@@ -355,6 +378,10 @@ dojo.addOnLoad(function() {
 
 				,handleInvited: function(m) {
 					checkProps(m, 'who', 'gameType');
+					/*
+					this.world.players.addCallback(dojo.hitch(this, function(ps) {
+					m.senderStat = ps.stat(m.who);
+					*/
 					m.senderStat = this.world.players.stat(m.who);
 					if(!m.senderStat) 
 						throw 'Player #' + m.who + ' not found';
@@ -470,6 +497,7 @@ dojo.addOnLoad(function() {
 					if(pwd && id) {
 						var p = this.getClient(anxiety.Player, id, pwd);
 					} else {
+						var p = new dojo.Deferred();
 						this.send('needClient', {name: name}, function(rsp) {
 								var thunk = this.getClient(anxiety.Player, rsp.id, rsp.priv);
 								thunk.addCallback(function(c) {
@@ -808,16 +836,6 @@ dojo.addOnLoad(function() {
 		var wbBase = [dijit._Widget, dijit._Templated, anxiety.Reporting];
 		dojo.declare('anxiety.WorldBrowser', wbBase, {  
 
-				//   API
-				//   ```
-
-				getSelectedPlayerIds: function() {
-					var rv = [], items = this.playerListView.selection.getSelected();
-					for(var i in items) 
-						rv.push(items[i].id);
-					return rv;
-				}
-				
 				,postCreate: function() {
 					this.inherited(arguments);
 					this.loggedOut();
@@ -829,14 +847,10 @@ dojo.addOnLoad(function() {
 							alert(er.msg);
 						});
 
-					/*   Connect PlayerList client command handlers to a datastore
-					 */
+					this.world.willBePlayers.addCallback(dojo.hitch(this, function(ps) {
+								
 					this.connect(this.world.players, 'updateState', 'updatePlayers');
 
-					// The problem is, we don't know if PlayerList object has it's data already
-					// FIXME
-					this.world.players.reload();
-					
 					this.connect(this.world.players, 'handleAddPlayer', 
 						function(m) {
 							this.playerStore.newItem(m);
@@ -857,6 +871,16 @@ dojo.addOnLoad(function() {
 					/* inb4 worthless comment )) */
 				}
 
+				//   API
+				//   ```
+
+				getSelectedPlayerIds: function() {
+					var rv = [], items = this.playerListView.selection.getSelected();
+					for(var i in items) 
+						rv.push(items[i].id);
+					return rv;
+				}
+				
 
 				//   World & playerList event handlers  
 				//   ````` ` `````````` ````` ````````  
@@ -908,8 +932,8 @@ dojo.addOnLoad(function() {
 					}
 				}
 
-				//   Utility methods
-				//   ``````` ```````
+				//   Utils
+				//   `````
 											 
 				,moveIntoClientWindow: function(wdg) {
 					// TODO remove whatever is in the client window now
@@ -992,10 +1016,10 @@ dojo.addOnLoad(function() {
 					/* Make the 'Invite' buttons */
 					for(var gameType in anxiety.games) {
 						var gmMod = anxiety.games[gameType];
-						var btn = new dijit.form.Button({
+						var btn = mkBtn({
 								label: 'Invite to play "' + gameType + '"'
 							});
-						btn.placeAt(this.worldBrowser.toolbar.domNode);
+						dojo.placeAt(btn, this.worldBrowser.toolbar.domNode);
 						this.connect(btn, 'onClick', 'invBtnPressed');
 						this.inviteBtns.push(btn);
 					}
@@ -1011,9 +1035,10 @@ dojo.addOnLoad(function() {
 					this.phraseBox = (new dijit.form.TextBox()).placeAt(this.talkBar.domNode);
 					this.connect(this.phraseBox, 'onKeyDown', 'sayThings');
 
-					this.sayBtn = (new dijit.form.Button({
+					this.sayBtn = mkBtn({
 								label: 'Say'
-							})).placeAt(this.talkBar.domNode);
+						});
+					dojo.placeAt(this.sayBtn, this.talkBar.domNode);
 					this.connect(this.sayBtn, 'onClick', 'sayThings');
 					this.addChild(this.talkBar);
 					
@@ -1097,10 +1122,10 @@ dojo.addOnLoad(function() {
 								className: 'list'
 							}, node);
 						//var startBtnNode = dojo.create('BUTTON', {
-						var startBtn = new dijit.form.Button({
+						var startBtn = mkBtn({
 								label: 'Start "' + inv.gameType + '" game'
 							});
-						startBtn.placeAt(node);
+						dojo.placeAt(startBtn, node);
 						
 						// Hack
 						startBtn.anxiety = {
@@ -1117,10 +1142,10 @@ dojo.addOnLoad(function() {
 									ids.push(en.inviterId);
 							}
 							if(ids.length) {
-								this.attr('disabled', true);
+								dojo.attr(this, 'disabled', true);
 								pb.report('Starting game...', pb.player.startGame(gameType, ids))
 								.addBoth(dojo.hitch(this, function() {
-											this.attr('disabled', false);
+											dojo.attr(this, 'disabled', false);
 										}));
 								// XXX 'uninvited' message could come first and delete a button
 								// so there will be nothing to enable

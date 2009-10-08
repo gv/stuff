@@ -16,7 +16,7 @@ print "started"
 #STATIC_CLIENT_CODE_PREFIX = STATIC_PREFIX + "t/"
 STATIC_PREFIX = "/"
 PORT_NUMBER = 2222
-PORT_NUMBER = 6080 # for bishop
+#PORT_NUMBER = 6080 # for bishop
 
 
 # Imports
