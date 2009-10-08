@@ -695,7 +695,7 @@ static char HTML_help [] =
 occurrences of `id='.";
 
 static char *Js_suffixes [] =
-  { "js", "as", "ks" };
+  { "js", "as", "ks", NULL };
 
 static char Js_help [] =
   "JavaScript";
