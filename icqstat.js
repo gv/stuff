@@ -1,7 +1,8 @@
 var DEBUG = false;
 var DEBUG = true;
 
-function trace(s) {
+function trace
+(s) {
 	if(DEBUG) print(s);
 }
 
@@ -69,20 +70,20 @@ function IcqStat() {
 
 	this.initShell();
 	this.addCommand(['incoming'],
-									'Упорядочивать по частоте во входящих',
-									function(prog, args) {
-										prog.setWordStatDisplay().filter = 'incoming';
-									});
+					'Упорядочивать по частоте во входящих',
+					function(prog, args) {
+						prog.setWordStatDisplay().filter = 'incoming';
+					});
 	this.addCommand(['outgoing'],
-									'Упорядочивать по частоте во исходящих',
-									function(prog) {
-										prog.setWordStatDisplay().filter = 'outgoing';
-									});
+		'Упорядочивать по частоте во исходящих',
+		function(prog) {
+			prog.setWordStatDisplay().filter = 'outgoing';
+		});
 	this.addCommand(['quit'],
-									'Выйти из программы (Ctrl-C)',
-									function(prog) {
-										prog.exit = true;
-									});
+					'Выйти из программы (Ctrl-C)',
+					function(prog) {
+						prog.exit = true;
+					});
 }
 
 IcqStat.prototype.setWordStatDisplay = function() {

@@ -5668,9 +5668,9 @@ static void
 Js_functions (inf) 
      FILE *inf;
 {
-  register char *name = NULL, *cp, *end_of_token, *token = NULL;
-	char buf[100];
-  bool got_function = FALSE;
+  register char *cp, *end_of_token = NULL, *token;
+  char buf[100];
+  bool got_function = FALSE, got_name = FALSE;
   buf[sizeof(buf) - 1] = 0;
   
   LOOP_ON_INPUT_LINES(inf, lb, cp)
@@ -5681,24 +5681,27 @@ Js_functions (inf)
 	  break;
 	
 	if(got_function) {
-	  if(name) { 
+	  if(got_name) { 
 	    if('(' == *cp) { 
-	      make_tag(name, end_of_token - name, TRUE, 
-		       lb.buffer, cp - lb.buffer + 1, 
-		       lineno, linecharno);
+	      make_tag(token, end_of_token - token, TRUE, 
+		lb.buffer, cp - lb.buffer + 1, 
+		lineno, linecharno);
 	      cp++;
 	    } 
 	  } else { // read a name
-	    name = cp;
-	    while(intoken(*cp))
-	      cp++;
-	    if(cp > name) {
-	      puts(cp);
+	    token = cp;
+	    if(begtoken(*cp)) {
+	      token = cp++;
+	      while(intoken(*cp))
+		cp++;
+	      end_of_token = cp;
+	      //puts(cp);
+	      got_name = TRUE;
 	      end_of_token = cp;
 	      continue;
 	    }
 	  }
-	  name = NULL;
+	  got_name = FALSE;
 	  got_function = FALSE;
 	  continue;
 	}
@@ -5709,12 +5712,12 @@ Js_functions (inf)
 	}
 
 	if('=' == *cp || ':' == *cp) {
-	  name = token;
+	  got_name = end_of_token > token;
 	  cp++;
 	  continue;
 	}
 	
-	name = NULL;
+	got_name = FALSE;
 
 	if(begtoken(*cp)) {
 	  token = cp++;
@@ -5725,17 +5728,18 @@ Js_functions (inf)
 	}
 	
 	cp++;
-	token = NULL;
+	end_of_token = NULL;
 	continue;
       }
-      if(token) {
-	unsigned len = min(end_of_token - token, sizeof(buf) - 1);
+
+      if(end_of_token > token) {
+	unsigned len = sizeof(buf) - 1;
+	if(len > (end_of_token - token))
+	  len = end_of_token - token;
 	strncpy(buf, token, len);
 	token = buf;
 	end_of_token = buf + len;
-	if(name)
-	  name = buf;
-	  }
+      }
     }
   //make_tag("syrup", 5, TRUE, "umbrella", 8, 2, 2);
 }

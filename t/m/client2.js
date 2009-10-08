@@ -51,7 +51,7 @@ dojo.require('dojo.data.ItemFileWriteStore');
 dojo.require('dojo.cookie');
 // TODO We sure need to use cookies to relogin,
 // but in the same time I want to allow multiple sessions in 
-// different browser windows
+// different browser windows/tabs
 
 dojo.require('dijit._Widget');
 dojo.require('dijit._Templated');
@@ -100,6 +100,7 @@ dojo.addOnLoad(function() {
 						}
 					} else {
 						DBG('No handling method for ' + msg.what);
+						this.reload();
 					}
 				}
 			});
@@ -111,7 +112,6 @@ dojo.addOnLoad(function() {
 				
 				//   API
 				//   ```
-
 				constructor: function(world, id, priv) {
 					this.id = id;
 					this.priv = priv;
@@ -139,12 +139,10 @@ dojo.addOnLoad(function() {
 								// Looks like something we can handle
 								this.processMsg(msg);
 							} 
-							// If msg.revision < this.revision , then
-							// Our rev is older, this is a message from past
-							// so we should do nothing
+							// If msg.revision < this.revision , then our rev is 
+							// older, this is a message from past => do nothing
 						});
 
-					this.reload();
 				}
 					
 				,reload: function() {
@@ -152,20 +150,8 @@ dojo.addOnLoad(function() {
 					 */ 
 					if(this._reloading) // Don't do more than one requests at a time.
 						return;
-					dojo.xhrGet({
-							url: this.urlPrefix + 'clients/' + this.id,
-								handleAs: 'json',
-								preventCache: true,
-								error: dojo.hitch(this, function(e) {
-										DBG('Failed reloading client ' + this.id + ':');
-										DBG(e);
-									}),
-								content: {
-								priv: this.priv
-									},
-								load: dojo.hitch(this, '_updateState')
-								});
-						this._updating = true;
+					this.world.loadState(this.id, this.priv).addCallback(
+						dojo.hitch(this, '_updateState'));
 				}
 
 				,close: function() {
@@ -173,6 +159,12 @@ dojo.addOnLoad(function() {
 				}
 				
 				,callWhenLoaded: function(f) {
+					/** This is pretty common pattern in async world:
+							object is constructed, requests state =>
+							state is loaded, can operate. Wonder what to
+							do with that, maybe inherit from Deferred or 
+							something...
+					*/
 					if(this.revision >= 0) {
 						f(this);
 					} else {
@@ -224,9 +216,10 @@ dojo.addOnLoad(function() {
 
 		dojo.declare('anxiety.PlayerList', anxiety.Client, {
 				
-				
 				//   API
 				//   ```
+				constructor: function() { PL = this; },
+
 				stat: function(id) {
 					for(var i in this.players)
 						if(this.players[i].id == id)
@@ -235,6 +228,7 @@ dojo.addOnLoad(function() {
 
 				//   Command handlers
 				//   ``````` ````````
+
 				,updateState: function(state) {
 					this.chatLog = state.chatLog;
 					// We own this object, if anyone else wants to use it, make copy!
@@ -451,15 +445,19 @@ dojo.addOnLoad(function() {
 		*/
 		
 		dojo.declare('anxiety.World', anxiety.Server, {
-				constructor: function(urlPrefix) {
-					// Do handshakes and stuff
-					dojox.cometd.init(urlPrefix + 'cometd');
-					this.players = new anxiety.PlayerList(this, 'players');
-				}
-				
 
 				//   APIs
 				//   ````
+
+				constructor: function(urlPrefix) {
+					WD = this; // debug
+					// Do handshakes and stuff
+					dojox.cometd.init(urlPrefix + 'cometd');
+					this.willBePlayers = this.getClient(anxiety.PlayerList, 'players').
+						addCallback(dojo.hitch(this, function(pl) {
+									this.players = pl;
+								}));;
+				}
 				
 				,login: function(name) {
 					/**	Initiates a login request. 
@@ -468,11 +466,53 @@ dojo.addOnLoad(function() {
 							If not, calls this.denied(rsp).
 							Returns a Deferred.
 					*/
-					return this.send('needClient', {name: name}, function(rsp) {
-							var p = new anxiety.Player(this, rsp.id, rsp.priv);
-							this.loggedIn(p);
+					var pwd = dojo.cookie('p.' + name), id = dojo.cookie('i.' + name);
+					if(pwd && id) {
+						var p = this.getClient(anxiety.Player, id, pwd);
+					} else {
+						this.send('needClient', {name: name}, function(rsp) {
+								var thunk = this.getClient(anxiety.Player, rsp.id, rsp.priv);
+								thunk.addCallback(function(c) {
+										c.name = name;
+										dojo.cookie('p.' + name, rsp.priv);
+										dojo.cookie('i.' + name, rsp.id);
+										p.callback(c);
+									});
+							});
+					}
+					p.addCallback(dojo.hitch(this, 'loggedIn'));
+					return p;
+				}
+
+				,loadState: function(id, priv) {
+					return dojo.xhrGet({
+							url: this.urlPrefix + 'clients/' + id,
+								handleAs: 'json',
+								preventCache: true,
+								error: dojo.hitch(this, function(e) {
+										DBG('Failed reloading client ' + id + ':');
+										DBG(e);
+									}),
+								content: {
+								priv: priv
+									}//,
+							//load: dojo.hitch(this, '_updateState')
 						});
 				}
+
+				,getClient: function(_Class, id, priv) {
+					var rv = new dojo.Deferred();
+					this.loadState(id, priv).addCallback(
+						dojo.hitch(this, function(state) {
+								var client = new _Class(this, id, priv);
+								client._updateState(state);
+								rv.callback(client);
+							})).addErrback(function(e) {
+								// XXX what exactly is e
+								rv.errback(e);
+							});
+					return rv;
+				}				
 			
 				
 				/* Signals */
@@ -597,8 +637,8 @@ dojo.addOnLoad(function() {
 				postCreate: function() {
 					/* Buid a display for non round variables */
 					this.gameScore = dojo.create('DIV', {className: 'gameScore'}, 
-																			 this.domNode);
-
+						this.domNode);
+					
 					this.browse(this.game);
 				}
 
@@ -718,10 +758,13 @@ dojo.addOnLoad(function() {
 					/** This is called after constructor and buildRendering.
 							this.connect machinery was not initialized until now.
 					*/
-					this.connect(this.world.players, 'heard', 'heard');
 					this.inherited(arguments);
 
-					this.world.players.callWhenLoaded(dojo.hitch(this, 'update'));
+					this.world.willBePlayers.addCallback(
+						dojo.hitch(this, function(players) {
+								this.update();
+								this.connect(players, 'heard', 'heard');
+							}));
 				}
 
 				,update: function() {
@@ -764,9 +807,10 @@ dojo.addOnLoad(function() {
 		// To keep line short
 		var wbBase = [dijit._Widget, dijit._Templated, anxiety.Reporting];
 		dojo.declare('anxiety.WorldBrowser', wbBase, {  
+
 				//   API
 				//   ```
-				
+
 				getSelectedPlayerIds: function() {
 					var rv = [], items = this.playerListView.selection.getSelected();
 					for(var i in items) 
@@ -785,8 +829,6 @@ dojo.addOnLoad(function() {
 							alert(er.msg);
 						});
 
-					
-
 					/*   Connect PlayerList client command handlers to a datastore
 					 */
 					this.connect(this.world.players, 'updateState', 'updatePlayers');
@@ -796,20 +838,20 @@ dojo.addOnLoad(function() {
 					this.world.players.reload();
 					
 					this.connect(this.world.players, 'handleAddPlayer', 
-											 function(m) {
-												 this.playerStore.newItem(m);
-											 });
+						function(m) {
+							this.playerStore.newItem(m);
+						});
 					this.connect(this.world.players, 'handleRmPlayer', 
-											 function(m) {
-												 // m.who is identifier of the removed player
-												 this.playerStore.fetch({
-														 query: {id: m.who},
-															 scope: this.playerStore,
-															 onItem: function(it) {
-															 this.deleteItem(it)
-																 }
-													 });
-											 });
+						function(m) {
+							// m.who is identifier of the removed player
+							this.playerStore.fetch({
+									query: {id: m.who},
+										scope: this.playerStore,
+										onItem: function(it) {
+										this.deleteItem(it)
+											}
+								});
+						});
 					/* This thing is very important! */
 					this.mainLayout.resize();
 					/* inb4 worthless comment )) */
