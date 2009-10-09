@@ -1,6 +1,33 @@
 
 DEBUG = true;
 
+// get a console
+var sh = new ActiveXObject('WScript.Shell');
+if(WScript.FullName.match(new RegExp('wscript', 'i'))) {
+  var cmdLine = 'cscript /nologo ' + WScript.ScriptFullName + ' /pause';
+  sh.Run(cmdLine);
+  WScript.Quit();
+}
+
+var srcTypeNames = [
+	'ITSourceKindUnknown', 
+  'ITSourceKindLibrary', 
+  'ITSourceKindIPod', 
+  'ITSourceKindAudioCD', 
+  'ITSourceKindMP3CD', 
+  'ITSourceKindDevice', 
+  'ITSourceKindRadioTuner', 
+  'ITSourceKindSharedLibrary' 
+];
+var playlistTypeNames = [
+	'ITPlaylistKindUnknown',  
+	'ITPlaylistKindLibrary',
+	'ITPlaylistKindUser',
+	'ITPlaylistKindCD',  
+	'ITPlaylistKindDevice',  
+	'ITPlaylistKindRadioTuner'
+];
+
 function print(x) {
 	return WScript.Echo(x);
 }
@@ -16,18 +43,77 @@ function keys(m) {
 	return rv;
 }
 
+function askUser(optionsMap, name) {
+	var options = [];
+	for(var k in optionsMap) {
+		options.push({value: k, count: optionsMap[k]});
+	}
+			
+	if(0 == options.length) {
+		print('Enter value for "' + name + '":');
+		return WScript.StdIn.ReadLine();
+	}
 
-// get a console
-var sh = new ActiveXObject('WScript.Shell');
-if(WScript.FullName.match(new RegExp('wscript', 'i'))) {
-  var cmdLine = 'cscript /nologo ' + WScript.ScriptFullName + ' /pause';
-  sh.Run(cmdLine);
-  WScript.Quit();
+	// If naming is already consistent, don't bother me
+	if(1 == options.length)
+		if(options[0].value != "") {
+			print(name + ' is assumed to be "' + options[0].value + '"');
+			return options[0].value;
+		}
+
+	options.sort(function(l, r) {
+			if(l.count == r.count)
+				return 0;
+			if(r.count > l.count)
+				return 1;
+			return -1;
+		});
+				
+	for(var i = 0; i < options.length; i++) {
+		print('(' + (i + 1) + ")\t" + options[i].value);
+	}
+		
+	print('Pick value for "' + name + 
+		"\" \n(enter number or text, default \"" + options[0].value + '")');
+	var line = WScript.StdIn.ReadLine();
+	if('' == line) {
+		return options[0].value;
+	}
+				
+	var n = parseInt(line, 10), rv;
+	if(n)
+		rv = options[n-1];
+	return rv && rv.value || line;
+}
+
+function printTwoCols(l, r) {
+	var line = '   ' + l;
+	while(line.length < 38)
+		line += ' ';
+	line = line.substring(0, 38) + '  ' + r.substring(0, 38);
+	print(line);
+}
+			
+function askUserForBoolean(question, defaultAnswer) {
+	print(question  + ' (' + (defaultAnswer ? 'Y/n' : 'y/N') + ')?');
+	while(1) {
+		var line = WScript.StdIn.ReadLine().substring(0, 1).toLowerCase();
+		if('' == line)
+			return defaultAnswer;
+		if('y' == line)
+			return true;
+		if('n' == line)
+			return false;
+	}
 }
 
 
+//
+//  MAIN PROGRAM
+//
+
 function run() {
-	// install to shell
+	// Install to shell
 	if(!WScript.Arguments.Named.Exists('noinstall')) {
 		var keyPath = "HKCR\\Folder\\shell\\pushtune\\",
 			cmdLine = 'cscript /nologo ' + WScript.ScriptFullName + 
@@ -45,36 +131,54 @@ function run() {
 		}
 	}		
 	
-
-	var app = WScript.CreateObject("iTunes.Application"), lib;
+	// Find iPod
+	var app = WScript.CreateObject("iTunes.Application"), lib, iPod, ourPlaylist;
 	var srcs = app.Sources;
 	trace(' == SOURCES == ');
 	for(var i = 1 /* sic! */; i <= srcs.Count; i++) {
 		var src = srcs.Item(i);
-		trace(src.Name + ' (' + src.Kind + ')');
+		trace(src.Name + ' (' + src.Kind + ') ' + srcTypeNames[src.Kind]);
 
 		if(DEBUG || 2 == src.Kind) { // IPod here
 			var pls = src.Playlists;
 			for(var j = 1; j <= pls.Count; j++) {
 				var pl = pls.Item(j);
-				trace('  ' + pl.Name + ' (' + pl.Kind + ')');
+				trace('  ' + pl.Name + ' (' + pl.Kind + ') ' + 
+					playlistTypeNames[pl.Kind] );
 
-				if(2 == src.Kind && 1 == pl.Kind) { // "Library" kind of playlist
-					lib = pl;
-					if(!DEBUG)
-						break;
+				if(2 == src.Kind) {
+					iPod = src;
+					if(1 == pl.Kind) { // "Library" kind of playlist
+						lib = pl;
+					}
+					if('Pushed' == pl.Name) {
+						ourPlaylist = pl;
+					}
 				}
 			}
-		
-			if(!DEBUG)
-				break;
 		}
 	}
 	trace("\n");
 
+	if(!iPod) {
+		print('iPod not found');
+		return;
+	}
+	
+	if(!ourPlaylist) {
+		trace('Creating "Pushed" playlist...');
+		ourPlaylist = app.CreatePlaylistInSource('Pushed', iPod);
+		if(!ourPlaylist) {
+			print("Can't create 'Pushed' playlist");
+		}
+	}
+
+	if(ourPlaylist)
+		lib = ourPlaylist;
+
 	if(!lib) {
 		print('Target library not found');
-		WScript.Quit();
+		return;
 	}
 
 
@@ -115,55 +219,121 @@ function run() {
 		trace(tks.Count + ' tracks added');
 		*/
 
+		// AddFiles() seems faster, but I use AddFile() here, cause I need to be 
+		// sure which track corresponds to which file
+
 		var artistNamesMap = {}, albumTitlesMap = {};
-		for(var j in files) {
+		for(var j = 0; j < files.length; j++) {
 			var file = files[j];
 			trace('adding ' + file.name);
 			var op = lib.AddFile(file.path);
 			if(!op) {
+				// biggest problem by now
 				print("AddFiles returned null somehow");
+				files.splice(j--, 1);
 				continue;
 			}
 			while(op.InProgress) {
 				WScript.Sleep(1);
 			}
+
+			if(!op.Tracks.Count) {
+				trace('Adding ' + file.path + ' yielded no tracks!');
+				files.splice(j--, 1);
+				continue;
+			}
 			
-			for(var i = 1; i <= op.Tracks.Count; i++) {
-				var tk = op.Tracks.Item(i);
-				trace(tk.TrackNumber + '\tn:"' + tk.Name + 
+			if(op.Tracks.Count > 1) {
+				// Dunno, just in case
+				print('Adding ' + file.path + ' yielded more than 1 track!');
+			}
+			
+			for(var k = 1; k <= op.Tracks.Count; k++) {
+				var tk = op.Tracks.Item(k);
+				trace(tk.TrackNumber + ' n:"' + tk.Name + 
 					'", l:"' + tk.Album + 
 					'", a:"' + tk.Artist + '"');
-				if(tk.Artist) 
-					artistNamesMap[tk.Artist] = true;
-				if(tk.Album)
-					albumTitlesMap[tk.Album] = true;
+				if(tk.Artist) {
+					if(artistNamesMap[tk.Artist])
+						artistNamesMap[tk.Artist]++;
+					else artistNamesMap[tk.Artist] = 1;
+				}
+
+				if(tk.Album) {
+					if(albumTitlesMap[tk.Album])
+						albumTitlesMap[tk.Album]++;
+					else albumTitlesMap[tk.Album] = 1;
+				}
 				file.tk = tk;
 			}
 		}
 
-		var artistNames = keys(artistNamesMap), albumTitles = keys(albumTitlesMap);
-		var dirty = false;
 
-		function askUser(options) {
-			// If naming is already consistent, don't bother me
-			if(1 == options.length)
-				if(options[0] != "")
-					return options[0];
-
-			for(var i = 0; i < options.length; i++) {
-				print('(' + (i + 1) + ")\t" + options[i]);
-			}
-		
-			print("Choose a number or just enter different name");
-			var line = WScript.StdIn.ReadLine();
-			var n = parseInt(line, 10), rv;
-			if(n)
-				rv = options[n-1];
-			return rv || line;
+		if(!files.length) {
+			print('No files from ' + dirPath + ' added!');
+			continue;
 		}
 
-		var artistName = askUser(artistNames);
-		var albumTitle = askUser(albumTitles);
+		var artistName = askUser(artistNamesMap, 'Artist name');
+
+		// Fix title
+		// If we suspect album title contains band name, we just make a title
+		// with it removed and include it as another option
+		for(var albumTitle in albumTitlesMap) {
+			if(albumTitle.substring(0, artistName.length).toLowerCase() == 
+			artistName.toLowerCase()) {
+				var supposedTitle = albumTitle.substring(artistName.length).
+					replace(new RegExp("^[-., \t]+"), '');
+				
+				if(albumTitlesMap[supposedTitle])
+					albumTitlesMap[supposedTitle] += albumTitlesMap[albumTitle] + 1;
+				else 
+					albumTitlesMap[supposedTitle] = albumTitlesMap[albumTitle] + 1;
+			}
+		}
+
+		var albumTitle = askUser(albumTitlesMap, 'Album title');
+		
+		// Fix names
+		for(var len = 0; ; len++) {
+			
+
+
+		}
+		
+		// Fix track numbers
+		// files are ordered by names
+		var prevNumber = -1;
+		for(var j = 0; j < files.length; j++) {
+			if(files[j].tk.TrackNumber <= prevNumber)
+				break;
+			prevNumber = files[j].tk.TrackNumber;
+		}
+		
+		var needToFixTrackNumbers = false;
+		if(j < files.length) {
+			// Sort by track numbers
+			var numbered = files.concat();
+			numbered.sort(function(l, r) {
+					if(l.tk.TrackNumber == r.tk.TrackNumber)
+						return 0;
+					if(l.tk.TrackNumber < r.tk.TrackNumber)
+						return -1;
+					return 1;
+				});
+			
+			printTwoCols("By track number", "By filename");
+			printTwoCols("--", "--");
+			for(var j in files) {
+				printTwoCols(numbered[j].name, files[j].name);
+			}
+
+			printTwoCols("--", "--");
+			needToFixTrackNumbers = askUserForBoolean(
+				'Track numbers seem to be messed up, want to order by filenames instead',
+				true);
+			
+		}
 
 		print('Setting ' + files.length + ' tracks to "' +
 			albumTitle + '" from "' + artistName + '"');
@@ -171,9 +341,14 @@ function run() {
 		for(var j = 0; j < files.length; j++) {
 			//var tk = op.Tracks.Item(i);
 			var tk = files[j].tk;
-			trace('Setting ' + j + ' of ' + op.Tracks.Count);
-			tk.Album = albumTitle;
-			tk.Artist = artistName;
+			print('Setting ' + j + ' of ' + files.length);
+			if(tk.Album != albumTitle)
+				tk.Album = albumTitle;
+			if(tk.Artist != artistName)
+				tk.Artist = artistName;
+			if(needToFixTrackNumbers)
+				if(tk.TrackNumber != j)
+					tk.TrackNumber = j;
 		}
 	}
 
