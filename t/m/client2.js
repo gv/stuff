@@ -169,19 +169,6 @@ dojo.addOnLoad(function() {
 
 				}
 					
-				,reload: function() {
-					/**  Fetch and update the whole client state.
-					 */ 
-					if(this._reloading) // Don't do more than one requests at a time.
-						return;
-					this.world.loadState(this.id, this.priv).addCallback(
-						dojo.hitch(this, '_updateState'));
-				}
-
-				,close: function() {
-					return dojox.cometd.unsubscribe('/' + this.id);
-				}
-
 				,passStateToWidget: function(widget, methodName) {
 					methodName = methodName || 'update';
 					// This way circular refs will be torn in widget.destroy()
@@ -194,13 +181,17 @@ dojo.addOnLoad(function() {
 					return widget.connect(this, methodName, methodName);
 				}
 				
-				//   Overridables
-				//	 ````````````
+				,close: function() {
+					return dojox.cometd.unsubscribe('/' + this.id);
+				}
 
-				,updateState: function(state) {
-					// 1. override this to handle whole state loads
-					// 2. connect() to this in browsers
-					DBG(state);
+				,reload: function() {
+					/**  Fetch and update the whole client state.
+					 */ 
+					if(this._reloading) // Don't do more than one requests at a time.
+						return;
+					this.world.loadState(this.id, this.priv).addCallback(
+						dojo.hitch(this, '_updateState'));
 				}
 
 				//   Utils
@@ -215,6 +206,15 @@ dojo.addOnLoad(function() {
 
 					this.revision = state.revision;
 					//this.updated();
+				}
+
+				//   Overridables
+				//	 ````````````
+
+				,updateState: function(state) {
+					// 1. override this to handle whole state loads
+					// 2. connect() to this in browsers
+					DBG(state);
 				}
 
 				//   Signals
@@ -444,7 +444,7 @@ dojo.addOnLoad(function() {
 					return dojo.xhrPost({url: this.urlPrefix,
 								content: whatElse, 
 								handleAs: 'json', // OK (2**) answer will be handled as JSON.
-								load: dojo.hitch(this, okHandler),
+								load: okHandler && dojo.hitch(this, okHandler),
 								error: dojo.hitch(this, function(er) {
 										// Try to get some information we can use
 										if(er.responseText) {
@@ -494,26 +494,22 @@ dojo.addOnLoad(function() {
 					*/
 					var pwd = dojo.cookie('p.' + name), id = dojo.cookie('i.' + name);
 					if(pwd && id) {
-						var p = this.getClient(anxiety.Player, id, pwd);
+						var rv = this.getClient(anxiety.Player, id, pwd);
 					} else {
-						var p = new dojo.Deferred();
-						this.send('needClient', {name: name}, function(rsp) {
-								var thunk = this.getClient(anxiety.Player, rsp.id, rsp.priv);
-								thunk.addCallback(function(c) {
-										c.name = name;
-										dojo.cookie('p.' + name, rsp.priv);
-										dojo.cookie('i.' + name, rsp.id);
-										p.callback(c);
-									});
-								thunk.addErrback(function(e) {
-										DBG('error in needClient: ');
-										DBG(e);
-									});
-											
-							});
+						var rv = this.send('needClient', {name: name}).
+							addCallback(dojo.hitch(this, function(rsp) {
+									// this way it gets passed to the next callback
+									return this.getClient(anxiety.Player, rsp.id, rsp.priv);
+									})).
+							addCallback(function(c) {
+									c.name = name;
+									dojo.cookie('p.' + name, rsp.priv);
+									dojo.cookie('i.' + name, rsp.id);
+								});
+						
 					}
-					p.addCallback(dojo.hitch(this, 'loggedIn'));
-					return p;
+					rv.addCallback(dojo.hitch(this, 'loggedIn')); // probably not needed
+					return rv;
 				}
 
 				,loadState: function(id, priv) {
@@ -533,16 +529,12 @@ dojo.addOnLoad(function() {
 				}
 
 				,getClient: function(_Class, id, priv) {
-					var rv = new dojo.Deferred();
-					this.loadState(id, priv).addCallback(
+					var rv = 	this.loadState(id, priv).addCallback(
 						dojo.hitch(this, function(state) {
 								var client = new _Class(this, id, priv);
 								client._updateState(state);
-								rv.callback(client);
-							})).addErrback(function(e) {
-								// XXX what exactly is e
-								rv.errback(e);
-							});
+								return client;
+							}));
 					return rv;
 				}				
 			
@@ -775,10 +767,20 @@ dojo.addOnLoad(function() {
 							}, this.domNode);
 					}
 								
-					this.statusBarNode.innerHTML = str;
-					dojo.style(this.statusBarNode, {visibility: str ? 'visible' : 'hidden'});
-					// Clear after done.
-					return deferred && deferred.addBoth(dojo.hitch(this, 'report', '', 0));
+					if(deferred) {
+						var node = dojo.create('SPAN', {}, this.statusBarNode);
+						node.innerHTML = str;
+						
+						// Clear after done.
+						return deferred.addBoth(function() {
+								dojo.destroy(node)
+									});
+					} else {
+						if(!this.simpleStatusBarNode)
+							this.simpleStatusBarNode = dojo.create('SPAN', {}, this.statusBarNode);
+						this.simpleStatusBarNode.innerHTML = str;
+						dojo.style(this.simpleStatusBarNode, {visibility: str ? 'visible' : 'hidden'});
+					}
 				}
 			});
 
@@ -973,6 +975,8 @@ dojo.addOnLoad(function() {
 
 					// 
 					this.world.playersFetch.addCallback(dojo.hitch(this, function(ps) {
+								DBG('PlayerList object arrived:');
+								DBG(ps);
 								var listBrowser = new anxiety.ListBrowser({
 										players: ps
 									});
@@ -1030,7 +1034,7 @@ dojo.addOnLoad(function() {
 					dojo.attr(this.usernameBox, 'disabled', false);
 
 					if(!this.chatBrowser) {
-						this.world.playersFetch.addCallback(dojo.hitch(function(ps) {
+						this.world.playersFetch.addCallback(dojo.hitch(this, function(ps) {
 									// Setup a chat message view.
 									this.chatBrowser = new anxiety.ChatBrowser({
 											players: ps
