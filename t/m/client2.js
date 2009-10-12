@@ -802,6 +802,7 @@ dojo.addOnLoad(function() {
 							this.connect machinery was not initialized until now.
 					*/
 					this.inherited(arguments);
+					this.attr({region: 'center'});
 					this.players.passStateToWidget(this);
 					this.players.connectToWidget(this, 'handleHeard')
 				}
@@ -857,7 +858,13 @@ dojo.addOnLoad(function() {
 						});
 					
 					// Layout
+					this.head = new dijit.layout.ContentPane({
+							region: 'top',
+							content: 'Users'
+						});
+					this.addChild(this.head);
 					this.playerListView = new dojox.grid.DataGrid({
+							region: 'center',
 							structure: {
 								layout: [{
 										field: 'cb',
@@ -870,7 +877,7 @@ dojo.addOnLoad(function() {
 									}]}});
 									
 					this.addChild(this.playerListView);
-					this.playerListView.startup();
+					//this.playerListView.startup();
 					this.toolbar = new dijit.layout.ContentPane({
 							region: 'bottom'
 						});
@@ -977,11 +984,13 @@ dojo.addOnLoad(function() {
 					this.world.playersFetch.addCallback(dojo.hitch(this, function(ps) {
 								DBG('PlayerList object arrived:');
 								DBG(ps);
-								var listBrowser = new anxiety.ListBrowser({
+								this.report('Creating player list browser...', this.world.playersFetch);
+								var listBrowser = LB = new anxiety.ListBrowser({
 										players: ps
 									});
 								listBrowser.attr('region', 'trailing');
 								this.mainLayout.addChild(listBrowser);
+								listBrowser.startup();
 							}));
 
 
@@ -994,6 +1003,7 @@ dojo.addOnLoad(function() {
 							alert(er.msg);
 						});
 
+					this.mainLayout.startup();
 					this.mainLayout.resize(); // Layout doesn't break with this
 				}
 
@@ -1036,10 +1046,13 @@ dojo.addOnLoad(function() {
 					if(!this.chatBrowser) {
 						this.world.playersFetch.addCallback(dojo.hitch(this, function(ps) {
 									// Setup a chat message view.
-									this.chatBrowser = new anxiety.ChatBrowser({
+									this.report('Creating chat browser...');
+									CB = this.chatBrowser = new anxiety.ChatBrowser({
 											players: ps
 										});
 									this.moveIntoClientWindow(this.chatBrowser);
+									this.chatBrowser.startup();
+									this.report('');
 								}));
 					}
 				}
