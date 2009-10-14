@@ -28,6 +28,8 @@ var playlistTypeNames = [
 	'ITPlaylistKindRadioTuner'
 ];
 
+var vidExts = ['avi', 'flv'];
+
 function print(x) {
 	return WScript.Echo(x);
 }
@@ -186,8 +188,26 @@ function run() {
 		args = WScript.Arguments.Unnamed;
 
 	for(var i = 0; i < args.length; i++) {
-		var dirPath = args.Item(i);
-		trace('arg: ' + dirPath);
+		var path = args.Item(i);
+		trace('arg: ' + path);
+		
+		var vidExtPattern = new RegExp("\\.(" + vidExts.join('|') + ")$");
+		if(path.match(vidExtPattern)) {
+			// it's a video, convert to mp4
+			var mencoderPath = "d:\\programs\\MPlayer-1.0rc2\\mencoder.exe";
+			var outputPath = path.replace(vidExtPattern, '.mp4');
+			var cmdLine = mencoderPath + 
+				' -vf scale=480:-10,harddup -lavfopts format=mp4 ' + 
+				'-faacopts mpeg=4:object=2:raw:br=128 -oac faac -ovc x264 -sws 9 ' + 
+				'-x264encopts nocabac:level_idc=30:bframes=0:global_header:threads=auto:' + 
+				'subq=5:frameref=6:partitions=all:trellis=1:chroma_me:me=umh:' +
+				'bitrate=500 -of lavf -o ' + 
+				outputPath + ' ' + path;
+			sh.Run(cmdLine);
+		}
+			
+
+		var dirPath = path;
 		var dir = fs.GetFolder(dirPath), paths = [], files = [];
 		for(var en = new Enumerator(dir.Files); !en.atEnd(); en.moveNext()) {
 			var file = en.item();
@@ -229,7 +249,7 @@ function run() {
 			var op = lib.AddFile(file.path);
 			if(!op) {
 				// biggest problem by now
-				print("AddFiles returned null somehow");
+				print("AddFile returned null somehow");
 				files.splice(j--, 1);
 				continue;
 			}
@@ -248,24 +268,29 @@ function run() {
 				print('Adding ' + file.path + ' yielded more than 1 track!');
 			}
 			
-			for(var k = 1; k <= op.Tracks.Count; k++) {
-				var tk = op.Tracks.Item(k);
-				trace(tk.TrackNumber + ' n:"' + tk.Name + 
-					'", l:"' + tk.Album + 
-					'", a:"' + tk.Artist + '"');
-				if(tk.Artist) {
-					if(artistNamesMap[tk.Artist])
-						artistNamesMap[tk.Artist]++;
-					else artistNamesMap[tk.Artist] = 1;
-				}
+			//for(var k = 1; k <= op.Tracks.Count; k++) {
+			var tk = op.Tracks.Item(1);
+			// cache these cause reads are slow
+			file.tkTrackNumber = tk.TrackNumber;
+			file.tkName = tk.Name;
+			file.tkAlbum = tk.Album;
+			file.tkArtist = tk.Artist;
 
-				if(tk.Album) {
-					if(albumTitlesMap[tk.Album])
-						albumTitlesMap[tk.Album]++;
-					else albumTitlesMap[tk.Album] = 1;
+			trace(file.tkTrackNumber + ' n:"' + file.tkName + 
+				  '", l:"' + file.tkAlbum + 
+				  '", a:"' + file.tkArtist + '"');
+
+			function count(word, map) {
+				if(word) {
+					if(map[word])
+						map[word]++;
+					else map[word] = 1;
 				}
-				file.tk = tk;
 			}
+			
+			count(file.tkArtist, artistNamesMap);
+			count(file.tkAlbum, albumTitlesMap);
+			file.tk = tk;
 		}
 
 
@@ -296,7 +321,7 @@ function run() {
 		
 		// Fix names
 		for(var len = 0; ; len++) {
-			
+			break;
 
 
 		}
