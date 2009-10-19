@@ -191,31 +191,42 @@ function run() {
 		var path = args.Item(i);
 		trace('arg: ' + path);
 		
+		var files = [];
+
 		var vidExtPattern = new RegExp("\\.(" + vidExts.join('|') + ")$");
 		if(path.match(vidExtPattern)) {
 			// it's a video, convert to mp4
-			var mencoderPath = "d:\\programs\\MPlayer-1.0rc2\\mencoder.exe";
 			var outputPath = path.replace(vidExtPattern, '.mp4');
+			/*
+			var vlcPath = "d:\\Programs\\vlc-1.1.0-git-20090710-2203\\vlc.exe";
+			var cmdLine = vlcPath + " -vvv --sout=#transcode{vcodec=mp4v,vb=1024,scale=1," +
+				"height=320,width=480,acodec=mp4a,ab=128,channels=2,soverlay}" + 
+				":duplicate{dst=std{access=file,mux=mp4,dst=" + 
+				outputPath + "}} --run-time 30 " + path + " vlc://quit";
+			*/
+			var mencoderPath = "d:\\programs\\MPlayer-p4-svn-29355\\mencoder.exe";
 			var cmdLine = mencoderPath + 
 				' -vf scale=480:-10,harddup -lavfopts format=mp4 ' + 
 				'-faacopts mpeg=4:object=2:raw:br=128 -oac faac -ovc x264 -sws 9 ' + 
 				'-x264encopts nocabac:level_idc=30:bframes=0:global_header:threads=auto:' + 
 				'subq=5:frameref=6:partitions=all:trellis=1:chroma_me:me=umh:' +
 				'bitrate=500 -of lavf -o ' + 
-				outputPath + ' ' + path;
+				outputPath + 
+				//' -sub ' + path.replace(vidExtPattern, '.srt ') + 
+				' ' + path;
 			sh.Run(cmdLine);
-		}
-			
-
-		var dirPath = path;
-		var dir = fs.GetFolder(dirPath), paths = [], files = [];
-		for(var en = new Enumerator(dir.Files); !en.atEnd(); en.moveNext()) {
-			var file = en.item();
-			if(file.Name.match(new RegExp("\\.mp3$"))) {
-				var path = dirPath + "\\" + file.Name;
-				trace('file:' + path);
-				//paths.push(path);
-				files.push({path: path, name: file.Name});
+			files.push({path: outputPath, name: outputPath});
+		} else {
+			var dirPath = path;
+			var dir = fs.GetFolder(dirPath), paths = [], files = [];
+			for(var en = new Enumerator(dir.Files); !en.atEnd(); en.moveNext()) {
+				var file = en.item();
+				if(file.Name.match(new RegExp("\\.mp3$"))) {
+					var path = dirPath + "\\" + file.Name;
+					trace('file:' + path);
+					//paths.push(path);
+					files.push({path: path, name: file.Name});
+				}
 			}
 		}
 
