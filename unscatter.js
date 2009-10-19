@@ -109,6 +109,13 @@ function askUserForBoolean(question, defaultAnswer) {
 	}
 }
 
+function set(file, propName, val) {
+	if(file['tk' + propName] != val) {
+		file['tk' + propName] = val;
+		file.tk[propName] = val;
+	}
+}
+
 
 //
 //  MAIN PROGRAM
@@ -378,13 +385,6 @@ function run() {
 			//var tk = op.Tracks.Item(i);
 			var file = files[j];
 			print('Setting ' + j + ' of ' + files.length);
-
-			function set(file, propName, val) {
-				if(file['tk' + propName] != val) {
-					file['tk' + propName] = val;
-					file.tk[propName] = val;
-				}
-			}
 
 			set(file, 'Album', albumTitle);
 			if(artistName != '-') {
