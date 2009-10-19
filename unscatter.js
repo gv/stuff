@@ -365,15 +365,24 @@ function run() {
 		//for(var i = 1; i <= op.Tracks.Count; i++) {
 		for(var j = 0; j < files.length; j++) {
 			//var tk = op.Tracks.Item(i);
-			var tk = files[j].tk;
+			var file = files[j];
 			print('Setting ' + j + ' of ' + files.length);
-			if(tk.Album != albumTitle)
-				tk.Album = albumTitle;
-			if(tk.Artist != artistName)
-				tk.Artist = artistName;
+
+			function set(file, propName, val) {
+				if(file['tk' + propName] != val) {
+					file['tk' + propName] = val;
+					file.tk[propName] = val;
+				}
+			}
+
+			set(file, 'Album', albumTitle);
+			if(artistName != '-') {
+				set(file, 'Artist', artistName);
+			} else {
+				file.tk.Compilation = true;
+			}
 			if(needToFixTrackNumbers)
-				if(tk.TrackNumber != j)
-					tk.TrackNumber = j;
+				set(file, 'TrackNumber', j);
 		}
 	}
 
