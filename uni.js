@@ -11,8 +11,10 @@ function start() {
 		var b = bodies[i];
 		b.x = b.y = 0;
 		// velocities are in c's
-		b.vx = (Math.random() - 0.5) * 2;
-		b.vy = (Math.random() - 0.5) * 2;
+		var vel = (Math.random() - 0.5) * 2;
+		var dirx = (Math.random() - 0.5) * 2;
+		b.vx = vel*dirx;
+		b.vy = vel* Math.sqrt(1-vel*vel);
 
 		if(!b.node) {
 			b.node = stick();
