@@ -12,9 +12,9 @@ function start() {
 		b.x = b.y = 0;
 		// velocities are in c's
 		var vel = (Math.random() - 0.5) * 2;
-		var dirx = (Math.random() - 0.5) * 2;
-		b.vx = vel*dirx;
-		b.vy = vel* Math.sqrt(1-vel*vel);
+		var angle = Math.random() * Math.PI;
+		b.vx = Math.sin(angle)*vel;
+		b.vy = Math.cos(angle)*vel;
 
 		if(!b.node) {
 			b.node = stick();
