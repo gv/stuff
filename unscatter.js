@@ -217,11 +217,12 @@ function run() {
 				'-faacopts mpeg=4:object=2:raw:br=128 -oac faac -ovc x264 -sws 9 ' + 
 				'-x264encopts nocabac:level_idc=30:bframes=0:global_header:threads=auto:' + 
 				'subq=5:frameref=6:partitions=all:trellis=1:chroma_me:me=umh:' +
-				'bitrate=500 -of lavf -o ' + 
+				'bitrate=500 -of lavf -o "' + 
 				outputPath + 
 				//' -sub ' + path.replace(vidExtPattern, '.srt ') + 
-				' ' + path;
-			sh.Run(cmdLine);
+				'" "' + path + '"';
+			trace(cmdLine);
+			sh.Run(cmdLine, 5, true);
 			files.push({path: outputPath, name: outputPath});
 		} else {
 			var dirPath = path;
