@@ -175,6 +175,13 @@ dojo.addOnLoad(function() {
 					// Also, that's why you call this only in widget.postCreate()
 					widget.connect(this, 'updateState', methodName);
 					widget[methodName](this.state, this);
+
+					// So, I guess it's finally time to get some use of all this
+					// 'dynamic' stuff.
+					var namePn = new RegExp('^handle');
+					for(var propName in this) 
+						if(namePn.test(propName) && widget[propName])
+							widget.connect(this, propName, propName);
 				}					
 
 				,connectToWidget: function(widget, methodName) {
