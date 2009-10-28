@@ -251,6 +251,7 @@ class Entry(In):
 				else:
 						mediaUrlPrefix = '/m/'
 
+				# Respond.
 				hdrs = http_headers.Headers()
 				hdrs.addRawHeader("Content-Type", "text/html; charset=utf-8")
 				return http.Response(200, headers=hdrs, stream=("""<html><head>
@@ -259,7 +260,8 @@ class Entry(In):
 <SCRIPT>
 dojo.registerModulePath('anxiety', '%(static)s');
 </SCRIPT>
-<script src="%(static)sclient2.js"></script>
+<script src="%(static)score.js"></script>
+<script src="%(static)ssmall.js"></script>
 </head>
 <body class="tundra">
 <div id="worldBrowser"></div>

@@ -34,7 +34,7 @@ if __name__ == '__main__':
 		from twisted.internet import reactor
 
 		site = server.Site(Entry())
-		reactor.listenTCP(6080, channel.HTTPFactory(site))
+		reactor.listenTCP(2222, channel.HTTPFactory(site))
 
 		print "Running reactor..."
 		reactor.run()
