@@ -1,0 +1,27 @@
+<html>
+  <head>
+	<style type="text/css">
+	  #ref {
+		  display: none;
+	  }
+	  #display {
+		  border: 1px solid gray;
+	  }
+	  .dispPane {
+		  text-align: center;
+	  }
+	</style>
+  </head>
+  <body onload="update()">
+	<div>
+	  URL: <input type="text" id="url"></input>
+	  <button onclick="loadBtnClicked()">load</button>
+	  <span id="indicator"></span>
+	</div>
+	<canvas id="ref"></canvas>
+	<div class="dispPane">
+	  <canvas id="display"></canvas>
+	</div>
+	<script src="img.js"></script>
+  </body>
+</html>
