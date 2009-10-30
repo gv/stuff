@@ -8,6 +8,11 @@ function go(newScale, newUrl) {
 function update() {
 	// Applies a hash string
 	var u = location.hash.substring(1);
+	if(u.indexOf('http') < 0) {
+		ind.innerHTML = 'Put image URL in the box and press ENTER';
+		return;
+	}
+
 	var p = u.split('*'), newScale = scale, newUrl = imgUrl;
 	if(p.length >= 2) {
 		newScale = parseInt(p.shift(), 10);
@@ -81,10 +86,10 @@ function updateDisp() {
 	while(pos > 0) {
 		pos -= 4;
 		epos--;
-		e = scale*energies[epos]/3;
+		e = scale*energies[epos]/2;
 		d.data[pos] = Math.min(255, e);
-		d.data[pos+1] = Math.max(0, e-256);
-		d.data[pos+2] = Math.max(0, e-256);
+		d.data[pos+1] = Math.min(Math.max(0, e-256), 255);
+		d.data[pos+2] = Math.max(0, e-512);
 		d.data[pos+3] = 255; // alpha
 	}
 
