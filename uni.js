@@ -11,8 +11,8 @@ function start() {
 		var b = bodies[i];
 		b.x = b.y = 0;
 		// velocities are in c's
-		var vel = (Math.random() - 0.5) * 2;
-		var angle = Math.random() * Math.PI;
+		var vel = Math.sqrt(Math.random());
+		var angle = Math.random() * Math.PI * 2;
 		b.vx = Math.sin(angle)*vel;
 		b.vy = Math.cos(angle)*vel;
 
