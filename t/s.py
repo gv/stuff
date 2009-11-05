@@ -256,15 +256,14 @@ class Entry(In):
 				hdrs.addRawHeader("Content-Type", "text/html; charset=utf-8")
 				return http.Response(200, headers=hdrs, stream=("""<html><head>
 <link rel=stylesheet href="%(static)scss.css" />
+</head>
+<body class="tundra small">
 <SCRIPT TYPE="text/javascript" SRC="%(dldr)s" djConfig="isDebug: true"></SCRIPT>
 <SCRIPT>
 dojo.registerModulePath('anxiety', '%(static)s');
 </SCRIPT>
 <script src="%(static)score.js"></script>
 <script src="%(static)ssmall.js"></script>
-</head>
-<body class="tundra">
-<div id="worldBrowser"></div>
 <script>
 browse("%(world)s", "worldBrowser");
 </script>
