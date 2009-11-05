@@ -1,2 +1,4 @@
 #!/bin/bash
-scp -r `dirname $0` admin@king:/opt
+dir=`dirname $0`
+scp $dir/*.py  admin@king:/opt/t
+scp $dir/m/*.js $dir/m/*.css admin@king:/opt/t/m

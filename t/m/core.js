@@ -48,6 +48,88 @@ function checkProps(o /*, ...*/) {
 			throw 'Property ' + arguments[i] + ' expected';
 }
 
+Widg = function() {};
+Widg.prototype = {
+	connect: function(sourceObj, sourceName, destName) {
+		return dojo.connect(sourceObj, sourceName, this, destName);
+	}
+
+	,report: function(str, deferred) {
+		if(!this.statusBarNode) {
+			this.statusBarNode = dojo.create('SPAN', {
+					className: 'statusBar'
+				}, this.domNode || document.body);
+		}
+					
+		if(deferred) {
+			var node = dojo.create('SPAN', {}, this.statusBarNode);
+			node.innerHTML = str;
+						
+			// Clear after done.
+			return deferred.addBoth(function() {
+					dojo.destroy(node)
+						});
+		} else {
+			if(!this.simpleStatusBarNode)
+				this.simpleStatusBarNode = dojo.create('SPAN', {}, this.statusBarNode);
+			this.simpleStatusBarNode.innerHTML = str;
+			dojo.style(this.simpleStatusBarNode, {
+					visibility: str ? 'visible' : 'hidden'});
+		}
+	}
+
+	,addPane: function(name) {
+		this[name] = dojo.create('DIV', {className: name}, this.domNode || this.node);
+	}
+};
+
+Widg.prototype.report('Loading browser...');
+			
+sometimes = {};
+
+/*
+	Client core
+	------ ----
+	
+	This class calls handleXxx methods.
+*/
+
+sometimes.MsgDriven = function() {
+	this.listeners = [];
+};
+
+sometimes.MsgDriven.prototype = {
+	processMsg: function(msg) {
+		if(!msg.what) {
+			DBG('No selector field:' + msg);
+			return;
+		}
+								
+		var methodName = 'handle' + cfirst(msg.what);
+		if(this[methodName]) {
+			var validatingMethodName = 'check' + cfirst(msg.what);
+			this[validatingMethodName] && this[validatingMethodName](msg);
+			var obs = this, i = 0;
+			do {
+				if(obs[methodName]) {
+					try {
+						obs[methodName](msg, this);
+					} catch(e) {
+						DBG('In ' + methodName + ':');
+						DBG(e);
+					}
+				} else {
+					obs.update(this.state, this);
+				}
+			} while(obs = this.listeners[i++]);
+		} else {
+			// Slobby branch for debugging purposes
+			DBG('No handling method for ' + msg.what);
+			this.update();
+		}
+	}
+};
+
 /*	Imports
 		-------
 */
@@ -58,17 +140,6 @@ dojo.require('dojo.cookie');
 
 dojo.require('dojox.cometd');
 
-//dojo.require('dijit.form.Button');
-
-function mkBtn(opts, parent) {
-	opts.innerHTML = opts.label;
-	var b = dojo.create('BUTTON', opts, parent);
-	b.onclick = function(e) {
-		return this.onClick && this.onClick(e);
-	};
-	return b;
-}
-
 /*
 	Browser code
 	------- ----
@@ -78,235 +149,197 @@ function mkBtn(opts, parent) {
 */
 dojo.addOnLoad(function() {
 		/*
-			Client core
-			------ ----
-
-			This class calls handleXxx methods.
-		*/
-		dojo.declare('anxiety.MsgDriven', null, {
-				processMsg: function(msg) {
-					if(!msg.what) {
-						DBG('No selector field:' + msg);
-						return;
-					}
-								
-					var validatingMethodName = 'check' + cfirst(msg.what);
-					var methodName = 'handle' + cfirst(msg.what);
-					if(this[methodName]) {
-						try {
-							this[validatingMethodName] && this[validatingMethodName](msg);
-							this[methodName](msg);
-							this.revision++;
-						} catch(e) {
-							DBG('In ' + methodName + ':');
-							DBG(e);
-						}
-					} else {
-						DBG('No handling method for ' + msg.what);
-						this.reload();
-					}
-				}
-			});
-
-		/*
 			This class runs a sync mechanism with server.
 		*/
-		dojo.declare('anxiety.Client', anxiety.MsgDriven, {
-				
-				//   API
-				//   ```
-				constructor: function(world, id, priv) {
-					this.id = id;
-					this.priv = priv;
-					this.world = world;
-					this.urlPrefix = world.urlPrefix;
-					this.revision = -1;
-					//this.listeners = [];
-
-					// Subscribe to events.
-					// TODO Authenticate.
-					dojox.cometd.subscribe('/' + id, this, function(fullMsg) {
-							var msg = fullMsg.data;
-							DBG('Message from cometd:');
-							DBG(msg);
-							// any output we can't handle will be silently ignored
-							if(!('revision' in msg)) {
-								DBG('No revision number:' + msg);
-								return;
-							}
-
-							if(msg.revision > this.revision) {
-								// Got a message from the future, must go there
-								this.reload();
-							} else if(msg.revision == this.revision) {
-								// Looks like something we can handle
-								this.processMsg(msg);
-							} 
-							// If msg.revision < this.revision , then our rev is 
-							// older, this is a message from past => do nothing
-						});
-
-				}
-					
-				,passStateToWidget: function(widget, methodName) {
-					methodName = methodName || 'update';
-					// This way circular refs will be torn in widget.destroy()
-					// Also, that's why you call this only in widget.postCreate()
-					widget.connect(this, 'updateState', methodName);
-					widget[methodName](this.state, this);
-
-					// So, I guess it's finally time to get some use of all this
-					// 'dynamic' stuff.
-					var namePn = new RegExp('^handle');
-					for(var propName in this) 
-						if(namePn.test(propName) && widget[propName])
-							widget.connect(this, propName, propName);
-				}					
-
-				,close: function() {
-					return dojox.cometd.unsubscribe('/' + this.id);
-				}
-
-				,reload: function() {
-					/**  Fetch and update the whole client state.
-					 */ 
-					if(this._reloading) // Don't do more than one requests at a time.
+		sometimes.Client = function(world, id, priv) {
+			sometimes.MsgDriven.apply(this, arguments);
+			this.id = id;
+			this.priv = priv;
+			this.world = world;
+			this.urlPrefix = world.urlPrefix;
+			this.revision = -1;
+			
+			// Subscribe to events.
+			// TODO Authenticate.
+			dojox.cometd.subscribe('/' + id, this, function(fullMsg) {
+					var msg = fullMsg.data;
+					DBG('Message from cometd:');
+					DBG(msg);
+					// any output we can't handle will be silently ignored
+					if(!('revision' in msg)) {
+						DBG('No revision number:' + msg);
 						return;
-					this.world.loadState(this.id, this.priv).addCallback(
-						dojo.hitch(this, '_updateState'));
-				}
+					}
 
-				//   Utils
-				//   `````
+					if(msg.revision > this.revision) {
+						// Got a message from the future, must go there
+						this.reload();
+					} else if(msg.revision == this.revision) {
+						// Looks like something we can handle
+						this.processMsg(msg);
+					} 
+					// If msg.revision < this.revision , then our rev is 
+					// older, this is a message from past => do nothing
+				});
+
+		};
+					
+		sometimes.MsgDriven.prototype.connect = function(widget) {
+			this.listeners.push(widget);
+			if(this.state)
+				widget.update(this.state, this);
+		};
 				
-				,_updateState: function(state) {
-					this._reloading = false;
-					if(!('revision' in state))
-						throw 'No revision in state!';
-					this.state = state;
-					this.updateState(state, this); // for connected widgets
 
-					this.revision = state.revision;
-					//this.updated();
-				}
+		sometimes.Client.prototype.destroy = function() {
+			dojox.cometd.unsubscribe('/' + this.id);
+			this.listeners = [];
+		};
 
-				//   Overridables
-				//	 ````````````
-
-				,updateState: function(state) {
-					// 1. override this to handle whole state loads
-					// 2. connect() to this in browsers
-					DBG(state);
-				}
-
-				//   Signals
-				//   ```````
-				// ,updated: nop
-					 });
+		sometimes.Client.prototype.reload = function() {
+			/**  Fetch and update the whole client state.
+			 */ 
+			if(this._reloading) // Don't do more than one requests at a time.
+				return;
+			this._reloading = dojo.xhrGet({
+					url: this.urlPrefix + 'clients/' + id,
+					handleAs: 'json',
+					preventCache: true,
+					content: {priv: priv},
+					
+					error: dojo.hitch(this, function(e) {
+							// TODO if server tells us id or password are invalid,
+							// we must tell observers this client is broken and then destroy it
+							DBG('Failed reloading client ' + id + ':');
+							DBG(e);
+						}),
+					
+					load: dojo.hitch(this, function(state) {
+							this._reloading = false;
+							if(!('revision' in state))
+								throw 'No revision in state!';
+							this.state = state;
+							this.update && this.update(state, this); 
+							this.revision = state.revision;
+							for(var i in this.listeners)
+								this.listeners[i].update(state, this);
+						});
+				});
+		};
+						
 
 		/*
-			All kinds of clients
-			--- ----- -- -------
-
-			This classes:
-			  - check validity of messages
-				- expose APIs to use data from their states and manipulate server-side 
-				  objects
+			PlayerList
+			``````````
 		*/
 
-		dojo.declare('anxiety.PlayerList', anxiety.Client, {
+		sometimes.PlayerList = function(world) {
+			sometimes.Client.apply(this, [world, 'players']);
+		};
+		
+		var _Client = function() {};
+		_Client.prototype = sometimes.Client.prototype;
+		sometimes.PlayerList.prototype = new _Client;  
 				
-				//   API
-				//   ```
-				constructor: function() { PL = this; },
 
-				stat: function(id) {
+		/*				stat: function(id) {
 					for(var i in this.players)
 						if(this.players[i].id == id)
 							return this.players[i];
-				}
+							}*/
 
-				//   Command handlers
-				//   ``````` ````````
 
-				,updateState: function(state) {
-					this.chatLog = state.chatLog;
-					// We own this object, if anyone else wants to use it, make copy!
-					this.players = state.players;
-					this.playersChanged();
-				}
+		//   Command handlers
+		//   ``````` ````````
+
+		sometimes.PlayerList.prototype.update = function(state) {
+			this.chatLog = state.chatLog;
+			// We own this object, if anyone else wants to use it, make copy!
+			this.players = state.players;
+		};
 				
-				,checkAddPlayer: function(m) {
-					checkProps(m, 'id', 'name');
-				}
+		sometimes.PlayerList.prototype.checkAddPlayer = function(m) {
+			checkProps(m, 'id', 'name');
+		};
 					
-				,handleAddPlayer: function(msg) {
-					this.players.push(msg);
-					this.playersChanged();
-				}
+		sometimes.PlayerList.prototype.handleAddPlayer = function(msg) {
+			this.players.push(msg);
+		};
 
-				,checkRmPlayer: function(m) {
-					checkProps(m, 'who');
+		sometimes.PlayerList.prototype.checkRmPlayer = function(m) {
+			checkProps(m, 'who');
+		};
+		
+		sometimes.PlayerList.prototype.handleRmPlayer = function(msg) {
+			for(var i in this.players)
+				if(this.players[i].id == msg.who) {
+					this.players.splice(i, 1);
+					break;
 				}
-				
-				,handleRmPlayer: function(msg) {
-					// XXX
-					
-					this.playersChanged();
-				}
-
-				,handleChat: function(m) {
-					this.heard(m);
-				}
-
-				/* Signals */
-				, heard: nop, playersChanged: nop		});
-
+		};
+	
 		/* 
 			 Player
 			 ``````
 
 		*/
-		dojo.declare('anxiety.Player', anxiety.Client, {
-				constructor: function(world, id, priv) {
-					// Called after Client.constructor
-					this.games = {};
-				}
-					
-				,processMsg: function(m) {
-					if(m.gameId) {
-						var gm = this.games[m.gameId];
-						if(!gm) {
-							DBG('Got message for nonexistent game ' + m.gameId);
-							return;
-						}
-						gm.processMsg(m, this);
-					} else {
-						this.inherited(arguments);
-					}
-				}
+		sometimes.Player = function(world, id, priv) {
+			sometimes.Client.apply(this, arguments);
+			this.games = {};
+		};
 
-				//   APIs
-				//	 ````
+		sometimes.Player.prototype = new _Client;
 					
-				,say: function(phrase) {
-					return this.send('chat', {
-							phrase: phrase
-								});
+		sometimes.Player.prototype.processMsg = function(m) {
+			if(m.gameId) {
+				var gm = this.games[m.gameId];
+				if(!gm) {
+					DBG('Got message for nonexistent game ' + m.gameId);
+					return;
 				}
+				gm.processMsg(m, this);
+			} else {
+				sometimes.Client.prototype.processMsg.apply(this, [m]);
+			}
+		};
 
-				,rm: function() {
-					// Regardless of what server says, we're out of here
-					var rv = this.send('iQuit');
-					// In fact, we don't have to wait for server's response
-					// Tell everyone
-					this.loggedOut();
-					this.world.loggedOut(this);
-					// Clean up now
-					this.close();
-					// TODO Shouldn't we make sure signals don't get called after this
-					return rv;
-				}
+		//   APIs
+		//	 ````
+
+		/*
+			How does a player log out
+			`````````````````````````
+			
+			1) reload() gets a response from server which says id or pasw is not right
+			2) Observers are notified of state update() with state = {
+			    broken: {msg: "..."}
+			}
+			3) Observer that owns a Client instance calls destroy(), then it can get 
+			   a new Client
+
+			 OR
+
+			3) Client destroys itself
+
+		*/
+					
+		sometimes.Player.prototype.say = function(phrase) {
+			return this.send('chat', {
+					phrase: phrase
+				});
+		};
+
+		sometimes.Player.prototype.logOut = function() {
+			// Regardless of what server says, we're out of here
+			var rv = this.send('iQuit');
+			// In fact, we don't have to wait for server's response
+			// Tell everyone
+			this.state = {
+				broken: {msg: 'Logged out'}
+			};
+			this.updateObservers();
+			return rv;
+		};
 				
 				,invite: function(gameType, playerIds) {
 					return this.send('invite', {
@@ -360,9 +393,6 @@ dojo.addOnLoad(function() {
 					m.senderStat = ps.stat(m.who);
 					*/
 					m.senderStat = this.world.players.stat(m.who);
-					if(!m.senderStat) 
-						throw 'Player #' + m.who + ' not found';
-					//this.invited(m);
 				}
 
 				,checkUninvited: function(m) {
@@ -413,62 +443,55 @@ dojo.addOnLoad(function() {
 
 			Base for Game and World classes.
 		*/
-		dojo.declare('anxiety.Server', null, {
-				constructor: function(urlPrefix) {
-					this.urlPrefix = urlPrefix;
-				}
+		sometimes.Server = function(urlPrefix) {
+			this.urlPrefix = urlPrefix;
+		};
 
-				,send: function(what, whatElse, okHandler) {
-					whatElse = whatElse || {};
-					whatElse.what = what;
-					DBG('Posting to ' + this.urlPrefix + ':');
-					DBG(whatElse);
-					return dojo.xhrPost({url: this.urlPrefix,
-								content: whatElse, 
-								handleAs: 'json', // OK (2**) answer will be handled as JSON.
-								load: okHandler && dojo.hitch(this, okHandler),
-								error: dojo.hitch(this, function(er) {
-										// Try to get some information we can use
-										if(er.responseText) {
-											if('{' == er.responseText.charAt(0)) {
-												var data = dojo.fromJson(er.responseText);
-												er = data.err;
-											}	else
-												er.msg = er.responseText;
-										} else 
-											er.msg = er + '';
-										this.error(er);
-									})
-								/*  It seems when load: function throws an exception,
-										error: is called. That's not what I want though.
-								*/
-								});
-				}
+		sometimes.Server.prototype.send = function(what, whatElse, okHandler) {
+			whatElse = whatElse || {};
+			whatElse.what = what;
+			DBG('Posting to ' + this.urlPrefix + ':');
+			DBG(whatElse);
+			return dojo.xhrPost({url: this.urlPrefix,
+						content: whatElse, 
+						handleAs: 'json', // OK (2**) answer will be handled as JSON.
+						//load: okHandler && dojo.hitch(this, okHandler),
+						error: dojo.hitch(this, function(er) {
+								// Try to get some information we can use
+								if(er.responseText) {
+									if('{' == er.responseText.charAt(0)) {
+										var data = dojo.fromJson(er.responseText);
+										er = data.err;
+									}	else
+										er.msg = er.responseText;
+								} else 
+									er.msg = er + '';
+								this.error(er);
+							})
+						/*  It seems when load: function throws an exception,
+								error: is called. That's not what I want though.
+						*/
+						});
+		};
 				
-				,error: nop	});
+		sometimes.Server.prototype.error = nop;
+
 
 		/*
 			World object
 			````` ``````
 		*/
 		
-		dojo.declare('anxiety.World', anxiety.Server, {
-
-				//   APIs
-				//   ````
-
-				constructor: function(urlPrefix) {
-					WD = this; // debug
-					// Do handshakes and stuff
-					dojox.cometd.init(urlPrefix + 'cometd');
-					this.playersFetch = this.getClient(anxiety.PlayerList, 'players');/*.
-						addCallback(dojo.hitch(this, function(pl) {
-									this.players = pl;
-									}));*/
-				}
+		sometimes.World = function(urlPrefix) {
+			sometimes.Server.apply(this, arguments);
+			WD = this; // debug
+			// Do handshakes and stuff
+			dojox.cometd.init(urlPrefix + 'cometd');
+			this.players = new sometimes.PlayerList(this);
+		};
 				
-				,login: function(name) {
-					/**	Initiates a login request. 
+		sometimes.World.prototype.login = function(name) {
+			/**	Initiates a login request. 
 							If successful, calls this.loggedIn(player), where player
 							is newly created Player instance.
 							If not, calls this.denied(rsp).
@@ -495,19 +518,7 @@ dojo.addOnLoad(function() {
 				}
 
 				,loadState: function(id, priv) {
-					return dojo.xhrGet({
-							url: this.urlPrefix + 'clients/' + id,
-								handleAs: 'json',
-								preventCache: true,
-								error: dojo.hitch(this, function(e) {
-										DBG('Failed reloading client ' + id + ':');
-										DBG(e);
-									}),
-								content: {
-								priv: priv
-									}//,
-							//load: dojo.hitch(this, '_updateState')
-						});
+					return 
 				}
 
 				,getClient: function(_Class, id, priv) {
@@ -542,12 +553,12 @@ dojo.addOnLoad(function() {
 
 			});
 
-		dojo.declare('anxiety.GameBrowser', [dijit.layout.ContentPane], {
+		/*dojo.declare('anxiety.GameBrowser', [dijit.layout.ContentPane], {
 				constructor: function(opts) {
 
 				}
 				
-			});
+				});*/
 
 		dojo.declare('anxiety.CardWidget', null, {
 				constructor: function() {
