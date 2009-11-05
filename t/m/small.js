@@ -43,6 +43,10 @@ sometimes.SmallWorldBrowser = function(opts, l) {
 sometimes.SmallWorldBrowser.prototype = new Widg;
 
 sometimes.SmallWorldBrowser.prototype.update = function(state, players) {
+	// update players list
+	for(var i in state.players) {
+		
+	// update chat
 	this.chatPane.innerHTML = '';
 	for(var i in players.chatLog) {
 		this.handleHeard(players.chatLog[i]);
@@ -66,15 +70,16 @@ sometimes.SmallWorldBrowser.prototype.handleHeard = function(m, players) {
 	var nodes = dojo.query('DIV', node);
 	if(nodes.length > this.maxPhraseCnt) 
 		nodes.slice(0, nodes.length - this.maxPhraseCnt).orphan();
-					
-	// TODO Scroll
 };
 			
 sometimes.SmallPlayerBrowser = function(player, l) {
 	this.node = l;
 	this.player = player;
-	this.addPane('headerPane');
-	this.headerPane.innerHTML = 'Name goes here';
+	this.addPane('headPane');
+	this.nameInp = dojo.create('INPUT', {
+		type: 'text',
+		value: 'Name goes here'
+		}, this.headPane);
 	this.addPane('invitationsPane');
 	this.addPane('gamesPane');
 	player.connect(this);
