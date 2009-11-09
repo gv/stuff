@@ -15,6 +15,49 @@ function browse(urlPrefix, l) {
 
 //dojo.addOnLoad(function() {
 
+ListWidg = function(node) {
+	this.node = node;
+	this.map = {};
+};
+
+ListWidg.prototype.get = function(id) {
+	return this.map[id];
+};
+
+ListWidg.prototype.id = function(item) {
+	return item.id;
+};
+
+ListWidg.prototype.add = function(src) {
+	var m = {};
+	for(var i in src) {
+		var s = src[i];
+		var d = this.get(this.id(s));
+		if(!d) {
+			d = this.create(s);
+			this.node.appendChild(d.node);
+			this.map[id] = d;
+		}
+		m[id] = d;
+	}
+};
+
+ListWidg.prototype.update = function(src) {
+	var m = this.add(src);
+	for(var id in this.map) {
+		if(!m[id]) {
+			this.destroy && this.destroy(this.map[id]);
+			this.node.removeChild(this.map[id].node);
+		}
+	}
+	this.map = m;
+};
+
+
+		
+		
+		
+	
 
 sometimes.SmallWorldBrowser = function(opts, l) {
 	this.world = opts.world;
