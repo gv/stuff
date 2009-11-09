@@ -45,7 +45,11 @@ sometimes.SmallWorldBrowser.prototype = new Widg;
 sometimes.SmallWorldBrowser.prototype.update = function(state, players) {
 	// update players list
 	for(var i in state.players) {
-		
+	
+
+
+	}
+	
 	// update chat
 	this.chatPane.innerHTML = '';
 	for(var i in players.chatLog) {
@@ -72,6 +76,8 @@ sometimes.SmallWorldBrowser.prototype.handleHeard = function(m, players) {
 		nodes.slice(0, nodes.length - this.maxPhraseCnt).orphan();
 };
 			
+/*
+	
 sometimes.SmallPlayerBrowser = function(player, l) {
 	this.node = l;
 	this.player = player;
