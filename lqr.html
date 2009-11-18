@@ -1,0 +1,29 @@
+<html>
+  <head>
+	<title>Liquid resize</title>
+	<style type="text/css">
+	  #ref {
+		  display: none;
+	  }
+	  #display {
+		  border: 1px solid gray;
+	  }
+	  .dispPane {
+		  text-align: center;
+	  }
+	</style>
+  </head>
+  <body>
+	<div>
+	  URL: <input type="text" id="url"></input>
+	  <button onclick="loadBtnClicked()">load</button>
+	  | <span id="indicator"></span>
+	  | Works in Chrome only
+	</div>
+	<canvas id="ref"></canvas>
+	<div class="dispPane">
+	  <canvas id="display"></canvas>
+	</div>
+	<script src="lqr.js"></script>
+  </body>
+</html>
