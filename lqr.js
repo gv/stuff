@@ -98,40 +98,59 @@ function render() {
 	}
 	
 	loadImg('/c?' + loc.url, function(img) {
- 			dispCanv.width = dispCanv.style.width = Math.floor(img.bs.width * loc.xScale);
+			var scaledWidth = Math.floor(img.bs.width * loc.xScale);
+ 			dispCanv.width = dispCanv.style.width = 
+				img.bs.width;
 			dispCanv.height = dispCanv.style.height = img.bs.height;
 			
-			var c = dispCanv.getContext('2d');
+			var c = dispCanv.getContext('2d'), s = '';
 			var dest = c.createImageData(img.bs.width, dispCanv.height);
 			var sums = img.getSums(), d = dest.data;
 			var src = img.imData.data;
 
-			var excessRowCnt = img.bs.width - dispCanv.width;
-			var skip = new Array(sums.length - excessRowCnt * dispCanv.height), 
-				skipCnt = 0;
+			var excessColCnt = img.bs.width - scaledWidth;
+			ind.innerHTML = excessColCnt;
 			var lastRowStart = sums.length - img.bs.width;
-			while(skipCnt < skip.length) {
-				var minInd = lastRowStart, minSum = sums[lastRowStart];
-				for(var i = sums.length - 1; i > lastRowStart; i--) {
-					if(sums[i] < minSum) {
-						minSum = sums[i];
-						minInd = i;
+
+			s = sums.length + ': ' + sums.join(' ');
+
+			//var skip = new Array(excessColCnt * dispCanv.height), 
+			//	skipCnt = 0;
+
+			var visMap = new Array(sums.length);
+
+			for(var visLvl = 1; visLvl <= excessColCnt; visLvl++) {
+				var minInd = Infinity;
+				for(var i = sums.length - 1; i >= lastRowStart; i--) {
+					if(!visMap[i]) {
+						if(sums[i] < minSum) {
+							minSum = sums[i];
+							minInd = i;
+						}
 					}
 				}
-
-				sums[minInd] = Infinity;
-				skip[skipCnt++] = minInd;
-				minInd -= (img.bs.width + 1);
 				
-				while(minInd >= 0) {
+				s += minInd + '=' + minSum + ' ';
+
+				//sums[minInd] = Infinity;
+				var rowStart = lastRowStart;
+				do {
+					visMap[minInd] = visLvl;
+					minInd -= img.bs.width;
+					
+					//rowStart -= img.bs.width;
+					if(minInd < 0)
+						break;
+
+									
 					if(sums[minInd+1] < sums[minInd])
 						minInd++;
 					if(sums[minInd+1] < sums[minInd])
 						minInd++;
-					sums[minInd] = sums[minInd + 1] + sums[minInd - 1];
+					sums[minInd] = Infinity;
 					skip[skipCnt++] = minInd;
 					minInd -= (img.bs.width + 1);
-				}
+				} while(1);
 			}
 					
 				
@@ -139,7 +158,7 @@ function render() {
 			//	skip[i] = Math.floor(Math.random() * sums.length);
 
 			
-
+			// default sort() is lexicographical
 			skip.sort(function(l,r) {
 					if(l < r)
 						return -1;
@@ -147,24 +166,32 @@ function render() {
 						return 1;
 					return 0;
 				});
-			ind.innerHTML = skip.join(' ');
-			
+
+			//ind.innerHTML = skip.join(' ');
+			skip.push(Infinity);
+
 			for(var i = 0, j = 0, sp = 0, dp = 0; i < sums.length; i++) {
-				if(skip[j] == i) {
+				if(skip[j] > i) {
+					d[dp++] = sums[i];
+					d[dp++] = sums[i];
+					d[dp++] = sums[i];
+					d[dp++] = 255;
+					/*d[dp++] = src[sp++];
+					d[dp++] = src[sp++];
+					d[dp++] = src[sp++];
+					d[dp++] = src[sp++];*/
+				} else {
+					//s += i + ":" + j + '=' + skip[j] + '; ';
 					j++;
 					sp += 4;
 					d[dp++] = 0;
+					d[dp++] = 255;
 					d[dp++] = 0;
-					d[dp++] = 0;
-					d[dp++] = 0;
-				} else {
-					d[dp++] = 0*src[sp++];
-					d[dp++] = src[sp++];
-					d[dp++] = src[sp++];
-					d[dp++] = src[sp++];
-				}
+					d[dp++] = 255;
+					}
 			}
 			
+			dbgInd.innerHTML = s;
 			c.putImageData(dest, 0, 0);
 
 			location.href = '#' + loc.toString();
@@ -182,6 +209,7 @@ function loadBtnClicked() {
 var refCanv = document.getElementById('ref');
 var dispCanv = document.getElementById('display');
 var ind = document.getElementById('indicator');
+var dbgInd = document.getElementById('dbgInd');
 
 document.onkeydown = function(ev) {
 	switch(ev.keyCode) {
