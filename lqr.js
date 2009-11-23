@@ -132,6 +132,23 @@ Img.prototype.getSums = function() {
 	return this.sums;
 };
 
+Img.prototype.getIndirectWeights = function(indexes, width) {
+	// assume padded
+	var ee = this.getEnergies();
+	var sums = new Array(indexes.length);
+	for(var i = 0; i < width; i++) 
+		sums[i] = ee[indexes[i]];
+	
+	sums[i++] = sums[0]; // can't get sums[upper - 1] for upper = 0
+	
+	var rowEnd = width, upper = 1;
+	while(i < indexes.length) {
+		sums[i] = ee[indexes[i]] + Math.min(sums[upper - 1], sums[upper], sums[upper + 1]);
+		upper++;
+	}
+	return sums;
+};
+
 function _setSum(sums, energies, upper, rowStart, width) {
 	_setInd(sums, energies, upper + width,
 		energies[upper + width] + 
@@ -158,13 +175,9 @@ function _setInd(sums, energies, i, val, rowStart, width) {
 
 function _render() {
 	loadImg('/c?' + loc.url, function(img) {
-			dispCanv.height = dispCanv.style.height = img.bs.height;
+			var dbgOut = '';
 			var dWidth = loc.getWidth(), sWidth = img.bs.width;
- 			dispCanv.width = dispCanv.style.width = sWidth;
-			
-			var c = dispCanv.getContext('2d'), s = '';
-			var dest = c.createImageData(img.bs.width, dispCanv.height);
-			var sums = img.getSums(), d = dest.data;
+
 			var setInd = function(i, val) {
 				if(sums[i] != val) {
 					var minDownVal = energies[i] + sums[i];
@@ -178,22 +191,73 @@ function _render() {
 			};
 
 			var src = img.imData.data, pad = 2;
-			//s = sums.length + ': ' + sums.join(' ');
 
 			// - scale -
-			var visMap = new Array(sums.length); // padded
+			var infInd = src.length;
+			var indexesWidth = sWidth + pad;
+			var indexes = new Array(img.bs.height * indexesWidth);
+			for(var i = 0, si = 0, rowEnd = 0; i < indexes.length;) {
+				indexes[i++] = infInd; // --> Infinity
+				indexes[i++] = infInd;
+				
+				rowEnd += sWidth;
+				while(si < rowEnd)
+					indexes[i++] = si++;
+			}
+
 			do {
+				var energies = img.getEnergies();
+				var ws = img.getIndirectWeights(indexes, indexesWidth);
 				var seamCnt = 0;
-				var minSum = Infinity, seamInd;
-				var rowStart = sums.length - sWidth;
-				for(var i = sums.length - 1; i <= rowStart; i--) 
-					if(sums[i] < minSum) {
+
+				var setWeight = function(ind, val) {
+					if(ws[ind] != val) {
+						ws[ind] = val;
+						var lower = ind + indexesWidth;
+						setWeight(lower - 1, 
+							energies[indexes[lower - 1]] + 
+							Math.min(ws[ind - 2], ws[ind - 1], val));
+						setWeight(lower, 
+							energies[indexes[lower]] + 
+							Math.min(ws[ind + 1], ws[ind - 1], val));
+						setWeight(lower + 1, 
+							energies[indexes[lower + 1]] + 
+							Math.min(ws[ind + 2], ws[ind + 1], val));
+					}
+				};
+
+				var minWeight = Infinity, seamInd;
+				var rowStart = ws.length - sWidth;
+				for(var i = ws.length - 1; i <= rowStart; i--) 
+					if(ws[i] < minWeight) {
 						seamInd = i;
-						minSum = sums[i];
+						minWeight = sums[i];
 					}
 
-				if(!seamInd)
+				if(!seamInd) {
+					dbgOut += seamCnt + '; ';
 					break;
+				}
+
+				indexes[seamInd] = infInd;
+				ws[seamInd] = Infinity;
+				
+				// go up
+				while(seamInd > indexesWidth) {
+					seamInd -= (indexesWidth + 1);
+					if(ws[seamInd + 1] <= ws[seamInd])
+						seamInd++;
+					if(ws[seamInd + 1] < ws[seamInd])
+						seamInd++;
+
+					// ASSERT 
+					if(Infinity == ws[seamInd])
+						alert('BAD INDEX ' + seamInd);
+
+					indexes[seamInd] = infInd;
+					setWeight(seamInd, Infinity);
+					
+					
 				
 
 			var excessColCnt = img.bs.width - scaledWidth;
@@ -237,7 +301,14 @@ function _render() {
 				} while(1);
 			}
 					
-				
+
+			// - draw -
+			dispCanv.height = dispCanv.style.height = img.bs.height;
+			dispCanv.width = dispCanv.style.width = sWidth;
+			var c = dispCanv.getContext('2d');
+			var dest = c.createImageData(sWidth, dispCanv.height);
+			var d = dest.data;
+
 			for(var i = 0, sp = 0, dp = 0; i < sums.length; i++) {
 				if(!visMap[i]) {
 					d[dp++] = sums[i];
