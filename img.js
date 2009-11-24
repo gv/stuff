@@ -82,15 +82,25 @@ function updateDisp() {
 		}
 	}
 
-	var pos = d.data.length, epos = energies.length, e;
+	var pos = d.data.length, epos = energies.length, e, r, g, b;
+	var t = d.data, f;
 	while(pos > 0) {
-		pos -= 4;
 		epos--;
-		e = scale*energies[epos]/2;
+		e = scale*energies[epos]/2; // max scale*256*6
+		r = Math.random();
+		g = Math.random();
+		b = Math.random();
+		f = e/(r + g + b);
+		t[--pos] = 255;
+		t[--pos] = f * b;
+		t[--pos] = f * g;
+		t[--pos] = f * r;
+		/*pos -= 4;
 		d.data[pos] = Math.min(255, e);
 		d.data[pos+1] = Math.min(Math.max(0, e-256), 255);
 		d.data[pos+2] = Math.max(0, e-512);
 		d.data[pos+3] = 255; // alpha
+		*/
 	}
 
 	c.putImageData(d, 0, 0);
