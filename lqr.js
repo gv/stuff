@@ -1,6 +1,6 @@
 function Loc(h) {
 	h = h.split('*');
-	var xScale = h.shift() || 1;
+	var xScale = h.shift() || '1';
 	var m = xScale.match('([0-9]+)px$');
 	if(m) {
 		this.width  = parseInt(m[1], 10);
@@ -11,6 +11,8 @@ function Loc(h) {
 }
 
 Loc.prototype.toString = function() {
+	if(!this.url)
+		return '';
 	if(this.width) 
 		var s = this.width + 'px';
 	else 
@@ -22,7 +24,7 @@ Loc.prototype.getWidth = function() {
 	if(this.width)
 		return this.width;
 	if(curImg)
-		return curImg.bs.width * this.xScale;
+		return Math.floor(curImg.bs.width * this.xScale);
 	// ?
 };
 
@@ -78,14 +80,14 @@ function Img(bs) {
 Img.prototype.getEnergies = function() {
 	if(!this.energies) {
 		var d = this.imData.data;
-		var ee = new Array(d.length / 4), i = 1, p = 4, end;
+		var ee = new Array(d.length / 4 + 1), i = 1, p = 4, end;
 		ee[0] = 0; // xxx
 		for(; i < this.bs.width; i++) {
 			ee[i] = 0; // xxx
 			p += 4;
 		}
 
-		end = ee.length; 
+		end = ee.length - 1; 
 		var upper = 0, left = p - 4, e;
 		for(; i < end; i++) {
 			e = Math.abs(d[p++] - d[left++]);
@@ -100,6 +102,8 @@ Img.prototype.getEnergies = function() {
 			p++;
 			ee[i] = e;
 		}
+
+		ee[end] = Infinity;
 		this.energies = ee;
 	}
 	return this.energies;
@@ -143,192 +147,185 @@ Img.prototype.getIndirectWeights = function(indexes, width) {
 	
 	var rowEnd = width, upper = 1;
 	while(i < indexes.length) {
-		sums[i] = ee[indexes[i]] + Math.min(sums[upper - 1], sums[upper], sums[upper + 1]);
+		sums[i] = ee[indexes[i]] + Math.min(sums[upper - 1], sums[upper], 
+			sums[upper + 1]);
+		i++;
 		upper++;
 	}
 	return sums;
 };
 
-function _setSum(sums, energies, upper, rowStart, width) {
-	_setInd(sums, energies, upper + width,
-		energies[upper + width] + 
-		Math.min(sums[upper - 1], sums[upper], sums[upper + 1]),
-		rowStart, width);
-}
-
-
-
-function _setInd(sums, energies, i, val, rowStart, width) {
-	// min width is 3
-	if(sums[i] != val) {
-		sums[i] = val;
-		var nextRowStart = rowStart + width;
-		if(i == rowStart) {
-			_setInd(sums, energies, i + width, 
-				energies[i + width] + Math.min(val, sums[i+1]), 
-				width);
-			_setInd(sums, energies, i + 1 + width,
-				energies[i + 1 + width] + Math.min(val, sums[i+1], sums[i+2]),
-				width);
-	}
-}
 
 function _render() {
 	loadImg('/c?' + loc.url, function(img) {
 			var dbgOut = '';
-			var dWidth = loc.getWidth(), sWidth = img.bs.width;
+			var dWidth = loc.getWidth(), // won't change
+				sWidth = img.bs.width;
 
-			var setInd = function(i, val) {
-				if(sums[i] != val) {
-					var minDownVal = energies[i] + sums[i];
-					sums[i] = val;
-					var ni = i + width - 1;
-					
-					setInd(ni++, minDownVal);
-					setInd(ni++, minDownVal);
-					setInd(ni++, minDownVal);
+			// - scale -
+			// init indexes
+			var energies = img.getEnergies(), ws;
+			var infInd = energies.length - 1;
+			var indexesWidth = Math.max(sWidth + 2, dWidth);
+			var indexes = new Array(img.bs.height * indexesWidth);
+			var backup = new Array(img.bs.height * indexesWidth);
+			var paddingEnd = indexesWidth - sWidth;
+			for(var i = 0, si = 0, sRowEnd = 0; i < indexes.length;) {
+				while(i < paddingEnd)
+					indexes[i++] = infInd; // --> Infinity
+				paddingEnd += indexesWidth;
+				sRowEnd += sWidth;
+				while(si < sRowEnd)
+					indexes[i++] = si++;
+			}
+			
+			
+			var setWeight = function(ind, val) {
+				if(ws[ind] != val) {
+					ws[ind] = val;
+					var lower = ind + indexesWidth;
+					if(lower - 1 >= ws.length)
+						return;
+					setWeight(lower - 1, 
+						energies[indexes[lower - 1]] + 
+						Math.min(ws[ind - 2], ws[ind - 1], val));
+					if(lower  >= ws.length)
+						return;
+					setWeight(lower, 
+						energies[indexes[lower]] + 
+						Math.min(ws[ind + 1], ws[ind - 1], val));
+					if(lower + 1 >= ws.length)
+						return;
+					setWeight(lower + 1, 
+						energies[indexes[lower + 1]] + 
+						Math.min(ws[ind + 2], ws[ind + 1], val));
 				}
 			};
 
-			var src = img.imData.data, pad = 2;
+			while(sWidth != dWidth) {
+				//alert(dWidth + ' ' + sWidth);
+				ws = img.getIndirectWeights(indexes, indexesWidth);
+				var maxSeamCnt = sWidth - dWidth;
+				if(maxSeamCnt < 0)
+					maxSeamCnt = sWidth;
 
-			// - scale -
-			var infInd = src.length;
-			var indexesWidth = sWidth + pad;
-			var indexes = new Array(img.bs.height * indexesWidth);
-			for(var i = 0, si = 0, rowEnd = 0; i < indexes.length;) {
-				indexes[i++] = infInd; // --> Infinity
-				indexes[i++] = infInd;
+				// find no more then maxSeamCnt seams
+				for(var seamCnt = 0; seamCnt < maxSeamCnt; seamCnt++) {
+					// find a bottom point
+					var minWeight = Infinity, seamInd;
+					var rowStart = ws.length - sWidth;
+					for(var i = ws.length - 1; i >= rowStart; i--) 
+						if(ws[i] < minWeight) {
+							seamInd = i;
+							minWeight = ws[i];
+						}
+
+					if(!seamInd) {
+						dbgOut += seamCnt + 'seams; ';
+						break;
+					}
+
+					dbgOut += ('i:' + seamInd + ' ');
+					backup[seamInd] = indexes[seamInd];
+					indexes[seamInd] = infInd;
+					ws[seamInd] = Infinity;
 				
-				rowEnd += sWidth;
-				while(si < rowEnd)
-					indexes[i++] = si++;
-			}
+					// go up
+					while(seamInd > indexesWidth) {
+						seamInd -= (indexesWidth + 1);
+						if(ws[seamInd + 1] <= ws[seamInd])
+							seamInd++;
+						if(ws[seamInd + 1] < ws[seamInd])
+							seamInd++;
 
-			do {
-				var energies = img.getEnergies();
-				var ws = img.getIndirectWeights(indexes, indexesWidth);
-				var seamCnt = 0;
-
-				var setWeight = function(ind, val) {
-					if(ws[ind] != val) {
-						ws[ind] = val;
-						var lower = ind + indexesWidth;
-						setWeight(lower - 1, 
-							energies[indexes[lower - 1]] + 
-							Math.min(ws[ind - 2], ws[ind - 1], val));
-						setWeight(lower, 
-							energies[indexes[lower]] + 
-							Math.min(ws[ind + 1], ws[ind - 1], val));
-						setWeight(lower + 1, 
-							energies[indexes[lower + 1]] + 
-							Math.min(ws[ind + 2], ws[ind + 1], val));
-					}
-				};
-
-				var minWeight = Infinity, seamInd;
-				var rowStart = ws.length - sWidth;
-				for(var i = ws.length - 1; i <= rowStart; i--) 
-					if(ws[i] < minWeight) {
-						seamInd = i;
-						minWeight = sums[i];
-					}
-
-				if(!seamInd) {
-					dbgOut += seamCnt + '; ';
-					break;
+						// ASSERT 
+						if(Infinity == ws[seamInd])
+							alert('BAD INDEX ' + seamInd);
+						
+						backup[seamInd] = indexes[seamInd];
+						indexes[seamInd] = infInd;
+						setWeight(seamInd, Infinity);
+					}					
 				}
 
-				indexes[seamInd] = infInd;
-				ws[seamInd] = Infinity;
-				
-				// go up
-				while(seamInd > indexesWidth) {
-					seamInd -= (indexesWidth + 1);
-					if(ws[seamInd + 1] <= ws[seamInd])
-						seamInd++;
-					if(ws[seamInd + 1] < ws[seamInd])
-						seamInd++;
-
-					// ASSERT 
-					if(Infinity == ws[seamInd])
-						alert('BAD INDEX ' + seamInd);
-
-					indexes[seamInd] = infInd;
-					setWeight(seamInd, Infinity);
-					
-					
-				
-
-			var excessColCnt = img.bs.width - scaledWidth;
-			ind.innerHTML = excessColCnt;
-
-			
-			var lastRowStart = sums.length - img.bs.width;
-
-			for(var maskedCnt = 0; maskedCnt < excessColCnt; visLvl++) {
-				var minSum = Infinity;
-				for(var i = sums.length - 1; i >= lastRowStart; i--) {
-					if(!visMap[i]) {
-						if(sums[i] < minSum) {
-							minSum = sums[i];
-							minInd = i;
+				// rearrange
+				var rowEnd = 0, rowStart;
+				if(sWidth > dWidth) {
+					// cut
+					while(rowEnd < indexes.length) {
+						rowEnd += indexesWidth;
+						rowStart = rowEnd - sWidth;
+						for(si = i = rowEnd - 1; si >= rowStart; si--) {
+							if(infInd != indexes[si]) 
+								indexes[i--] = indexes[si];
+						}
+						rowStart = rowEnd - indexesWidth;
+						while(i >= rowStart)
+							indexes[i--] = infInd;
+					}
+					sWidth -= seamCnt;
+				} else {
+					// duplicate
+					while(rowEnd < indexes.length) {
+						rowEnd += indexesWidth;
+						rowStart = rowEnd - dWidth;
+						for(i = rowEnd - dWidth, si = rowEnd - sWidth; i < si; i++, si++) {
+							if(infInd != indexes[si]) {
+								indexes[i] = indexes[si];
+							} else {
+								indexes[i++] = backup[si];
+								indexes[i] = backup[si];
+							}
 						}
 					}
 				}
-				if(Infinity == minSum)
-					break;
-				s += minInd + '=' + minSum + ' ';
-
-				//sums[minInd] = Infinity;
-				var rowStart = lastRowStart;
-				do {
-					setInd(minInd, Infinity);
-					visMap[minInd] = maskedCnt + 1;
-
-					minInd -= (img.bs.width + 1);
-					//rowStart -= img.bs.width;
-					if(minInd < 0) {
-						if(minInd < -1) 
-							break;
-						minInd = 0;
-					}
-									
-					if(sums[minInd+1] <= sums[minInd]) // kinda prefer to go up
-						minInd++;
-					if(sums[minInd+1] < sums[minInd])
-						minInd++;
-				} while(1);
+						
 			}
-					
 
 			// - draw -
+			//alert('drawing:');
+			var src = img.imData.data;
 			dispCanv.height = dispCanv.style.height = img.bs.height;
-			dispCanv.width = dispCanv.style.width = sWidth;
+			/*dispCanv.width = dispCanv.style.width = sWidth;
 			var c = dispCanv.getContext('2d');
-			var dest = c.createImageData(sWidth, dispCanv.height);
-			var d = dest.data;
+			var dest = c.createImageData(dispCanv.width, dispCanv.height);
+			var d = dest.data, sPos;
 
-			for(var i = 0, sp = 0, dp = 0; i < sums.length; i++) {
-				if(!visMap[i]) {
-					d[dp++] = sums[i];
-					d[dp++] = sums[i];
-					d[dp++] = sums[i];
-					d[dp++] = 255;
-					/*d[dp++] = src[sp++];
-					d[dp++] = src[sp++];
-					d[dp++] = src[sp++];
-					d[dp++] = src[sp++];*/
-				} else {
-					sp += 4;
-					d[dp++] = 0;
-					d[dp++] = 255;
-					d[dp++] = 0;
-					d[dp++] = 255;
-					}
+			for(var si = 0, indexRowEnd = 0, dPos = 0; si < indexes.length; ) {
+				indexRowEnd += indexesWidth;
+				for(si = indexRowEnd - dWidth; si < indexRowEnd; si++) {
+					sPos = indexes[si] * 4;
+					d[dPos++] = src[sPos++];
+					d[dPos++] = src[sPos++];
+					d[dPos++] = src[sPos++];
+					d[dPos++] = src[sPos++];
+				}
+			}
+			*/
+
+			dispCanv.width = dispCanv.style.width = img.bs.width;
+			dispCanv.style.backgroundColor = '#bbaaff';
+			var c = dispCanv.getContext('2d');
+			var dest = c.createImageData(dispCanv.width, dispCanv.height);
+			var d = dest.data, sPos;
+
+			for(var si = 0, indexRowEnd = 0; si < indexes.length; ) {
+				indexRowEnd += indexesWidth;
+				for(si = indexRowEnd - dWidth; si < indexRowEnd; si++) {
+					sPos = indexes[si] * 4;
+					d[sPos] = src[sPos];
+					sPos++;
+					d[sPos] = src[sPos];
+					sPos++;
+					d[sPos] = src[sPos];
+					sPos++;
+					d[sPos] = src[sPos];
+					sPos++;
+				}
 			}
 			
-			dbgInd.innerHTML = s;
+
+			dbgInd.innerHTML = dbgOut;
 			c.putImageData(dest, 0, 0);
 
 			ind.innerHTML = 'Press keys: a s'
@@ -337,9 +334,11 @@ function _render() {
 }
 
 function loadBtnClicked() {
-	loc.url = document.getElementById('url').value;
+	var u = document.getElementById('url');
+	loc.url = u.value;
 	loc.xScale = 1;
 	render();
+	u.blur();
 }
 			
 var refCanv = document.getElementById('ref');
