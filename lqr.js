@@ -5,7 +5,7 @@ function Loc(h) {
 	if(m) {
 		this.width  = parseInt(m[1], 10);
 	} else {
-		this.xScale = parseInt(xScale, 10);
+		this.xScale = parseFloat(xScale, 10);
 	}
 	this.url = h.join('*');
 }
@@ -18,17 +18,21 @@ Loc.prototype.toString = function() {
 	return '';
 };
 
+var curImg;
 Loc.prototype.getWidth = function() {
-	if(this.width)
+	if(this.width) {
 		return this.width;
-	if(curImg)
+	}
+	if(curImg) {
 		return Math.floor(curImg.bs.width * this.xScale);
+	}
 	// ?
 };
 
 Loc.prototype.getXScale = function() {
-	if(curImg && this.width)
+	if(curImg && this.width) {
 		return curImg.bs.width/this.width;
+	}
 	return this.xScale;
 };
 
@@ -44,11 +48,11 @@ function render() {
 	setTimeout(_render, 1);
 }
 
-var curImg;
 function loadImg(url, _handle) {
 	if(curImg) {
-		if(curImg.url == url)
+		if(curImg.url == url) {
 			return _handle(curImg);
+		}
 		alert(curImg.bs.src + ' != ' + url);
 	}
 
@@ -157,7 +161,25 @@ Img.prototype.getIndirectWeights = function(indexes, width) {
 	return sums;
 };
 
+Img.prototype.getWeights = function() {
+	if(!this.weights) {
+		var w = this.bs.width, ee = this.getEnergies();
+		var ww = ee.concat();
+		var end = w * this.bs.height;
+		
+		ww[w] = ee[w] + Math.min(ww[1], ww[0]);
 
+		var i = w + 1, upper = 1;
+		while(i < end) {
+			ww[i] = ee[i] + Math.min(ww[upper-1], ww[upper], ww[upper + 1]);
+			i++, upper++;
+		}
+		this.weights = ww;
+	}
+	return this.weights;
+};
+	
+	
 function _render() {
 	loadImg('/c?' + loc.url, function(img) {
 		var dWidth = loc.getWidth(), // won't change
@@ -171,182 +193,155 @@ function _render() {
 
 function resizeAndDraw(img) {
 	var dbgOut = '';
+	var height = img.bs.height;
 	var dWidth = loc.getWidth(), // won't change
 		sWidth = img.bs.width;
 
 	// - scale -
-	// init indexes
-	var energies = img.getEnergies(), ws;
-	var infInd = energies.length - 1;
-	var indexesWidth = Math.max(sWidth + 2, dWidth);
-	var indexes = new Array(img.bs.height * indexesWidth);
-	var backup = new Array(img.bs.height * indexesWidth);
-	var paddingEnd = indexesWidth - sWidth;
-	for(var i = 0, si = 0, sRowEnd = 0; i < indexes.length;) {
-		while(i < paddingEnd)
-			indexes[i++] = infInd; // --> Infinity
-		paddingEnd += indexesWidth;
-		sRowEnd += sWidth;
-		while(si < sRowEnd)
-			indexes[i++] = si++;
-	}
-			
+	var g = new Graph(sWidth, height);
+	var ups = g.ups, downs = g.downs, rights = g.rights, lefts = g.lefts;
+	var ww = img.getWeights();
 	
-	var weightChangesCnt = 0;
-	var setWeight = function(ind, val) {
-		if(ws[ind] != val) {
-			weightChangesCnt++;
-			ws[ind] = val;
-			var lower = ind + indexesWidth;
-			if(lower - 1 >= ws.length)
-				return;
-			setWeight(lower - 1, 
-				energies[indexes[lower - 1]] + 
-				Math.min(ws[ind - 2], ws[ind - 1], val));
-			if(lower  >= ws.length)
-				return;
-			setWeight(lower, 
-				energies[indexes[lower]] + 
-				Math.min(ws[ind + 1], ws[ind - 1], val));
-			if(lower + 1 >= ws.length)
-				return;
-			setWeight(lower + 1, 
-				energies[indexes[lower + 1]] + 
-				Math.min(ws[ind + 2], ws[ind + 1], val));
-		}
-	};
+	var seamCntToFind = sWidth - dWidth;
+	if(seamCntToFind < 0)
+		seamCntToFind = sWidth;
 
-	while(sWidth != dWidth) {
-		//alert(dWidth + ' ' + sWidth);
-		ws = img.getIndirectWeights(indexes, indexesWidth);
-		var maxSeamCnt = sWidth - dWidth;
-		if(maxSeamCnt < 0)
-			maxSeamCnt = sWidth;
+	// find seamCntToFind seam start point indexes
+	var bottomLine = g.rights.slice(sWidth * height - sWidth);
+	// dbgOut += rights.join(' ') + ' ' + rights.length + ' ' + 
+	// sWidth + 'x' + height + ' ';
+	bottomLine.sort(function(l, r) {
+			l = ww[l];
+			r = ww[r];
+			return (l < r) ? -1 : (l == r) ? 0 : 1;
+		});
+	
+	//dbgOut += ww.join(' ');
+
+	while(seamCntToFind--) {
+		var i = bottomLine.shift(), r, l, d, next;
+
+		//dbgOut += 'i' + i + ' w' + ww[i] + ' ';
 		
-		// find no more then maxSeamCnt seams
-		for(var seamCnt = 0; seamCnt < maxSeamCnt; seamCnt++) {
-			weightChangesCnt = 0;
-			// find a bottom point
-			var minWeight = Infinity, seamInd = 0;
-			var rowStart = ws.length - sWidth;
-			for(var i = ws.length - 1; i >= rowStart; i--) 
-				if(ws[i] < minWeight) {
-					seamInd = i;
-					minWeight = ws[i];
-				}
+		while(true) {
+			// exclude [i]
+			// We can come here from rights[i], lefts[i] or downs[i]
+			r = rights[i];
+			l = lefts[i];
+			lefts[r] = l;
+			rights[l] = r;
+
+			// sign
+			lefts[i] = -1;
 			
-			if(!seamInd) {
-				dbgOut += seamCnt + 'seams; ';
+			// l will be the next up for our down
+			if(ww[r] < ww[l])
+				l = r;
+			d = downs[i];
+			ups[d] = l;
+			downs[l] = d;
+			
+			next = ups[i];
+			if(-1 == next)
 				break;
-			}
-
-			dbgOut += ('i:' + seamInd + ' ');
-			backup[seamInd] = indexes[seamInd];
-			indexes[seamInd] = infInd;
-			ws[seamInd] = Infinity;
+			r = rights[next];
+			l = lefts[next];
+			/*if(r > next)
+				if(ww[r] < ww[next])
+					next = r;
+			if(l < next)
+				if(ww[l] < ww[next])
+				next = l;*/
 			
-			// go up
-			while(seamInd > indexesWidth) {
-				seamInd -= (indexesWidth + 1);
-				if(ws[seamInd + 1] <= ws[seamInd])
-					seamInd++;
-				if(ws[seamInd + 1] < ws[seamInd])
-					seamInd++;
-				
-				// ASSERT 
-				if(Infinity == ws[seamInd])
-					alert('BAD INDEX ' + seamInd);
-				
-				backup[seamInd] = indexes[seamInd];
-				indexes[seamInd] = infInd;
-				setWeight(seamInd, Infinity);
-			}					
-			dbgOut += weightChangesCnt + 'p ' + (weightChangesCnt/ws.length) + '% ';
-		}
-
-
-		// rearrange
-		var rowEnd = 0, rowStart;
-		if(sWidth > dWidth) {
-			// cut
-			while(rowEnd < indexes.length) {
-				rowEnd += indexesWidth;
-				rowStart = rowEnd - sWidth;
-				for(si = i = rowEnd - 1; si >= rowStart; si--) {
-					if(infInd != indexes[si]) 
-						indexes[i--] = indexes[si];
-				}
-				rowStart = rowEnd - indexesWidth;
-				while(i >= rowStart)
-					indexes[i--] = infInd;
-			}
-			sWidth -= seamCnt;
-		} else {
-			// duplicate
-			while(rowEnd < indexes.length) {
-				rowEnd += indexesWidth;
-				rowStart = rowEnd - dWidth;
-				for(i = rowEnd - dWidth, si = rowEnd - sWidth; i < si; i++, si++) {
-					if(infInd != indexes[si]) {
-						indexes[i] = indexes[si];
-					} else {
-						indexes[i++] = backup[si];
-						indexes[i] = backup[si];
-					}
-				}
-			}
-		}
-		
-	}
-	
-	// - draw -
-	//alert('drawing:');
-	var src = img.imData.data;
-	dispCanv.height = dispCanv.style.height = img.bs.height;
-	/*dispCanv.width = dispCanv.style.width = sWidth;
-		var c = dispCanv.getContext('2d');
-		var dest = c.createImageData(dispCanv.width, dispCanv.height);
-		var d = dest.data, sPos;
-		
-		for(var si = 0, indexRowEnd = 0, dPos = 0; si < indexes.length; ) {
-		indexRowEnd += indexesWidth;
-		for(si = indexRowEnd - dWidth; si < indexRowEnd; si++) {
-		sPos = indexes[si] * 4;
-		d[dPos++] = src[sPos++];
-		d[dPos++] = src[sPos++];
-		d[dPos++] = src[sPos++];
-		d[dPos++] = src[sPos++];
-		}
-		}
-	*/
-
-	dispCanv.width = dispCanv.style.width = img.bs.width;
-	dispCanv.style.backgroundColor = '#bbaaff';
-	var c = dispCanv.getContext('2d');
-	var dest = c.createImageData(dispCanv.width, dispCanv.height);
-	var d = dest.data, sPos;
-
-	for(var si = 0, indexRowEnd = 0; si < indexes.length; ) {
-		indexRowEnd += indexesWidth;
-		for(si = indexRowEnd - dWidth; si < indexRowEnd; si++) {
-			sPos = indexes[si] * 4;
-			d[sPos] = src[sPos];
-			sPos++;
-			d[sPos] = src[sPos];
-			sPos++;
-			d[sPos] = src[sPos];
-			sPos++;
-			d[sPos] = src[sPos];
-			sPos++;
+			i = next;
 		}
 	}
-			
 
-	dbgInd.innerHTML = dbgOut;
-	c.putImageData(dest, 0, 0);
-	
-	ind.innerHTML = 'Press keys: a s'
+	ind.innerHTML = 'drawing...';
+	setTimeout(function() {
+			draw(img, g, dWidth, dbgOut);
+		}, 1);
 }
+		
+		
+var auxDispCanv = document.getElementById('auxDisplay');
+function draw(img, g, dWidth, dbgOut) {
+	dbgOut = dbgOut || '';
+	var s = img.imData.data;
+	var sWidth = img.bs.width, height = img.bs.height;
+	dWidth = sWidth;
+	var lefts = g.lefts, rights = g.rights, ups = g.ups, downs = g.downs;
+	dispCanv.width = dispCanv.style.width = dWidth;
+	dispCanv.height = dispCanv.style.height = height;
+	
+	// find an entry
+	var i = 0, down, dp = 0, dEnd = 0, sp; 
+	while(lefts[i] == -1)
+		i++;
+
+	var context = dispCanv.getContext('2d');
+	var dest = context.createImageData(dispCanv.width, dispCanv.height);
+	var d = dest.data;
+
+	//dbgOut += 'x ' + downs.join(' ');
+	
+	do {
+		//dbgOut += 'line ';
+		down = downs[i];
+		dEnd += dWidth * 4;
+		while(dp < dEnd) {
+			//dbgOut += i + ' ';
+			sp = i * 4;
+			d[dp++] = s[sp++];
+			d[dp++] = s[sp++];
+			d[dp++] = s[sp++];
+			d[dp++] = 255;
+			i = rights[i];
+		}
+		i = down;
+	} while(i != -1 && dp < d.length);
+
+		
+	context.putImageData(dest, 0, 0);
+
+	// aux display
+	auxDispCanv.width = auxDispCanv.style.width = sWidth;
+	auxDispCanv.height = auxDispCanv.style.height = height;
+
+	// find an entry
+	var i = 0, down, dp = 0, dEnd = 0, sp; 
+	while(lefts[i] == -1)
+		i++;
+
+	var context = auxDispCanv.getContext('2d');
+	var dest = context.createImageData(auxDispCanv.width, auxDispCanv.height);
+	var d = dest.data;
+
+	//dbgOut += 'x ' + downs.join(' ');
+	
+	do {
+		//dbgOut += 'line ';
+		down = downs[i];
+		var lim = sWidth;
+		while(lim--) {
+			//dbgOut += i + ' ';
+			dp = sp = i * 4;
+			d[dp++] = s[sp++];
+			d[dp++] = s[sp++];
+			d[dp++] = s[sp++];
+			d[dp++] = 255;
+			i = rights[i];
+		}
+		i = down;
+	} while(i != -1 && dp < d.length);
+
+		
+	context.putImageData(dest, 0, 0);
+
+	ind.innerHTML = 'Press keys: a s';
+	dbgInd.innerHTML = dbgOut;
+}		
+	
 
 function loadBtnClicked() {
 	var u = document.getElementById('url');
@@ -430,3 +425,23 @@ try {
 
 	
 		
+function Graph(width, height) {
+	var lefts = new Array(width * height);
+	for(var i = lefts.length - 1; i >= 0; i--) 
+		lefts[i] = i - 1;
+	this.lefts = lefts;	
+	var rights = this.rights = lefts.slice(2).concat(lefts.length - 1, 0);
+	var emptyRow = new Array(width);
+	for(var i = emptyRow.length - 1; i <= 0; i--) {
+		emptyRow[i] = -1;
+	}
+	this.ups = emptyRow.concat(lefts.slice(1, lefts.length - width + 1));
+	this.downs = lefts.slice(1 + width).concat(lefts.length - 1, emptyRow);
+	// wrap
+	for(var start = lefts.length - width, end; start >= 0; start -= width) {
+		end = start + width - 1;
+		rights[end] = start; // start is right to the end
+		lefts[start] = end; // end is left to the start
+	}
+}
+

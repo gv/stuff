@@ -8,8 +8,13 @@
 	  #display {
 		  border: 1px solid gray;
 	  }
+	  #auxDisplay {
+		  border: 1px solid gray;
+		  background-color: #ddeeff;
+	  }
 	  .dispPane {
 		  text-align: center;
+		  padding: 0 0 10px;
 	  }
 	</style>
   </head>
@@ -23,6 +28,9 @@
 	<canvas id="ref"></canvas>
 	<div class="dispPane">
 	  <canvas id="display"></canvas>
+	</div>
+	<div class="dispPane">
+	  <canvas id="auxDisplay"></canvas>
 	</div>
 	<div id="dbgInd"></div>
 	<script src="lqr.js"></script>
