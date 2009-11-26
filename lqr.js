@@ -1,3 +1,4 @@
+DEBUG = true;
 function Loc(h) {
 	h = h.split('*');
 	var xScale = h.shift() || '1';
@@ -216,44 +217,71 @@ function resizeAndDraw(img) {
 			return (l < r) ? -1 : (l == r) ? 0 : 1;
 		});
 	
-	//dbgOut += ww.join(' ');
+	//dbgOut += ups.join(' ');
+
+	// OK Rules
+	// -1 = deleted
+	// -2 = border
 
 	while(seamCntToFind--) {
-		var i = bottomLine.shift(), r, l, d, next;
+		var dbgHist = 'sm' + seamCntToFind + ' ';
+		var rmptc = 0;
+		var i = bottomLine.shift(), r, l, d, u, next;
+		var freeDownLink, freeUpLink;
 
 		//dbgOut += 'i' + i + ' w' + ww[i] + ' ';
 		
 		while(true) {
+			//dbgOut += 's' + seamCntToFind + ':' + i + '=' + (i%sWidth) + ' ';
 			// exclude [i]
-			// We can come here from rights[i], lefts[i] or downs[i]
 			r = rights[i];
 			l = lefts[i];
+			
+			/*
+			if(DEBUG) { 
+				rmptc++;
+				dbgHist += i + ' ';
+				if(-1 == r)
+					dbgOut += 'DEAD CELL RIGHT OF ' + dbgHist + '! ';
+				if(-1 == l)
+					dbgOut += 'DEAD CELL LEFT OF ' + dbgHist + '! ';
+			}
+			*/
+
 			lefts[r] = l;
 			rights[l] = r;
 
-			// sign
+			u = ups[i];
+
+			// Leave a sign
 			lefts[i] = -1;
-			
-			// l will be the next up for our down
-			if(ww[r] < ww[l])
-				l = r;
-			d = downs[i];
-			ups[d] = l;
-			downs[l] = d;
-			
-			next = ups[i];
-			if(-1 == next)
+			/*
+			// DBG  
+			rights[i] = -1;
+			ups[i] = -1;
+			downs[i] = -1;
+			*/
+
+			if(-2 == u)
 				break;
+
+			// choose next
+			next = u;
 			r = rights[next];
 			l = lefts[next];
-			/*if(r > next)
+			if(r > next)
 				if(ww[r] < ww[next])
 					next = r;
 			if(l < next)
 				if(ww[l] < ww[next])
-				next = l;*/
+				next = l;
 			
 			i = next;
+			
+			// second time
+			d = downs[i];
+			ups[d] = u;
+			downs[u] = d;
 		}
 	}
 
@@ -281,12 +309,12 @@ function draw(img, g, dWidth, dbgOut) {
 
 	var context = dispCanv.getContext('2d');
 	var dest = context.createImageData(dispCanv.width, dispCanv.height);
-	var d = dest.data;
+	var d = dest.data, j;
 
-	//dbgOut += 'x ' + downs.join(' ');
+	//dbgOut += 'x ' + lefts.join(' ');
 	
 	do {
-		//dbgOut += 'line ';
+		//dbgOut += i + 'l ';
 		down = downs[i];
 		dEnd += dWidth * 4;
 		while(dp < dEnd) {
@@ -296,10 +324,14 @@ function draw(img, g, dWidth, dbgOut) {
 			d[dp++] = s[sp++];
 			d[dp++] = s[sp++];
 			d[dp++] = 255;
-			i = rights[i];
+			j = rights[i];
+			if(j < i)
+				break;
+			i = j;
 		}
+		dp = dEnd;
 		i = down;
-	} while(i != -1 && dp < d.length);
+	} while(i != -2 && dp < d.length);
 
 		
 	context.putImageData(dest, 0, 0);
@@ -333,7 +365,7 @@ function draw(img, g, dWidth, dbgOut) {
 			i = rights[i];
 		}
 		i = down;
-	} while(i != -1 && dp < d.length);
+	} while(i != -2 && dp < d.length);
 
 		
 	context.putImageData(dest, 0, 0);
@@ -385,10 +417,7 @@ document.onkeydown = function(ev) {
 
 	case 75: // K
 	case 76: // L
-	if(75 == ev.keyCode) 
-		var width = loc.getWidth() - 1;
-	else 
-		var width = loc.getWidth() - 1;
+	var width = loc.getWidth() + (75 == ev.keyCode ? -1 : 1);
 
 	if(width < 1) 
 		width = 1;
@@ -431,12 +460,12 @@ function Graph(width, height) {
 		lefts[i] = i - 1;
 	this.lefts = lefts;	
 	var rights = this.rights = lefts.slice(2).concat(lefts.length - 1, 0);
-	var emptyRow = new Array(width);
-	for(var i = emptyRow.length - 1; i <= 0; i--) {
-		emptyRow[i] = -1;
+	var border = new Array(width);
+	for(var i = border.length - 1; i >= 0; i--) {
+		border[i] = -2;
 	}
-	this.ups = emptyRow.concat(lefts.slice(1, lefts.length - width + 1));
-	this.downs = lefts.slice(1 + width).concat(lefts.length - 1, emptyRow);
+	this.ups = border.concat(lefts.slice(1, lefts.length - width + 1));
+	this.downs = lefts.slice(1 + width).concat(lefts.length - 1, border);
 	// wrap
 	for(var start = lefts.length - width, end; start >= 0; start -= width) {
 		end = start + width - 1;
