@@ -179,25 +179,18 @@ function run() {
 
 	if(!iPod) {
 		print('iPod not found');
-		return;
-	}
-	
-	if(!ourPlaylist) {
-		trace('Creating "Pushed" playlist...');
-		ourPlaylist = app.CreatePlaylistInSource('Pushed', iPod);
+	} else {
 		if(!ourPlaylist) {
-			print("Can't create 'Pushed' playlist");
+			trace('Creating "Pushed" playlist...');
+			ourPlaylist = app.CreatePlaylistInSource('Pushed', iPod);
+			if(!ourPlaylist) {
+				print("Can't create 'Pushed' playlist");
+			}
 		}
 	}
-
+	
 	if(ourPlaylist)
 		lib = ourPlaylist;
-
-	if(!lib) {
-		print('Target library not found');
-		return;
-	}
-
 
 	var fs = new ActiveXObject('Scripting.FileSystemObject'), 
 		args = WScript.Arguments.Unnamed;
@@ -251,7 +244,7 @@ function run() {
 				files.push({path: outputPath, name: outputPath});
 			}
 
-		} else {
+		} else { // it's a directory with music
 			var dirPath = path;
 			var dir = fs.GetFolder(dirPath), paths = [], files = [];
 			for(var en = new Enumerator(dir.Files); !en.atEnd(); en.moveNext()) {
@@ -266,9 +259,12 @@ function run() {
 		}
 
 
-		
-
 		// Now we know what to push
+
+		if(!lib) {
+			print("Can't push: Target library not found");
+			continue;
+		}
 
 		/*
 		trace('now going to add...');

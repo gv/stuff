@@ -89,7 +89,7 @@ function updateDisp() {
 		e = scale*energies[epos]/2; // max scale*256*6
 		r = Math.random();
 		g = Math.random();
-		b = Math.random();
+		b = 1 - Math.min(r, g);//Math.random();
 		f = e/(r + g + b);
 		t[--pos] = 255;
 		t[--pos] = f * b;

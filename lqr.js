@@ -86,16 +86,19 @@ function Img(bs, url) {
 
 Img.prototype.getEnergies = function() {
 	if(!this.energies) {
-		var d = this.imData.data;
-		var ee = new Array(d.length / 4 + 1), i = 1, p = 4, end;
-		ee[0] = 0; // xxx
-		for(; i < this.bs.width; i++) {
-			ee[i] = 0; // xxx
-			p += 4;
+		var d = this.imData.data, w = this.bs.width, h = this.bs.height;
+		var ee = new Array(w * h);
+		var i = 1, p = 4, left = 0, e;
+		for(; i < w; i++) {
+			e = Math.abs(d[p++] - d[left++]);
+			e += Math.abs(d[p++] - d[left++]);
+			e += Math.abs(d[p++] - d[left++]);
+			p++, left++;
+			ee[i] = e; // xxx
 		}
 
-		end = ee.length - 1; 
-		var upper = 0, left = p - 4, e;
+		var end = ee.length; 
+		var upper = 0;
 		for(; i < end; i++) {
 			e = Math.abs(d[p++] - d[left++]);
 			e += Math.abs(d[p++] - d[left++]);
@@ -110,7 +113,10 @@ Img.prototype.getEnergies = function() {
 			ee[i] = e;
 		}
 
-		ee[end] = Infinity;
+		//fix
+		for(i = ee.length - w; i >= 0; i -= w)
+			ee[i] = 255*6;
+
 		this.energies = ee;
 	}
 	return this.energies;
@@ -167,14 +173,19 @@ Img.prototype.getWeights = function() {
 		var w = this.bs.width, ee = this.getEnergies();
 		var ww = ee.concat();
 		var end = w * this.bs.height;
-		
-		ww[w] = ee[w] + Math.min(ww[1], ww[0]);
-
-		var i = w + 1, upper = 1;
+		var i = w, upper = 0, last;
 		while(i < end) {
-			ww[i] = ee[i] + Math.min(ww[upper-1], ww[upper], ww[upper + 1]);
+			last = i + w - 1
+			ww[i] = ee[i] + Math.min(ww[upper], ww[upper + 1]);
+			i++, upper++;
+			while(i < last) {
+				ww[i] = ee[i] + Math.min(ww[upper-1], ww[upper], ww[upper + 1]);
+				i++, upper++;
+			}
+			ww[i] = ee[i] + Math.min(ww[upper], ww[upper - 1]);
 			i++, upper++;
 		}
+
 		this.weights = ww;
 	}
 	return this.weights;
@@ -223,15 +234,17 @@ function resizeAndDraw(img) {
 	// -1 = deleted
 	// -2 = border
 
+	var dbgMap = new Array(sWidth * height);
+
 	while(seamCntToFind--) {
 		var dbgHist = 'sm' + seamCntToFind + ' ';
 		var rmptc = 0;
 		var i = bottomLine.shift(), r, l, d, u, next;
-		var freeDownLink, freeUpLink;
 
 		//dbgOut += 'i' + i + ' w' + ww[i] + ' ';
 		
 		while(true) {
+			dbgMap[i] = seamCntToFind;
 			//dbgOut += 's' + seamCntToFind + ':' + i + '=' + (i%sWidth) + ' ';
 			// exclude [i]
 			r = rights[i];
@@ -287,13 +300,13 @@ function resizeAndDraw(img) {
 
 	ind.innerHTML = 'drawing...';
 	setTimeout(function() {
-			draw(img, g, dWidth, dbgOut);
+			draw(img, g, dWidth, dbgOut, dbgMap);
 		}, 1);
 }
 		
 		
 var auxDispCanv = document.getElementById('auxDisplay');
-function draw(img, g, dWidth, dbgOut) {
+function draw(img, g, dWidth, dbgOut, dbgMap) {
 	dbgOut = dbgOut || '';
 	var s = img.imData.data;
 	var sWidth = img.bs.width, height = img.bs.height;
@@ -350,7 +363,15 @@ function draw(img, g, dWidth, dbgOut) {
 	var d = dest.data;
 
 	//dbgOut += 'x ' + downs.join(' ');
+
+	for(var j = dbgMap.length - 1, dp = d.length - 1; j >= 0; j--) {
+		d[dp--] = 255;
+		d[dp--] = 0;
+		d[dp--] = dbgMap[j] % 15 * 15;
+		d[dp--] = dbgMap[j] % 14 * 14;
+	}
 	
+	var ee = img.getEnergies();
 	do {
 		//dbgOut += 'line ';
 		down = downs[i];
@@ -358,9 +379,9 @@ function draw(img, g, dWidth, dbgOut) {
 		while(lim--) {
 			//dbgOut += i + ' ';
 			dp = sp = i * 4;
-			d[dp++] = s[sp++];
-			d[dp++] = s[sp++];
-			d[dp++] = s[sp++];
+			d[dp++] = ee[i]-512;;
+			d[dp++] = ee[i]-255;
+			d[dp++] = ee[i];
 			d[dp++] = 255;
 			i = rights[i];
 		}
