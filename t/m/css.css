@@ -176,3 +176,14 @@ h3 {
 	
 	
 
+/* --- small --- */
+
+.small .statusBar {
+	position: fixed;
+	z-index: 99;
+}
+
+.smalWorldBrowser {
+	min-height: 100px;
+	background-color: white;
+}

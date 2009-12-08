@@ -1,0 +1,38 @@
+<html>
+  <head>
+	<title>Image crowder</title>
+	<style type="text/css">
+	  #ref {
+		  display: none;
+	  }
+	  #display {
+		  border: 1px solid gray;
+	  }
+	  #auxDisplay {
+		  border: 1px solid gray;
+		  background-color: #ddeeff;
+	  }
+	  .dispPane {
+		  text-align: center;
+		  padding: 0 0 10px;
+	  }
+	</style>
+  </head>
+  <body>
+	<div>
+	  URL: <input type="text" id="url"></input>
+	  <button onclick="loadBtnClicked()">load</button>
+	  | <span id="indicator"></span>
+	  | Works in Chrome only
+	</div>
+	<canvas id="ref"></canvas>
+	<div class="dispPane">
+	  <canvas id="display"></canvas>
+	</div>
+	<div class="dispPane">
+	  <canvas id="auxDisplay"></canvas>
+	</div>
+	<div id="dbgInd"></div>
+	<script src="lqr.js"></script>
+  </body>
+</html>

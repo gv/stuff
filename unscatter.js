@@ -1,5 +1,13 @@
 
-DEBUG = true;
+var needToPrintMencoderArgs = WScript.Arguments.Named.Exists('pma');
+if(needToPrintMencoderArgs) {
+	output = "";
+}
+
+var needToInstall = !WScript.Arguments.Named.Exists('noinstall');
+		
+DEBUG = !needToPrintMencoderArgs;
+
 
 // get a console
 var sh = new ActiveXObject('WScript.Shell');
@@ -123,7 +131,7 @@ function set(file, propName, val) {
 
 function run() {
 	// Install to shell
-	if(!WScript.Arguments.Named.Exists('noinstall')) {
+	if(needToInstall) {
 		var keyPath = "HKCR\\Folder\\shell\\pushtune\\",
 			cmdLine = 'cscript /nologo ' + WScript.ScriptFullName + 
 			' /pause /noinstall "%L"';
@@ -171,30 +179,27 @@ function run() {
 
 	if(!iPod) {
 		print('iPod not found');
-		return;
-	}
-	
-	if(!ourPlaylist) {
-		trace('Creating "Pushed" playlist...');
-		ourPlaylist = app.CreatePlaylistInSource('Pushed', iPod);
+	} else {
 		if(!ourPlaylist) {
-			print("Can't create 'Pushed' playlist");
+			trace('Creating "Pushed" playlist...');
+			ourPlaylist = app.CreatePlaylistInSource('Pushed', iPod);
+			if(!ourPlaylist) {
+				print("Can't create 'Pushed' playlist");
+			}
 		}
 	}
-
+	
 	if(ourPlaylist)
 		lib = ourPlaylist;
 
-	if(!lib) {
-		print('Target library not found');
-		return;
-	}
-
-
 	var fs = new ActiveXObject('Scripting.FileSystemObject'), 
 		args = WScript.Arguments.Unnamed;
-
-	for(var i = 0; i < args.length; i++) {
+	
+	//
+	//   *** ARG LOOP ***
+	//
+	
+	for(var i = 0; i < args.length; i++) { 
 		var path = args.Item(i);
 		trace('arg: ' + path);
 		
@@ -204,26 +209,42 @@ function run() {
 		if(path.match(vidExtPattern)) {
 			// it's a video, convert to mp4
 			var outputPath = path.replace(vidExtPattern, '.mp4');
+			if(outputPath.indexOf('http://') >= 0) { // nonlocal
+				outputPath = outputPath.replace(new RegExp('[:/&]+', 'g'), '_');
+			}
+
+
 			/*
 			var vlcPath = "d:\\Programs\\vlc-1.1.0-git-20090710-2203\\vlc.exe";
-			var cmdLine = vlcPath + " -vvv --sout=#transcode{vcodec=mp4v,vb=1024,scale=1," +
+			var cmdLine = vlcPath + 
+			" -vvv --sout=#transcode{vcodec=mp4v,vb=1024,scale=1," +
 				"height=320,width=480,acodec=mp4a,ab=128,channels=2,soverlay}" + 
 				":duplicate{dst=std{access=file,mux=mp4,dst=" + 
 				outputPath + "}} --run-time 30 " + path + " vlc://quit";
 			*/
+
+
 			var mencoderPath = "d:\\programs\\MPlayer-p4-svn-29355\\mencoder.exe";
-			var cmdLine = mencoderPath + 
-				' -vf scale=480:-10,harddup -lavfopts format=mp4 ' + 
+			var mencoderOpts = ' -vf scale=480:-10,harddup -lavfopts format=mp4 ' + 
 				'-faacopts mpeg=4:object=2:raw:br=128 -oac faac -ovc x264 -sws 9 ' + 
 				'-x264encopts nocabac:level_idc=30:bframes=0:global_header:threads=auto:' + 
 				'subq=5:frameref=6:partitions=all:trellis=1:chroma_me:me=umh:' +
-				'bitrate=500 -of lavf -o ' + 
-				outputPath + 
+				'bitrate=500 -of lavf ';
+			var fileOpts = ' -o "' + outputPath + 
 				//' -sub ' + path.replace(vidExtPattern, '.srt ') + 
-				' ' + path;
-			sh.Run(cmdLine);
-			files.push({path: outputPath, name: outputPath});
-		} else {
+				'" "' + path + '"';
+			
+			if(needToPrintMencoderArgs) {
+				output += fileOpts;
+				continue;
+			} else {
+				var cmdLine = mencoderPath + mencoderOpts + fileOpts;
+				trace(cmdLine);
+				sh.Run(cmdLine, 5, true);
+				files.push({path: outputPath, name: outputPath});
+			}
+
+		} else { // it's a directory with music
 			var dirPath = path;
 			var dir = fs.GetFolder(dirPath), paths = [], files = [];
 			for(var en = new Enumerator(dir.Files); !en.atEnd(); en.moveNext()) {
@@ -237,6 +258,13 @@ function run() {
 			}
 		}
 
+
+		// Now we know what to push
+
+		if(!lib) {
+			print("Can't push: Target library not found");
+			continue;
+		}
 
 		/*
 		trace('now going to add...');
@@ -395,6 +423,10 @@ function run() {
 			if(needToFixTrackNumbers)
 				set(file, 'TrackNumber', j);
 		}
+	}
+
+	if(needToPrintMencoderArgs) {
+		print('mencoder ' + mencoderOpts + output);
 	}
 
 	trace('done');
