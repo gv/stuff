@@ -220,6 +220,13 @@
    "Courier New 9")
  )
          
+(defun utf () "Reload this buffer as utf-8" (interactive) 
+  (let ((coding-system-for-read 'utf-8))
+    (revert-buffer nil t t)))
+
+(defun dos () "Reload this buffer as dos linebreaked text" (interactive) 
+  (let ((coding-system-for-read 'cp1251-dos))
+    (revert-buffer nil t t)))
 
 ;;
 ;;
