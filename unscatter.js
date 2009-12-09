@@ -132,20 +132,30 @@ function set(file, propName, val) {
 function run() {
 	// Install to shell
 	if(needToInstall) {
-		var keyPath = "HKCR\\Folder\\shell\\pushtune\\",
-			cmdLine = 'cscript /nologo ' + WScript.ScriptFullName + 
-			' /pause /noinstall "%L"';
-		try {
-		var key = sh.RegRead(keyPath + "command\\");
-		} catch(e) {
-			var key = '<not found>';
-		}
-		trace('cmdLine is "' + key + '"');
-		if(key != cmdLine) {
-			sh.RegWrite(keyPath, 'Push to iPod', 'REG_SZ');
-			sh.RegWrite(keyPath + "command\\", cmdLine, 'REG_SZ');
-			print("Installed");
-		}
+		var cmdLine = 'cscript /nologo ' + WScript.ScriptFullName + 
+			' /pause /noinstall "%L" ';
+		var className = "folder", i = 0;
+		do {
+			var classPath = "HKCR\\" + className;
+			var keyPath = classPath + "\\shell\\pushtune\\";
+			try {
+				var key = sh.RegRead(keyPath + "command\\");
+			} catch(e) {
+				var key = '<not found>';
+			}
+			trace('cmdLine for ' + classPath + ' is "' + key + '"');
+			if(key != cmdLine) {
+				sh.RegWrite(keyPath, 'Push to iPod', 'REG_SZ');
+				sh.RegWrite(keyPath + "command\\", cmdLine, 'REG_SZ');
+				print("Installed shell context menu for " + classPath);
+			}
+
+			var suffix = vidExts[i++];
+			if(!suffix)
+				break;
+			var classNameRecPath = "HKCR\\." + suffix + "\\";
+			className = sh.RegRead(classNameRecPath);
+		} while(className);
 	}		
 	
 	// Find iPod
@@ -206,8 +216,9 @@ function run() {
 		var files = [];
 
 		var vidExtPattern = new RegExp("\\.(" + vidExts.join('|') + ")$");
+		// Assume no directory is named Album.avi . 
 		if(path.match(vidExtPattern)) {
-			// it's a video, convert to mp4
+			// It's a video, convert to mp4
 			var outputPath = path.replace(vidExtPattern, '.mp4');
 			if(outputPath.indexOf('http://') >= 0) { // nonlocal
 				outputPath = outputPath.replace(new RegExp('[:/&]+', 'g'), '_');
@@ -230,9 +241,13 @@ function run() {
 				'-x264encopts nocabac:level_idc=30:bframes=0:global_header:threads=auto:' + 
 				'subq=5:frameref=6:partitions=all:trellis=1:chroma_me:me=umh:' +
 				'bitrate=500 -of lavf ';
-			var fileOpts = ' -o "' + outputPath + 
-				//' -sub ' + path.replace(vidExtPattern, '.srt ') + 
-				'" "' + path + '"';
+			var fileOpts = ' -o "' + outputPath + '-incomplete.mp4"';
+			var subPath = path.replace(vidExtPattern, '.srt');
+			if(fs.FileExists(subPath)) {
+				// mencoder takes a comma separated path list for a -sub parameter. Yeah well.
+				fileOpts += ' -sub "' + subPath.replace(new RegExp(',', 'g'), "\\,") + '"';
+			}
+			fileOpts +=	' "' + path + '"';
 			
 			if(needToPrintMencoderArgs) {
 				output += fileOpts;
@@ -241,9 +256,9 @@ function run() {
 				var cmdLine = mencoderPath + mencoderOpts + fileOpts;
 				trace(cmdLine);
 				sh.Run(cmdLine, 5, true);
+				fs.MoveFile(outputPath + '-incomplete.mp4', outputPath);
 				files.push({path: outputPath, name: outputPath});
 			}
-
 		} else { // it's a directory with music
 			var dirPath = path;
 			var dir = fs.GetFolder(dirPath), paths = [], files = [];
