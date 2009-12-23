@@ -88,6 +88,7 @@ Pan.prototype.addImg = function(url) {
 	var s = im.node.style;
 	s.border = 'none';
 	s.padding = 0;
+	s.position = 'absolute';
 	this.node.appendChild(im.node);
 	im.node.onload = function() {	
 		//alert(toJson(this));
@@ -98,8 +99,20 @@ Pan.prototype.addImg = function(url) {
 		pan.reposition();
 	};
 
-	var s = im.node.style;
+
+	im.bNode = document.createElement('IMG');
+	var s = im.bNode.style;
+	s.border = 'none';
+	s.padding = 0;
 	s.position = 'absolute';
+	this.node.appendChild(im.bNode);
+	im.bNode.onload = function() {
+		im.width = this.width || 480;
+		im.height = this.height || 480;
+		this.style.width = im.width + 'px';
+		this.style.height = im.height + 'px';
+	};
+	im.bNode.src = url;
 
 	this.imgs.push(im);
 	// this triggers loading
@@ -107,6 +120,19 @@ Pan.prototype.addImg = function(url) {
 };
 
 Pan.prototype.reposition = function() {
+	// get total
+	var totalWidth = 0;
+	for(var i in this.imgs)
+		totalWidth += this.imgs[i].width;
+
+	if(!totalWidth)
+		return;
+
+	while(this.viewLeft < 0)
+		this.viewLeft += totalWidth;
+	while(this.viewLeft > totalWidth)
+		this.viewLeft -= totalWidth
+
 	var off = -this.viewLeft, maxHeight = 300, d = '';
 	for(var i in this.imgs) {
 		var im = this.imgs[i];
@@ -114,12 +140,20 @@ Pan.prototype.reposition = function() {
 		s.top = 0;
 		s.left = off + 'px';
 		d += ' ' + s.left;
+		
+		s = im.bNode.style;
+		s.top = 0;
+		s.left = off + totalWidth + 'px';
+		d += ' b' + s.left;
+
 		off += im.width;
+
 		if(im.height > maxHeight) 
 			maxHeight = im.height;
 	}
 	this.node.style.height = maxHeight + 'px';
-	this.ind.innerHTML = this.viewLeft;
+	this.ind.innerHTML = this.viewLeft + '/' + totalWidth;// + d;
+	this.ind.style.color = '#ffffff';
 }
 		
 		
