@@ -74,22 +74,22 @@ function Pan(node, opts) {
 	};
 	this.node.onmouseout({});
 
-	var lastViewLeft, lastMoment;
+	var lastClientX, lastMoment;
 	this.node.onmousemove = function(ev) {
 		if(window.event)
 			ev = window.event;
 		if(mouseDown) {
-			lastViewLeft = pan.viewLeft;
 			pan.viewLeft = refViewLeft + refX - ev.clientX;
 			var now = (new Date).getTime();
 			if(lastMoment) {
 				if(now == lastMoment) // events are called to often
 					/*alert*/(lastMoment -= 1);
-				v = (pan.viewLeft - lastViewLeft)/(now - lastMoment)*TICKLENGTH;
-				v = Math.min(150, Math.max(-150, v));
+				v = (lastClientX - ev.clientX)/(now - lastMoment)*TICKLENGTH;
+				v = Math.min(230, Math.max(-230, v));
 				pan.v = v;
 			}
 			lastMoment = now;
+			lastClientX = ev.clientX;
 			pan.reposition();
 		}
 		cancel(ev);
