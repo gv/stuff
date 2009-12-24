@@ -21,6 +21,7 @@ function Pan(node, opts) {
 			this.addImg(opts.imgUrls[i]);
 		}
 	}
+	this.v = 0;
 
 	var s = this.node.style;
 	s.cursor = 'move';
@@ -50,19 +51,45 @@ function Pan(node, opts) {
 			this.onmouseup(ev);
 	};
 
+	var TICKLENGTH = 40;
+	var v = 0, tick = function() {
+		if(mouseDown)
+			return;
+		var frictionAccl = Math.max(-5, Math.min(v, 5));
+		v -= frictionAccl;
+		pan.v = v;
+		if(v)
+			setTimeout(tick, 40);
+		pan.viewLeft = Math.round(pan.viewLeft + v);
+		pan.reposition();
+	};
+		
+
 	this.node.onmouseup = function(ev) {
 		if(window.event)
 			ev = window.event;
 		mouseDown = false;
 		cancel(ev);
+		tick();
 	};
 	this.node.onmouseout({});
 
+	var lastViewLeft, lastMoment;
 	this.node.onmousemove = function(ev) {
 		if(window.event)
 			ev = window.event;
 		if(mouseDown) {
+			lastViewLeft = pan.viewLeft;
 			pan.viewLeft = refViewLeft + refX - ev.clientX;
+			var now = (new Date).getTime();
+			if(lastMoment) {
+				if(now == lastMoment) // events are called to often
+					/*alert*/(lastMoment -= 1);
+				v = (pan.viewLeft - lastViewLeft)/(now - lastMoment)*TICKLENGTH;
+				v = Math.min(150, Math.max(-150, v));
+				pan.v = v;
+			}
+			lastMoment = now;
 			pan.reposition();
 		}
 		cancel(ev);
@@ -152,7 +179,8 @@ Pan.prototype.reposition = function() {
 			maxHeight = im.height;
 	}
 	this.node.style.height = maxHeight + 'px';
-	this.ind.innerHTML = this.viewLeft + '/' + totalWidth;// + d;
+	this.ind.innerHTML = this.viewLeft + '/' + 
+	totalWidth + '/' + Math.round(this.v);// + d;
 	this.ind.style.color = '#ffffff';
 }
 		
