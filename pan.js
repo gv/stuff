@@ -14,7 +14,7 @@ function Pan(node, opts) {
 	node = document.getElementById(node);
 	this.node = node;
 	this.imgs = [];
-	this.loops = opts.loops;
+	this.loops = opts && opts.loops;
 	this.viewLeft = 0;
 	this.v = 0;
 
@@ -29,17 +29,23 @@ function Pan(node, opts) {
 	s.position = 'absolute';
 	s.zIndex = 23;
 		
-	if(opts.imgUrls) {
+	// add contained IMG nodes
+	
+	var imgNodes = this.node.getElementsByTagName('IMG');
+	// Tricky: getElementsByTagName returns some kind of "alive" collection,
+	// which grows as we append child img nodes inside addNode().
+	// I wonder how are we supposed to actually use those things?
+	imgNodes = Array.prototype.slice.call(imgNodes);
+	for(var i = 0; i < imgNodes.length; i++) {
+		//alert(i + '/' + imgNodes.length);
+		this.addNode(imgNodes[i]);
+	}
+
+	if(opts && opts.imgUrls) {
 		for(var i in opts.imgUrls) {
 			this.addImg(opts.imgUrls[i]);
 		}
 	}
-
-	// add contained IMG nodes
-	
-	var imgNodes = this.nodes.getElementsByTagName('IMG');
-	for(var i = 0; i < imgNodes.left; i++)
-		this.addNode(imgNodes[i]);
 
 	// handlers
 
