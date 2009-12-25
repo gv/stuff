@@ -16,11 +16,6 @@ function Pan(node, opts) {
 	this.imgs = [];
 	this.loops = opts.loops;
 	this.viewLeft = 0;
-	if(opts.imgUrls) {
-		for(var i in opts.imgUrls) {
-			this.addImg(opts.imgUrls[i]);
-		}
-	}
 	this.v = 0;
 
 	var s = this.node.style;
@@ -28,12 +23,25 @@ function Pan(node, opts) {
 	s.overflow = 'hidden';
 	s.position = 'relative';
 
-	this.ind = document.createElement('div');
+	this.ind = document.createElement('DIV');
 	this.node.appendChild(this.ind);
 	var s = this.ind.style;
 	s.position = 'absolute';
 	s.zIndex = 23;
 		
+	if(opts.imgUrls) {
+		for(var i in opts.imgUrls) {
+			this.addImg(opts.imgUrls[i]);
+		}
+	}
+
+	// add contained IMG nodes
+	
+	var imgNodes = this.nodes.getElementsByTagName('IMG');
+	for(var i = 0; i < imgNodes.left; i++)
+		this.addNode(imgNodes[i]);
+
+	// handlers
 
 	var pan = this, refX, refViewLeft, mouseDown;
 	this.node.onmousedown = function(ev) {
@@ -55,7 +63,7 @@ function Pan(node, opts) {
 	var v = 0, tick = function() {
 		if(mouseDown)
 			return;
-		var frictionAccl = Math.max(-5, Math.min(v, 5));
+		var frictionAccl = Math.max(-10, Math.min(v, 10));
 		v -= frictionAccl;
 		pan.v = v;
 		if(v)
@@ -82,7 +90,7 @@ function Pan(node, opts) {
 			pan.viewLeft = refViewLeft + refX - ev.clientX;
 			var now = (new Date).getTime();
 			if(lastMoment) {
-				if(now == lastMoment) // events are called to often
+				if(now == lastMoment) // events are called too often
 					/*alert*/(lastMoment -= 1);
 				v = (lastClientX - ev.clientX)/(now - lastMoment)*TICKLENGTH;
 				v = Math.min(230, Math.max(-230, v));
@@ -107,16 +115,24 @@ function toJson(o) {
 }
 
 Pan.prototype.addImg = function(url) {
-	var im = {}, pan = this;
+	var node = document.createElement('IMG'); 
+	this.node.appendChild(node);
+	// this triggers loading
+	node.src = url;
+	this.addNode(node);
+};
+
+Pan.prototype.addNode = function(node) {
+	// image node can be loaded or not
+	var im = {}, pan = this, url = node.src;
 	im.url = url;
 	im.width = 0;
 	im.height = 0;
-	im.node = document.createElement('IMG');
+	im.node = node;
 	var s = im.node.style;
 	s.border = 'none';
 	s.padding = 0;
 	s.position = 'absolute';
-	this.node.appendChild(im.node);
 	im.node.onload = function() {	
 		//alert(toJson(this));
 		im.width = this.width || 480;
@@ -125,6 +141,7 @@ Pan.prototype.addImg = function(url) {
 		this.style.height = im.height + 'px';
 		pan.reposition();
 	};
+	im.node.onload();
 
 
 	im.bNode = document.createElement('IMG');
@@ -142,8 +159,6 @@ Pan.prototype.addImg = function(url) {
 	im.bNode.src = url;
 
 	this.imgs.push(im);
-	// this triggers loading
-	im.node.src = url;
 };
 
 Pan.prototype.reposition = function() {
@@ -158,7 +173,7 @@ Pan.prototype.reposition = function() {
 	while(this.viewLeft < 0)
 		this.viewLeft += totalWidth;
 	while(this.viewLeft > totalWidth)
-		this.viewLeft -= totalWidth
+		this.viewLeft -= totalWidth;
 
 	var off = -this.viewLeft, maxHeight = 300, d = '';
 	for(var i in this.imgs) {
