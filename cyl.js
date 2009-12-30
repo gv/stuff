@@ -44,6 +44,7 @@ function Cyl(node, opts) {
 
 
 	// handlers
+
 	this.v = 0;
 
 	var w = this, refX, refAngle, pressed;
@@ -91,4 +92,50 @@ function Cyl(node, opts) {
 		if(pressed) {
 			w.angle = refAngle + refX - ev.clientX;
 			var now = (new Date).getTime();
-			
+			if(lastMoment) {
+				if(now == lastMoment)
+					lastMoment--;
+				w.v = (lastClientX - ev.clientX) / (now - lastMoment) * TICKLENGTH;
+				w.v = Math.min(230, Math.max(-230, w.v));
+			}
+			lastMoment = now;
+			lastClientX = ev.clientX;
+			w.redraw();
+		}
+		cancel(ev);
+	};
+
+}
+
+Cyl.prototype.addNode = function(node, angle) {
+	var im = {}, w = this, url = node.src;
+	im.angle = angle;
+	im.node = node;
+	im.width = 0;
+	im.height = 0;
+	
+	var s = node.style;
+	s.border = 'none';
+	s.padding = 0;
+	s.position = 'absolute';
+	im.node.onload = function() {
+		im.width = this.width || 400;
+		im.height = this.height || 400;
+		this.style.width = im.width + 'px';
+		this.style.height = im.height + 'px';
+		w.redraw();
+	};
+	im.node.onload();
+
+	this.imgs.push(im);
+	this.imgs.sort(function(l, r) {
+			if(l.angle < r.angle)
+				return -1;
+			else if(l.angle == r.angle)
+				return 0;
+			return 1;
+		});
+};
+
+Cyl.prototype.redraw = function() {
+	
