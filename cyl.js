@@ -51,9 +51,11 @@ function Cyl(node, opts) {
 		var explicitAngle = parseInt(imgNodes[i].getAttribute('projectionAngle'), 10);
 		//alert(explicitAngle);
 		if(this.circular) {
-			this.addNode(imgNodes[i], explicitAngle || this.maxAngle * i / imgNodes.length);
+			this.addNode(imgNodes[i], explicitAngle || 
+				this.maxAngle * i / imgNodes.length);
 		} else {
-			this.addNode(imgNodes[i], explicitAngle || this.maxAngle * i / (imgNodes.length - 1));
+			this.addNode(imgNodes[i], explicitAngle || 
+				this.maxAngle * i / (imgNodes.length - 1));
 		}
 	}
 
@@ -99,25 +101,49 @@ function Cyl(node, opts) {
 	this.node.onmouseout({});
 
 	var lastClientX, lastMoment;
+
+	var move = function(x) {
+		w.angle = refAngle + refX - x;
+		var now = (new Date).getTime();
+		if(lastMoment) {
+			if(now == lastMoment)
+				lastMoment--;
+			w.v = Math.round((lastClientX - x) / (now - lastMoment) * TICKLENGTH);
+			w.v = Math.min(50, Math.max(-50, w.v));
+		}
+		lastMoment = now;
+		lastClientX = x;
+		w.redraw();
+	};
+
 	this.node.onmousemove = function(ev) {
 		if(window.event)
 			ev = window.event;
 		if(pressed) {
-			w.angle = refAngle + refX - ev.clientX;
-			var now = (new Date).getTime();
-			if(lastMoment) {
-				if(now == lastMoment)
-					lastMoment--;
-				w.v = Math.round((lastClientX - ev.clientX) / (now - lastMoment) * TICKLENGTH);
-				w.v = Math.min(50, Math.max(-50, w.v));
-			}
-			lastMoment = now;
-			lastClientX = ev.clientX;
-			w.redraw();
+			move(ev.clientX);
 		}
 		cancel(ev);
 	};
 
+	// iphone stuff
+
+	this.node.ontouchstart = function(ev) {
+		// at this point we can be pretty sure it's not IE :)
+		ev.preventDefault();
+		refX = ev.targetTouches[0].pageX;
+		refAngle = w.angle;
+	};
+
+	this.node.ontouchmove = function(ev) {
+		ev.preventDefault();
+		move(ev.targetTouches[0].pageX);
+	};
+
+	this.node.ontouchend = this.node.ontouchcancel = function(ev) {
+		ev.preventDefault();
+		tick();
+	};
+		
 }
 
 Cyl.prototype.addNode = function(node, angle) {
@@ -220,7 +246,10 @@ Cyl.prototype.redraw = function() {
 		var s = im.node.style, opacity;
 		if(superior == im) {
 			s.visibility = "visible";
-			s.opacity = Math.sqrt(Math.sqrt((this.angle - effectiveInferiorAngle)/(effectiveSuperiorAngle - effectiveInferiorAngle)));
+			s.opacity = Math.sqrt(
+				Math.sqrt((this.angle - effectiveInferiorAngle)/
+					(effectiveSuperiorAngle - effectiveInferiorAngle))
+			);
 			opacity = s.opacity;
 			s.zIndex = 2;
 		} else if(inferior == im) {
