@@ -37,12 +37,10 @@ function Cyl(node, opts) {
 	s.left = 0;
 	s.zIndex = 23;
 
-	// blogspot stuff
-	var aNodes = this.node.getElementsByTagName('A');
-	for(var i = 0; i < aNodes.length; i++) {
-		aNodes[i].href = '';
-		aNodes[i].onclick = function() {return false};
-	}
+	var pressed;
+	this.isPressed = function() {
+		return pressed;
+	};
 
 	var imgNodes = this.node.getElementsByTagName('IMG');
 	imgNodes = Array.prototype.slice.call(imgNodes);
@@ -57,12 +55,21 @@ function Cyl(node, opts) {
 			this.addNode(imgNodes[i], explicitAngle || 
 				this.maxAngle * i / (imgNodes.length - 1));
 		}
+		this.node.appendChild(imgNodes[i]);
 	}
 
 
+	// blogspot stuff
+	var aNodes = this.node.getElementsByTagName('A');
+	for(var i = 0; i < aNodes.length; i++) {
+		aNodes[i].style.display = 'none';
+		//aNodes[i].href = '';
+		//aNodes[i].onclick = function() {return false};
+	}
+
 	// handlers
 
-	var w = this, refX, refAngle, pressed;
+	var w = this, refX, refAngle;
 	this.node.onmousedown = function(ev) { 
 		if(window.event)
 			ev = window.event;
@@ -95,10 +102,14 @@ function Cyl(node, opts) {
 	this.node.onmouseout = function(ev) {
 		if(window.event)
 			ev = window.event;
-		//if(ev.target == w.node)
-		this.onmouseup(ev);
+		// Guess offset[XY] are relative to ev.target
+		if(ev.offsetX < 0 || ev.offsetY < 0 ||
+			ev.offsetX >= w.node.offsetWidth || ev.offsetY >= w.node.offsetHeight)
+			this.onmouseup(ev);
+		// We don't actually get onmouseout()s where target = w.node, probably
+		// because w.node is covered by IMGs. So we only get events for
+		// IMG nodes.
 	};
-	this.node.onmouseout({});
 
 	var lastClientX, lastMoment;
 
@@ -129,7 +140,7 @@ function Cyl(node, opts) {
 
 	this.node.ontouchstart = function(ev) {
 		// at this point we can be pretty sure it's not IE :)
-		ev.preventDefault();
+		//ev.preventDefault();
 		refX = ev.targetTouches[0].pageX;
 		refAngle = w.angle;
 	};
@@ -143,7 +154,7 @@ function Cyl(node, opts) {
 		ev.preventDefault();
 		tick();
 	};
-		
+
 }
 
 Cyl.prototype.addNode = function(node, angle) {
@@ -246,10 +257,8 @@ Cyl.prototype.redraw = function() {
 		var s = im.node.style, opacity;
 		if(superior == im) {
 			s.visibility = "visible";
-			s.opacity = Math.sqrt(
-				Math.sqrt((this.angle - effectiveInferiorAngle)/
-					(effectiveSuperiorAngle - effectiveInferiorAngle))
-			);
+			s.opacity = step((this.angle - effectiveInferiorAngle)/
+				(effectiveSuperiorAngle - effectiveInferiorAngle));
 			opacity = s.opacity;
 			s.zIndex = 2;
 		} else if(inferior == im) {
@@ -257,16 +266,30 @@ Cyl.prototype.redraw = function() {
 			s.opacity = 1;
 			s.zIndex = 1;
 		} else {
+			// Interestingly, this can generate onmouseout()s for im.node,
+			// which then bubble up to this.node
 			s.visibility = "hidden";
 		}
 	}
 
 	// indicate
 	
-	this.ind.innerHTML = this.angle;
+	this.ind.innerHTML = this.angle + (this.isPressed() ? '/p' : '');
 	//+ '/' + this.v + '/' + Math.round(opacity*10) + '/' + effectiveInferiorAngle + '/' + effectiveSuperiorAngle;
 };
 	
 	
-
-	
+function step(x) {
+	// [0,1] -> [0,1]
+	// maybe it will look better if we spend less time in 50% opacity
+	x = 2*x - 1;
+	var y;
+	if(x < 0) {
+		y = -Math.pow(-x, 1/4);
+	} else {
+		y = Math.pow(x, 1/4);
+	}
+	y = (y + 1)/2;
+	return y;
+}
+		
