@@ -18,7 +18,7 @@ function Cyl(node, opts) {
 	this.maxAngle = opts ? opts.maxAngle : 360;
 	this.width = opts && opts.width;
 	this.circular = !(this.maxAngle % 360);
-	this.angle = 0;
+	this.angle = opts && opts.angle || 0;
 	this.v = 0;
 
 
@@ -114,7 +114,9 @@ function Cyl(node, opts) {
 	var lastClientX, lastMoment;
 
 	var move = function(x) {
-		w.angle = refAngle + refX - x;
+		var degreesPerPixel = this.maxAngle / (w.node.offsetWidth * 0.8);
+		degreesPerPixel = Math.min(1, degreesPerPixel);
+		w.angle = refAngle + (refX - x) * degreesPerPixel;
 		var now = (new Date).getTime();
 		if(lastMoment) {
 			if(now == lastMoment)
