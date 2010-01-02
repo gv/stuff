@@ -18,8 +18,9 @@ function Cyl(node, opts) {
 	this.maxAngle = opts ? opts.maxAngle : 360;
 	this.width = opts && opts.width;
 	this.circular = !(this.maxAngle % 360);
-	this.angle = opts && opts.angle || 0;
+	this.angle = 0;
 	this.v = 0;
+	this.startIndex = opts && opts.startIndex || 0;
 
 
 	var s = this.node.style;
@@ -114,15 +115,15 @@ function Cyl(node, opts) {
 	var lastClientX, lastMoment;
 
 	var move = function(x) {
-		var degreesPerPixel = this.maxAngle / (w.node.offsetWidth * 0.8);
+		var degreesPerPixel = w.maxAngle / (w.node.offsetWidth * 0.8);
 		degreesPerPixel = Math.min(1, degreesPerPixel);
-		w.angle = refAngle + (refX - x) * degreesPerPixel;
+		w.angle = Math.round(refAngle + (refX - x) * degreesPerPixel);
 		var now = (new Date).getTime();
 		if(lastMoment) {
 			if(now == lastMoment)
 				lastMoment--;
 			w.v = Math.round((lastClientX - x) / (now - lastMoment) * TICKLENGTH);
-			w.v = Math.min(50, Math.max(-50, w.v));
+			w.v = Math.min(30, Math.max(-30, w.v));
 		}
 		lastMoment = now;
 		lastClientX = x;
@@ -160,7 +161,7 @@ function Cyl(node, opts) {
 }
 
 Cyl.prototype.addNode = function(node, angle) {
-	if(!this.imgs.length)
+	if(this.startIndex == this.imgs.length)
 		this.angle = angle;
 
 	var im = {}, w = this, url = node.src;
