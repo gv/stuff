@@ -35,7 +35,18 @@ function Pan(node, opts) {
 	// Tricky: getElementsByTagName returns some kind of "alive" collection,
 	// which grows as we append child img nodes inside addNode().
 	// I wonder how are we supposed to actually use those things?
-	imgNodes = Array.prototype.slice.call(imgNodes);
+
+
+	// imgNodes = Array.prototype.slice.call(imgNodes);
+	// Haha, didn't work in IE. Well, to be fair, it wasn't supposed to
+	// anyway. Would be nice though!
+
+	var originalImgNodes = [];
+	for(var i = 0; i < imgNodes.length; i++) {
+		originalImgNodes.push(imgNodes[i]);
+	}
+	imgNodes = originalImgNodes;
+
 	for(var i = 0; i < imgNodes.length; i++) {
 		//alert(i + '/' + imgNodes.length);
 		this.addNode(imgNodes[i]);
@@ -46,7 +57,7 @@ function Pan(node, opts) {
 			this.addImg(opts.imgUrls[i]);
 		}
 	}
-
+	
 	// handlers
 
 	var pan = this, refX, refViewLeft, mouseDown;
@@ -59,10 +70,10 @@ function Pan(node, opts) {
 		cancel(ev);
 	};
 	this.node.onmouseout = function(ev) {
-		if(window.event)
-			ev = window.event;
-		if(ev.target == pan.node)
-			this.onmouseup(ev);
+		//if(window.event)
+		//	ev = window.event;
+		//if(ev.target == pan.node)
+		//	this.onmouseup(ev);
 	};
 
 	var TICKLENGTH = 40;
@@ -89,24 +100,47 @@ function Pan(node, opts) {
 	this.node.onmouseout({});
 
 	var lastClientX, lastMoment;
+	var move = function(x) {
+		pan.viewLeft = refViewLeft + refX - x;
+		var now = (new Date).getTime();
+		if(lastMoment) {
+			if(now == lastMoment) // events are called too often
+				/*alert*/(lastMoment -= 1);
+			v = (lastClientX - x)/(now - lastMoment)*TICKLENGTH;
+			v = Math.min(230, Math.max(-230, v));
+			pan.v = v;
+		}
+		lastMoment = now;
+		lastClientX = x;
+		pan.reposition();
+	};		
+
 	this.node.onmousemove = function(ev) {
 		if(window.event)
 			ev = window.event;
 		if(mouseDown) {
-			pan.viewLeft = refViewLeft + refX - ev.clientX;
-			var now = (new Date).getTime();
-			if(lastMoment) {
-				if(now == lastMoment) // events are called too often
-					/*alert*/(lastMoment -= 1);
-				v = (lastClientX - ev.clientX)/(now - lastMoment)*TICKLENGTH;
-				v = Math.min(230, Math.max(-230, v));
-				pan.v = v;
-			}
-			lastMoment = now;
-			lastClientX = ev.clientX;
-			pan.reposition();
+			move(ev.clientX);
 		}
 		cancel(ev);
+	};
+	
+	// iphone stuff
+	
+	this.node.ontouchstart = function(ev) {
+		mouseDown = true;
+		refX = ev.targetTouches[0].pageX;
+		refViewLeft = pan.viewLeft;
+	};
+
+	this.node.ontouchmove = function(ev) { 
+		ev.preventDefault();
+		move(ev.targetTouches[0].pageX);
+	};
+
+	this.node.ontouchend = this.node.ontouchcancel = function(ev) {
+		mouseDown = false;
+		ev.preventDefault();
+		tick();
 	};
 }
 
@@ -140,6 +174,7 @@ Pan.prototype.addNode = function(node) {
 	s.padding = 0;
 	s.position = 'absolute';
 	im.node.onload = function() {	
+		alert('onload: ' + this.width + ':' + this.height);
 		//alert(toJson(this));
 		im.width = this.width || 480;
 		im.height = this.height || 480;
@@ -147,7 +182,13 @@ Pan.prototype.addNode = function(node) {
 		this.style.height = im.height + 'px';
 		pan.reposition();
 	};
-	im.node.onload();
+	
+	// Or maybe onload() was fired already
+	im.width = im.node.width;
+	im.height = im.node.height;
+	im.node.style.width = im.width + 'px';
+	im.node.style.height = im.height + 'px';
+	alert(im.width + ':' + im.height);
 
 
 	im.bNode = document.createElement('IMG');
@@ -165,6 +206,7 @@ Pan.prototype.addNode = function(node) {
 	im.bNode.src = url;
 
 	this.imgs.push(im);
+	pan.reposition();
 };
 
 Pan.prototype.reposition = function() {
