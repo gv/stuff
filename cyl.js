@@ -183,6 +183,7 @@ Cyl.prototype.addNode = function(node, angle) {
 	s.cursor = "move";
 	s.filter = 'alpha(opacity=100)';
 	im.node.onload = function() {
+		// dimensions setter 1
 		im.width = this.width || 400;
 		im.height = this.height || 400;
 		//alert('ol:' + this.width + ':' + this.height);
@@ -190,10 +191,11 @@ Cyl.prototype.addNode = function(node, angle) {
 	};
 
 	//  In case onload was called earlier.
-	im.width = im.node.width;
-	im.height = im.node.height;
-
 	this.imgs.push(im);
+
+	// dimensions setter 2, whatever called later wins
+	im.width = im.node.width || 400;
+	im.height = im.node.height || 400;
 	this.redraw();
 };
 
@@ -256,6 +258,7 @@ Cyl.prototype.redraw = function() {
 	if(!this.width)
 		s.width = maxWidth + 'px';
 	s.height = maxHeight +'px';
+	// alert(maxWidth + ':' + maxHeight);
 
 	if(-Infinity == effectiveInferiorAngle)
 		return;
