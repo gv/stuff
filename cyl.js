@@ -146,13 +146,13 @@ function Cyl(node, opts) {
 	// iphone stuff
 
 	this.node.ontouchstart = function(ev) {
-		// at this point we can be pretty sure it's not IE :)
-		//ev.preventDefault();
+		// Not preventing default here cause it would break double-tap zoom.
 		refX = ev.targetTouches[0].pageX;
 		refAngle = w.angle;
 	};
 
 	this.node.ontouchmove = function(ev) {
+		// At this point we can be pretty sure it's not IE :)
 		ev.preventDefault();
 		move(ev.targetTouches[0].pageX);
 	};
