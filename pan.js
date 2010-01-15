@@ -94,6 +94,9 @@ function Pan(node, opts) {
 	this.node.onmouseup = function(ev) {
 		if(window.event)
 			ev = window.event;
+		if(mouseDown) {
+			move(ev.clientX);
+		}
 		mouseDown = false;
 		cancel(ev);
 		tick();
@@ -204,12 +207,6 @@ Pan.prototype.addNode = function(node) {
 	this.unmeasuredCnt++;
 	setDims();
 	
-	/*im.bNode.onload = function() {
-		im.width = this.width || 480;
-		im.height = this.height || 480;
-		this.style.width = im.width + 'px';
-		this.style.height = im.height + 'px';
-		};*/
 	im.bNode.src = url;
 
 	this.imgs.push(im);
