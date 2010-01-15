@@ -17,6 +17,7 @@ function Pan(node, opts) {
 	this.loops = opts && opts.loops;
 	this.viewLeft = 0;
 	this.v = 0;
+	this.unmeasuredCnt = 0;
 
 	var s = this.node.style;
 	s.cursor = 'move';
@@ -173,23 +174,6 @@ Pan.prototype.addNode = function(node) {
 	s.border = 'none';
 	s.padding = 0;
 	s.position = 'absolute';
-	im.node.onload = function() {	
-		alert('onload: ' + this.width + ':' + this.height);
-		//alert(toJson(this));
-		im.width = this.width || 480;
-		im.height = this.height || 480;
-		this.style.width = im.width + 'px';
-		this.style.height = im.height + 'px';
-		pan.reposition();
-	};
-	
-	// Or maybe onload() was fired already
-	im.width = im.node.width;
-	im.height = im.node.height;
-	im.node.style.width = im.width + 'px';
-	im.node.style.height = im.height + 'px';
-	alert(im.width + ':' + im.height);
-
 
 	im.bNode = document.createElement('IMG');
 	var s = im.bNode.style;
@@ -197,12 +181,35 @@ Pan.prototype.addNode = function(node) {
 	s.padding = 0;
 	s.position = 'absolute';
 	this.node.appendChild(im.bNode);
-	im.bNode.onload = function() {
+
+
+	/*im.node.onload = */
+	var setDims = function() {	
+		var w = im.node.naturalWidth || im.node.width;
+		var h = im.node.naturalHeight || im.node.height;
+		//alert('onload: ' + w + ':' + h);
+		if(w && h) {
+			im.width = w;
+			im.height = h;
+			im.node.style.width = im.width + 'px';
+			im.node.style.height = im.height + 'px';
+			im.bNode.style.width = im.width + 'px';
+			im.bNode.style.height = im.height + 'px';
+			pan.unmeasuredCnt--;
+			pan.reposition();
+		} else {
+			setTimeout(setDims, 1000);
+		}
+	};
+	this.unmeasuredCnt++;
+	setDims();
+	
+	/*im.bNode.onload = function() {
 		im.width = this.width || 480;
 		im.height = this.height || 480;
 		this.style.width = im.width + 'px';
 		this.style.height = im.height + 'px';
-	};
+		};*/
 	im.bNode.src = url;
 
 	this.imgs.push(im);
@@ -244,6 +251,8 @@ Pan.prototype.reposition = function() {
 	this.node.style.height = maxHeight + 'px';
 	this.ind.innerHTML = this.viewLeft + '/' + 
 	totalWidth + '/' + Math.round(this.v);// + d;
+	if(this.unmeasuredCnt)
+		this.ind.innerHTML += ' (' + this.unmeasuredCnt + ')';
 	this.ind.style.color = '#ffffff';
 }
 		
