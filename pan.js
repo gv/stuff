@@ -103,19 +103,20 @@ function Pan(node, opts) {
 	};
 	this.node.onmouseout({});
 
-	var lastClientX, lastMoment;
+
+	var track = [];
 	var move = function(x) {
 		pan.viewLeft = refViewLeft + refX - x;
 		var now = (new Date).getTime();
-		if(lastMoment) {
-			if(now == lastMoment) // events are called too often
-				/*alert*/(lastMoment -= 1);
-			v = (lastClientX - x)/(now - lastMoment)*TICKLENGTH;
+		if(track.length >= 2) {
+			var p = track.shift();
+			if(now == p.time) // events are called too often
+				/*alert*/(p.time -= 1);
+			v = (p.x - x)/(now - p.time)*TICKLENGTH;
 			v = Math.min(230, Math.max(-230, v));
 			pan.v = v;
 		}
-		lastMoment = now;
-		lastClientX = x;
+		track.push({time: now, x: x});
 		pan.reposition();
 	};		
 
