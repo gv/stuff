@@ -195,7 +195,31 @@
 			 (c-set-offset 'arglist-intro '+)
 			 (c-set-offset 'arglist-cont-nonempty '+)
 			 (c-set-offset 'arglist-close 0)
+			 (gtags-mode 1)
+			 (local-set-key (kbd "M-[") 'gtags-find-rtag)
+			 (local-set-key (kbd "M-]") 'gtags-find-pattern)
+			 (local-set-key [M-.] 'gtags-find-tag)
+			 (local-set-key [M-left] 'gtags-pop-stack)
 			 ))
+
+(defun etags () 
+  "Switch from global to etags, revert to go back"
+  (interactive)
+  (local-set-key (kbd "M-[") 'gtags-find-rtag)
+  (local-set-key (kbd "M-]") 'gtags-find-pattern)
+  (local-set-key [M-.] 'find-tag)
+  (local-set-key [M-left] 'pop-tag-matk)
+  )
+
+  
+(add-hook 'gtags-select-mode-hook
+		  '(lambda ()
+			 (local-set-key (kbd "M-[") 'gtags-find-rtag)
+			 (local-set-key (kbd "M-]") 'gtags-find-pattern)
+			 (local-set-key [M-.] 'gtags-find-tag)
+			 (local-set-key [M-left] 'gtags-pop-stack)
+			 ))
+			 
 
 (add-hook 'python-mode-hook 
 		  '(lambda ()
@@ -227,6 +251,7 @@
 (defun dos () "Reload this buffer as dos linebreaked text" (interactive) 
   (let ((coding-system-for-read 'cp1251-dos))
     (revert-buffer nil t t)))
+
 
 ;;
 ;;
