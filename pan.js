@@ -46,7 +46,7 @@ function Pan(node, opts) {
 			this.addImg(opts.imgUrls[i]);
 		}
 	}
-
+	
 	// handlers
 
 	var pan = this, refX, refViewLeft, mouseDown;
@@ -59,10 +59,10 @@ function Pan(node, opts) {
 		cancel(ev);
 	};
 	this.node.onmouseout = function(ev) {
-		if(window.event)
-			ev = window.event;
-		if(ev.target == pan.node)
-			this.onmouseup(ev);
+		//if(window.event)
+		//	ev = window.event;
+		//if(ev.target == pan.node)
+		//	this.onmouseup(ev);
 	};
 
 	var TICKLENGTH = 40;
@@ -89,24 +89,47 @@ function Pan(node, opts) {
 	this.node.onmouseout({});
 
 	var lastClientX, lastMoment;
+	var move = function(x) {
+		pan.viewLeft = refViewLeft + refX - x;
+		var now = (new Date).getTime();
+		if(lastMoment) {
+			if(now == lastMoment) // events are called too often
+				/*alert*/(lastMoment -= 1);
+			v = (lastClientX - x)/(now - lastMoment)*TICKLENGTH;
+			v = Math.min(230, Math.max(-230, v));
+			pan.v = v;
+		}
+		lastMoment = now;
+		lastClientX = x;
+		pan.reposition();
+	};		
+
 	this.node.onmousemove = function(ev) {
 		if(window.event)
 			ev = window.event;
 		if(mouseDown) {
-			pan.viewLeft = refViewLeft + refX - ev.clientX;
-			var now = (new Date).getTime();
-			if(lastMoment) {
-				if(now == lastMoment) // events are called too often
-					/*alert*/(lastMoment -= 1);
-				v = (lastClientX - ev.clientX)/(now - lastMoment)*TICKLENGTH;
-				v = Math.min(230, Math.max(-230, v));
-				pan.v = v;
-			}
-			lastMoment = now;
-			lastClientX = ev.clientX;
-			pan.reposition();
+			move(ev.clientX);
 		}
 		cancel(ev);
+	};
+	
+	// iphone stuff
+	
+	this.node.ontouchstart = function(ev) {
+		mouseDown = true;
+		refX = ev.targetTouches[0].pageX;
+		refViewLeft = pan.viewLeft;
+	};
+
+	this.node.ontouchmove = function(ev) { 
+		ev.preventDefault();
+		move(ev.targetTouches[0].pageX);
+	};
+
+	this.node.ontouchend = this.node.ontouchcancel = function(ev) {
+		mouseDown = false;
+		ev.preventDefault();
+		tick();
 	};
 }
 
