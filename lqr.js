@@ -190,6 +190,11 @@ Img.prototype.getWeights = function() {
 	}
 	return this.weights;
 };
+
+Img.prototype.getWins = function() {
+	var w = this.bs.width, ee = this.getEnergies();
+	var ww = ee.concat();
+}
 	
 	
 function _render() {
@@ -219,7 +224,7 @@ function resizeAndDraw(img) {
 		seamCntToFind = sWidth;
 
 	// find seamCntToFind seam start point indexes
-	var bottomLine = g.rights.slice(sWidth * height - sWidth);
+	/*var bottomLine = g.rights.slice(sWidth * height - sWidth);
 	// dbgOut += rights.join(' ') + ' ' + rights.length + ' ' + 
 	// sWidth + 'x' + height + ' ';
 	bottomLine.sort(function(l, r) {
@@ -233,9 +238,17 @@ function resizeAndDraw(img) {
 	// OK Rules
 	// -1 = deleted
 	// -2 = border
+*/
 
 	var dbgMap = new Array(sWidth * height);
+	for(var lineEnd
 
+	for(var lineStart = sWidth * height - sWidth; 
+		lineStart >= 0; lineStart -= sWidth) {
+
+	}
+
+	/*
 	while(seamCntToFind--) {
 		var dbgHist = 'sm' + seamCntToFind + ' ';
 		var rmptc = 0;
@@ -243,23 +256,23 @@ function resizeAndDraw(img) {
 
 		//dbgOut += 'i' + i + ' w' + ww[i] + ' ';
 		
-		while(true) {
-			dbgMap[i] = seamCntToFind;
+		//while(true) {
+			//dbgMap[i] = seamCntToFind;
 			//dbgOut += 's' + seamCntToFind + ':' + i + '=' + (i%sWidth) + ' ';
 			// exclude [i]
-			r = rights[i];
-			l = lefts[i];
+			//r = rights[i];
+			//l = lefts[i];
 			
-			/*
-			if(DEBUG) { 
-				rmptc++;
-				dbgHist += i + ' ';
-				if(-1 == r)
-					dbgOut += 'DEAD CELL RIGHT OF ' + dbgHist + '! ';
-				if(-1 == l)
-					dbgOut += 'DEAD CELL LEFT OF ' + dbgHist + '! ';
-			}
-			*/
+			
+			//if(DEBUG) { 
+			//	rmptc++;
+			//	dbgHist += i + ' ';
+			//	if(-1 == r)
+			//		dbgOut += 'DEAD CELL RIGHT OF ' + dbgHist + '! ';
+			//	if(-1 == l)
+			//		dbgOut += 'DEAD CELL LEFT OF ' + dbgHist + '! ';
+			//}
+			
 
 			lefts[r] = l;
 			rights[l] = r;
@@ -268,12 +281,12 @@ function resizeAndDraw(img) {
 
 			// Leave a sign
 			lefts[i] = -1;
-			/*
+			
 			// DBG  
-			rights[i] = -1;
-			ups[i] = -1;
-			downs[i] = -1;
-			*/
+			//rights[i] = -1;
+			//ups[i] = -1;
+			//downs[i] = -1;
+			
 
 			if(-2 == u)
 				break;
@@ -296,7 +309,7 @@ function resizeAndDraw(img) {
 			ups[d] = u;
 			downs[u] = d;
 		}
-	}
+	}*/
 
 	ind.innerHTML = 'drawing...';
 	setTimeout(function() {
@@ -311,18 +324,20 @@ function draw(img, g, dWidth, dbgOut, dbgMap) {
 	var s = img.imData.data;
 	var sWidth = img.bs.width, height = img.bs.height;
 	dWidth = sWidth;
-	var lefts = g.lefts, rights = g.rights, ups = g.ups, downs = g.downs;
 	dispCanv.width = dispCanv.style.width = dWidth;
 	dispCanv.height = dispCanv.style.height = height;
 	
+	var context = dispCanv.getContext('2d');
+	var dest = context.createImageData(dispCanv.width, dispCanv.height);
+	var d = dest.data, j;
+
 	// find an entry
+	/*
+	var lefts = g.lefts, rights = g.rights, ups = g.ups, downs = g.downs;
 	var i = 0, down, dp = 0, dEnd = 0, sp; 
 	while(lefts[i] == -1)
 		i++;
 
-	var context = dispCanv.getContext('2d');
-	var dest = context.createImageData(dispCanv.width, dispCanv.height);
-	var d = dest.data, j;
 
 	//dbgOut += 'x ' + lefts.join(' ');
 	
@@ -345,6 +360,8 @@ function draw(img, g, dWidth, dbgOut, dbgMap) {
 		dp = dEnd;
 		i = down;
 	} while(i != -2 && dp < d.length);
+*/
+	
 
 		
 	context.putImageData(dest, 0, 0);
@@ -353,17 +370,13 @@ function draw(img, g, dWidth, dbgOut, dbgMap) {
 	auxDispCanv.width = auxDispCanv.style.width = sWidth;
 	auxDispCanv.height = auxDispCanv.style.height = height;
 
-	// find an entry
-	var i = 0, down, dp = 0, dEnd = 0, sp; 
-	while(lefts[i] == -1)
-		i++;
-
 	var context = auxDispCanv.getContext('2d');
 	var dest = context.createImageData(auxDispCanv.width, auxDispCanv.height);
 	var d = dest.data;
 
 	//dbgOut += 'x ' + downs.join(' ');
 
+	var ee = img.getEnergies();
 	for(var j = dbgMap.length - 1, dp = d.length - 1; j >= 0; j--) {
 		d[dp--] = 255;
 		d[dp--] = 0;
@@ -371,15 +384,20 @@ function draw(img, g, dWidth, dbgOut, dbgMap) {
 		d[dp--] = dbgMap[j] % 14 * 14;
 	}
 	
-	var ee = img.getEnergies();
+	/*
+	// find an entry
+	var i = 0, down, dp = 0, dEnd = 0, sp; 
+	while(lefts[i] == -1)
+		i++;
+
 	do {
 		//dbgOut += 'line ';
 		down = downs[i];
 		var lim = sWidth;
 		while(lim--) {
 			//dbgOut += i + ' ';
-			dp = sp = i * 4;
-			d[dp++] = ee[i]-512;;
+			dp = sp = i << 2;
+			d[dp++] = ee[i]-512;
 			d[dp++] = ee[i]-255;
 			d[dp++] = ee[i];
 			d[dp++] = 255;
@@ -387,6 +405,7 @@ function draw(img, g, dWidth, dbgOut, dbgMap) {
 		}
 		i = down;
 	} while(i != -2 && dp < d.length);
+*/
 
 		
 	context.putImageData(dest, 0, 0);
