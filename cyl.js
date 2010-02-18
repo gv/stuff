@@ -43,11 +43,13 @@ function Cyl(node, opts) {
 		return pressed;
 	};
 
-	var imgNodes = this.node.getElementsByTagName('IMG');
-	imgNodes = Array.prototype.slice.call(imgNodes);
+	var origNodes = this.node.getElementsByTagName('IMG'), imgNodes = [];
+	for(var i = 0; i < origNodes.length; i++) 
+		imgNodes.push(origNodes[i]);
 	
 	for(var i in imgNodes) {
-		var explicitAngle = parseInt(imgNodes[i].getAttribute('projectionAngle'), 10);
+		var explicitAngle = parseInt(imgNodes[i].getAttribute('projectionAngle'), 
+			10);
 		//alert(explicitAngle);
 		if(this.circular) {
 			this.addNode(imgNodes[i], explicitAngle || 
@@ -62,11 +64,13 @@ function Cyl(node, opts) {
 
 	// blogspot stuff
 	var aNodes = this.node.getElementsByTagName('A');
-	for(var i = 0; i < aNodes.length; i++) {
+	/*for(var i = 0; i < aNodes.length; i++) {
 		aNodes[i].style.display = 'none';
 		//aNodes[i].href = '';
 		//aNodes[i].onclick = function() {return false};
-	}
+		}*/
+	for(var i = aNodes.length; i;)
+		this.node.removeChild(aNodes[--i]);
 
 	// handlers
 
@@ -142,13 +146,13 @@ function Cyl(node, opts) {
 	// iphone stuff
 
 	this.node.ontouchstart = function(ev) {
-		// at this point we can be pretty sure it's not IE :)
-		//ev.preventDefault();
+		// Not preventing default here cause it would break double-tap zoom.
 		refX = ev.targetTouches[0].pageX;
 		refAngle = w.angle;
 	};
 
 	this.node.ontouchmove = function(ev) {
+		// At this point we can be pretty sure it's not IE :)
 		ev.preventDefault();
 		move(ev.targetTouches[0].pageX);
 	};
@@ -176,23 +180,23 @@ Cyl.prototype.addNode = function(node, angle) {
 	s.position = 'absolute';
 	s.top = 0;
 	s.left = 0;
+	s.cursor = "move";
+	s.filter = 'alpha(opacity=100)';
 	im.node.onload = function() {
+		// dimensions setter 1
 		im.width = this.width || 400;
 		im.height = this.height || 400;
-		this.style.width = im.width + 'px';
-		this.style.height = im.height + 'px';
+		//alert('ol:' + this.width + ':' + this.height);
 		w.redraw();
 	};
-	im.node.onload();
 
+	//  In case onload was called earlier.
 	this.imgs.push(im);
-	/*this.imgs.sort(function(l, r) {
-			if(l.angle < r.angle)
-				return -1;
-			else if(l.angle == r.angle)
-				return 0;
-			return 1;
-			});*/
+
+	// dimensions setter 2, whatever called later wins
+	im.width = im.node.width || 400;
+	im.height = im.node.height || 400;
+	this.redraw();
 };
 
 Cyl.prototype.redraw = function() {
@@ -254,18 +258,31 @@ Cyl.prototype.redraw = function() {
 	if(!this.width)
 		s.width = maxWidth + 'px';
 	s.height = maxHeight +'px';
+	// alert(maxWidth + ':' + maxHeight);
 
+	if(-Infinity == effectiveInferiorAngle)
+		return;
+	
+	try {
 	for(var i in this.imgs) {
 		var im = this.imgs[i];
 		var s = im.node.style, opacity;
 		if(superior == im) {
 			s.visibility = "visible";
-			s.opacity = step((this.angle - effectiveInferiorAngle)/
+			opacity = step((this.angle - effectiveInferiorAngle)/
 				(effectiveSuperiorAngle - effectiveInferiorAngle));
-			opacity = s.opacity;
+			if(im.node.filters) {
+				// im.node.filters.alpha || alert('no alpha');
+				im.node.filters.alpha.opacity = opacity * 100;
+			}
+			s.opacity = opacity;
 			s.zIndex = 2;
 		} else if(inferior == im) {
 			s.visibility = "visible";
+			if(im.node.filters) {
+				// im.node.filters.alpha || alert('no alpha');
+				im.node.filters.alpha.opacity = 100;
+			}
 			s.opacity = 1;
 			s.zIndex = 1;
 		} else {
@@ -273,6 +290,9 @@ Cyl.prototype.redraw = function() {
 			// which then bubble up to this.node
 			s.visibility = "hidden";
 		}
+	}
+	} catch(e) {
+		alert(toJson(e) + ' | ' + opacity);
 	}
 
 	// indicate
@@ -283,6 +303,7 @@ Cyl.prototype.redraw = function() {
 	
 	
 function step(x) {
+	//alert(x);
 	// [0,1] -> [0,1]
 	// maybe it will look better if we spend less time in 50% opacity
 	x = 2*x - 1;
@@ -296,3 +317,12 @@ function step(x) {
 	return y;
 }
 		
+function toJson(o) {
+	var s = '';
+	for(var k in o) {
+		//if(typeof o[k] == 'number')
+		//if(k.toLowerCase().indexOf('height') != -1)
+			s += k + ':' + o[k] + ', ';
+	}
+	return s;
+}

@@ -43,10 +43,14 @@ function SlideableImageWindow(node, srcImgs) {
 	var w = this;
 	var pressed, refX;
 	var move = function(x) {
+<<<<<<< HEAD
 		var s = w.node.style;
 		s.overflow = 'hidden';
 		w.sleigh.style.left = (x - refX) + 'px';
 		return x - refX;
+=======
+		w.sleigh.style.left = (x - refX) + 'px';
+>>>>>>> acf049196c41ca7c25d1db736f1692e7c91d12e0
 	};
 
 	this.node.onmousedown = function(ev) {
@@ -72,10 +76,15 @@ function SlideableImageWindow(node, srcImgs) {
 			w.currentIndex++;
 		else if(x > refX)
 			w.currentIndex--;
+<<<<<<< HEAD
 		else {
 			//alert('same ' + x);
 			return;
 		}
+=======
+		else
+			return;
+>>>>>>> acf049196c41ca7c25d1db736f1692e7c91d12e0
 		w.snap();
 	};
 
@@ -87,6 +96,7 @@ function SlideableImageWindow(node, srcImgs) {
 		stop(ev.clientX);
 	};
 		
+<<<<<<< HEAD
 	var refY, lastX;
 	this.node.ontouchstart = function(ev) {
 		pressed = true;
@@ -98,14 +108,28 @@ function SlideableImageWindow(node, srcImgs) {
 		lastX = ev.targetTouches[0].pageX;
 		if(Math.abs(move(lastX)/(ev.targetTouches[0].pageY / refY)) < 10)
 			;ev.preventDefault();
+=======
+	this.node.ontouchstart = function(ev) {
+		pressed = true;
+		refX = ev.targetTouches[0].pageX;
+	};
+
+	this.node.ontouchmove = function(ev) {
+		ev.preventDefault();
+		move(ev.targetTouches[0].pageX);
+>>>>>>> acf049196c41ca7c25d1db736f1692e7c91d12e0
 	};
 	
 	this.node.ontouchend = function(ev) {
 		pressed = false;
+<<<<<<< HEAD
 		// Seems ev.targetTouches[0].pageX is set to value from ontouchstart
 		// for some reason.
 		stop(lastX);
 		ev.preventDefault();
+=======
+		stop(ev.targetTouches[0].pageX);
+>>>>>>> acf049196c41ca7c25d1db736f1692e7c91d12e0
 	};
 
 	this.snap();
@@ -133,11 +157,17 @@ SlideableImageWindow.prototype.snap = function() {
 	this.panes[2].node.src = this.imgUrls[nextIndex];
 	this.panes[2].node.style.display = 'none';
 
+<<<<<<< HEAD
 	// replacing both escaped and unescaped location to be sure
 	curUrl = curUrl.replace(location, '');
 	this.indicate(unescape(curUrl).replace(location, '') + ' ' + 
 		this.currentIndex + '/' + len);
 	//alert(location);
+=======
+	curUrl = curUrl.replace(location, '');
+	this.indicate(unescape(curUrl) + ' ' + 
+		this.currentIndex + '/' + len);
+>>>>>>> acf049196c41ca7c25d1db736f1692e7c91d12e0
 };
 
 	
