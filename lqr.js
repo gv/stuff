@@ -208,161 +208,139 @@ function _render() {
 	});
 }
 
+function lessNumbersFirst(l, r) {
+			return (l < r) ? -1 : (l == r) ? 0 : 1;
+}	
+
+function greaterNumbersFirst(l, r) {
+			return (l < r) ? 1 : (l == r) ? 0 : -1;
+}	
+
 function resizeAndDraw(img) {
 	var dbgOut = '';
 	var height = img.bs.height;
 	var dWidth = loc.getWidth(), // won't change
-		sWidth = img.bs.width;
+		w = img.bs.width;
+	var len = w * height;
+	var pathWidth = w - dWidth;
 
-	// - scale -
-	var g = new Graph(sWidth, height);
-	var ups = g.ups, downs = g.downs, rights = g.rights, lefts = g.lefts;
-	var ww = img.getWeights();
-	
-	var seamCntToFind = sWidth - dWidth;
-	if(seamCntToFind < 0)
-		seamCntToFind = sWidth;
-
-	// find seamCntToFind seam start point indexes
-	/*var bottomLine = g.rights.slice(sWidth * height - sWidth);
-	// dbgOut += rights.join(' ') + ' ' + rights.length + ' ' + 
-	// sWidth + 'x' + height + ' ';
-	bottomLine.sort(function(l, r) {
-			l = ww[l];
-			r = ww[r];
-			return (l < r) ? -1 : (l == r) ? 0 : 1;
-		});
-	
-	//dbgOut += ups.join(' ');
-
-	// OK Rules
-	// -1 = deleted
-	// -2 = border
-*/
-
-	var dbgMap = new Array(sWidth * height);
-	for(var lineEnd
-
-	for(var lineStart = sWidth * height - sWidth; 
-		lineStart >= 0; lineStart -= sWidth) {
-
+	var ee = img.getEnergies();
+	var ww = new Array(ee.size);
+	for(var i = 0; i < w; i++) {
+		ww[i] = -ee[i];
 	}
 
-	/*
-	while(seamCntToFind--) {
-		var dbgHist = 'sm' + seamCntToFind + ' ';
-		var rmptc = 0;
-		var i = bottomLine.shift(), r, l, d, u, next;
+	for(var i = w; i < len; i++) {
+		var xx = ww.slice(i - w, i);
+		xx.sort(greaterNumbersFirst);
+		//dbgOut += '[' + xx.slice(0, 50) + '] ';
+		var upperBound = xx[pathWidth];
 
-		//dbgOut += 'i' + i + ' w' + ww[i] + ' ';
-		
-		//while(true) {
-			//dbgMap[i] = seamCntToFind;
-			//dbgOut += 's' + seamCntToFind + ':' + i + '=' + (i%sWidth) + ' ';
-			// exclude [i]
-			//r = rights[i];
-			//l = lefts[i];
-			
-			
-			//if(DEBUG) { 
-			//	rmptc++;
-			//	dbgHist += i + ' ';
-			//	if(-1 == r)
-			//		dbgOut += 'DEAD CELL RIGHT OF ' + dbgHist + '! ';
-			//	if(-1 == l)
-			//		dbgOut += 'DEAD CELL LEFT OF ' + dbgHist + '! ';
-			//}
-			
-
-			lefts[r] = l;
-			rights[l] = r;
-
-			u = ups[i];
-
-			// Leave a sign
-			lefts[i] = -1;
-			
-			// DBG  
-			//rights[i] = -1;
-			//ups[i] = -1;
-			//downs[i] = -1;
-			
-
-			if(-2 == u)
-				break;
-
-			// choose next
-			next = u;
-			r = rights[next];
-			l = lefts[next];
-			if(r > next)
-				if(ww[r] < ww[next])
-					next = r;
-			if(l < next)
-				if(ww[l] < ww[next])
-				next = l;
-			
-			i = next;
-			
-			// second time
-			d = downs[i];
-			ups[d] = u;
-			downs[u] = d;
+		ww[i] = Math.min(upperBound, Math.max(ww[i-w], ww[i-w+1])) - ee[i];
+		var end =  i + w - 1;
+		for(i++; i < end; i++) {
+			ww[i] = Math.min(upperBound, Math.max(ww[i-w], ww[i-w+1], ww[i-w-1])) - 
+				ee[i];
 		}
-	}*/
+		ww[i] = Math.min(upperBound, Math.max(ww[i-w], ww[i-w-1])) - ee[i];
+	}
+
+	//var dbgMap = new Array(sWidth * height);
+	var cutMap = new Array(w * height);
+	var indexes = [];
+	var lineBase = len - w;
+	for(var i = len - 1; i >= lineBase; i--)
+		indexes.push(i);
+
+	indexes.sort(function(l, r) {
+			l = ww[l], r = ww[r];
+			return (l < r) ? 1 : (l == r) ? 0 : -1;
+		});
+	for(var i = pathWidth - 1; i >= 0; i--) {
+		if(cutMap[indexes[i]])
+			dbgOut += i + ':' + indexes[i] + ':' + indexes[i] % w + ' ';
+		cutMap[indexes[i]] = i + 1;
+	}
+		
+	for(;;) {
+		lineBase -= w;
+		if(lineBase < 0)
+			break;
+		i = lineBase + w - 1;
+		if(cutMap[i + w]) {
+			if(ww[i] > ww[i - 1]) {
+				cutMap[i] = 9;
+				ww[i] = -Infinity;
+			} else {
+				cutMap[i - 1] = 8;
+				ww[i - 1] = -Infinity;
+			}
+		}
+		
+		for(i--; i > lineBase; i--) {
+			if(cutMap[i + w]) {
+				if(ww[i] > ww[i - 1]) {
+					if(ww[i] > ww[i + 1]) {
+						cutMap[i] = 7;
+						ww[i] = -Infinity;
+					} else {
+						cutMap[i + 1] = 6;
+						ww[i + 1] = -Infinity;
+					}
+				} else {
+					if(ww[i - 1] > ww[i + 1]) {
+						cutMap[i - 1] = 5;
+						ww[i - 1] = -Infinity;
+					} else {
+						cutMap[i + 1] = 4;
+						ww[i + 1] = -Infinity;
+					}
+				}
+			}
+		}
+
+		if(cutMap[i + w]) {
+			if(ww[i] > ww[i + 1]) {
+				cutMap[i] = 3;
+				ww[i] = -Infinity;
+			} else {
+				if(cutMap[i + 1]) 
+					dbgOut += ' zasada';
+				cutMap[i + 1] = 1;
+				ww[i + 1] = -Infinity;
+			}
+		}
+	}
 
 	ind.innerHTML = 'drawing...';
 	setTimeout(function() {
-			draw(img, g, dWidth, dbgOut, dbgMap);
+			draw(img, dWidth, dbgOut, cutMap, ww);
 		}, 1);
 }
 		
 		
 var auxDispCanv = document.getElementById('auxDisplay');
-function draw(img, g, dWidth, dbgOut, dbgMap) {
+function draw(img, dWidth, dbgOut, dbgMap, ww) {
 	dbgOut = dbgOut || '';
 	var s = img.imData.data;
 	var sWidth = img.bs.width, height = img.bs.height;
-	dWidth = sWidth;
 	dispCanv.width = dispCanv.style.width = dWidth;
 	dispCanv.height = dispCanv.style.height = height;
 	
 	var context = dispCanv.getContext('2d');
 	var dest = context.createImageData(dispCanv.width, dispCanv.height);
-	var d = dest.data, j;
+	var d = dest.data;
 
-	// find an entry
-	/*
-	var lefts = g.lefts, rights = g.rights, ups = g.ups, downs = g.downs;
-	var i = 0, down, dp = 0, dEnd = 0, sp; 
-	while(lefts[i] == -1)
-		i++;
-
-
-	//dbgOut += 'x ' + lefts.join(' ');
-	
-	do {
-		//dbgOut += i + 'l ';
-		down = downs[i];
-		dEnd += dWidth * 4;
-		while(dp < dEnd) {
-			//dbgOut += i + ' ';
-			sp = i * 4;
+	for(var sp = 0, dp = 0, i = 0; i < dbgMap.length; i++) {
+		if(dbgMap[i]) {
+			sp += 4;
+		} else {
 			d[dp++] = s[sp++];
 			d[dp++] = s[sp++];
 			d[dp++] = s[sp++];
-			d[dp++] = 255;
-			j = rights[i];
-			if(j < i)
-				break;
-			i = j;
+			d[dp++] = s[sp++];
 		}
-		dp = dEnd;
-		i = down;
-	} while(i != -2 && dp < d.length);
-*/
-	
-
+	}
 		
 	context.putImageData(dest, 0, 0);
 
@@ -376,38 +354,26 @@ function draw(img, g, dWidth, dbgOut, dbgMap) {
 
 	//dbgOut += 'x ' + downs.join(' ');
 
-	var ee = img.getEnergies();
+	//var ee = img.getEnergies();
+	var f = -0.05;
 	for(var j = dbgMap.length - 1, dp = d.length - 1; j >= 0; j--) {
 		d[dp--] = 255;
-		d[dp--] = 0;
-		d[dp--] = dbgMap[j] % 15 * 15;
-		d[dp--] = dbgMap[j] % 14 * 14;
+		d[dp--] = f*ww[j] - 512;
+		d[dp--] = f*ww[j] - 256;
+		d[dp--] = f*ww[j];
+		/*if(dbgMap[j]) {
+			d[dp--] = 255;
+			d[dp--] = 0;
+			d[dp--] = dbgMap[j] % 15 * 15;
+			d[dp--] = dbgMap[j] % 14 * 14;
+		} else {
+			d[dp--] = 255;
+			d[dp--] = ee[j] - 512;
+			d[dp--] = ee[j] - 256;
+			d[dp--] = ee[j];
+			}*/
 	}
 	
-	/*
-	// find an entry
-	var i = 0, down, dp = 0, dEnd = 0, sp; 
-	while(lefts[i] == -1)
-		i++;
-
-	do {
-		//dbgOut += 'line ';
-		down = downs[i];
-		var lim = sWidth;
-		while(lim--) {
-			//dbgOut += i + ' ';
-			dp = sp = i << 2;
-			d[dp++] = ee[i]-512;
-			d[dp++] = ee[i]-255;
-			d[dp++] = ee[i];
-			d[dp++] = 255;
-			i = rights[i];
-		}
-		i = down;
-	} while(i != -2 && dp < d.length);
-*/
-
-		
 	context.putImageData(dest, 0, 0);
 
 	ind.innerHTML = 'Press keys: a s';
@@ -514,3 +480,4 @@ function Graph(width, height) {
 	}
 }
 
+ind.innerHTML = '123';

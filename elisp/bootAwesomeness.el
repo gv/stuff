@@ -147,7 +147,7 @@
 (global-set-key [M-left] 'pop-tag-mark)
 
 ; for syntax highlighting
-(global-font-lock-mode 1 t)
+(global-font-lock-mode 1)
 
 ;; Выделение парных скобок
 (show-paren-mode 1)
@@ -185,6 +185,11 @@
 ; for ViewSourceWith Firefox extension
 (add-to-list 'auto-mode-alist '("index.\\.*" . wikipedia-mode))
 
+(global-set-key (kbd "M-[") 'gtags-find-rtag)
+(global-set-key (kbd "M-]") 'gtags-find-pattern)
+(global-set-key [M-.] 'gtags-find-tag)
+(global-set-key [M-left] 'gtags-pop-stack)
+
 (add-hook 'c-mode-common-hook 
 		  '(lambda ()
 			 (setq c-basic-offset 2)
@@ -196,10 +201,6 @@
 			 (c-set-offset 'arglist-cont-nonempty '+)
 			 (c-set-offset 'arglist-close 0)
 			 (gtags-mode 1)
-			 (local-set-key (kbd "M-[") 'gtags-find-rtag)
-			 (local-set-key (kbd "M-]") 'gtags-find-pattern)
-			 (local-set-key [M-.] 'gtags-find-tag)
-			 (local-set-key [M-left] 'gtags-pop-stack)
 			 ))
 
 (defun etags () 
@@ -232,6 +233,8 @@
 
 ; Set file types.
 (add-to-list 'auto-mode-alist '("\\.ks\\'" . java-mode))
+;(setq javascript-mode 'java-mode)
+;(add-to-list 'auto-mode-alist '("\\.js\\'" . java-mode))
 
 ; Hide toolbar
 (tool-bar-mode -1)
@@ -251,6 +254,10 @@
 (defun dos () "Reload this buffer as dos linebreaked text" (interactive) 
   (let ((coding-system-for-read 'cp1251-dos))
     (revert-buffer nil t t)))
+
+(defun bw () "Black on white" (interactive) 
+  (set-background-color "white")
+  (set-foreground-color "black"))
 
 
 ;;
