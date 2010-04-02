@@ -9,7 +9,7 @@
 ;;
 (setq default-major-mode 'text-mode)
 ; Turn on auto-fill mode
-(add-hook 'text-mode-hook 'turn-on-auto-fill)
+;(add-hook 'text-mode-hook 'turn-on-auto-fill)
 ;(setq auto-fill-mode t)
 (setq fill-column 75)
 ;; Show marked text
@@ -110,15 +110,7 @@
 ;;установка левого верхнего угла фрейма 
 ;(set-frame-position (selected-frame) 60 0)
 ;;;
-;;установка цветов экрана
-(set-background-color "black")
-(set-foreground-color "white")
 
-;;установка режимов работы курсора
-(set-cursor-color "red")
-;(setq blink-matching-delay 0.1)
-(blink-cursor-mode nil);курсор не мигает!
-;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 ;;Установка значений клавиш
@@ -246,7 +238,34 @@
 	 "Monospace-9"
    "Courier New 9")
  )
+
+(make-face-bold 'font-lock-keyword-face)
+
+;;установка цветов экрана
+(set-background-color "black")
+(set-foreground-color "white")
+
+;;установка режимов работы курсора
+(set-cursor-color "red")
+;(setq blink-matching-delay 0.1)
+(blink-cursor-mode nil);курсор не мигает!
+;;
+; because javascript-mode still doesn't work
+;(font-lock-add-keywords 'java-mode '("\\<\\(function)\\>"))
          
+;(defvar js-font-lock-keywords
+  ;'(;("\\<\\(function\\|constructor\\|prototype\\)\\>" . font-lock-keyword-face)
+;	("\\<\\(four\\|five\\|six\\)\\>" . font-lock-type-face))
+;  "Default expressions to highlight in Foo mode.")
+
+;(add-hook 'java-mode-hook
+;		  (lambda ()
+;			(set (make-local-variable 'font-lock-defaults)
+;				 '(js-font-lock-keywords t))))
+
+
+
+
 (defun utf () "Reload this buffer as utf-8" (interactive) 
   (let ((coding-system-for-read 'utf-8))
     (revert-buffer nil t t)))
