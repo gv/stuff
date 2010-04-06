@@ -182,21 +182,25 @@
 (global-set-key [M-.] 'gtags-find-tag)
 (global-set-key [M-left] 'gtags-pop-stack)
 
-(add-hook 'c-mode-common-hook 
-		  '(lambda ()
-			 (setq c-basic-offset 2)
-			 (setq tab-width 2)
-			 (setq indent-tabs-mode t)
-			 (setq case-fold-search nil)
-			 (setq case-replace nil)
-			 (c-set-offset 'arglist-intro '+)
-			 (c-set-offset 'arglist-cont-nonempty '+)
-			 (c-set-offset 'arglist-close 0)
-			 (gtags-mode 1)
-			 ))
+(defun vg-tune-c ()
+  (setq c-basic-offset 2)
+  (setq tab-width 2)
+  (setq indent-tabs-mode t)
+  (setq case-fold-search nil)
+  (setq case-replace nil)
+  (c-set-offset 'arglist-intro '+)
+  (c-set-offset 'arglist-cont-nonempty '+)
+  (c-set-offset 'arglist-close 0)
+  (gtags-mode 1)
+  (setq js-indent-level 2)
+  )
+
+(add-hook 'c-mode-common-hook 'vg-tune-c)
+
+(add-hook 'js-mode-hook 'vg-tune-c)
 
 (defun etags () 
-  "Switch from global to etags, revert to go back"
+  "Switch from global to etags, revert to go back | doesn't work"
   (interactive)
   (local-set-key (kbd "M-[") 'gtags-find-rtag)
   (local-set-key (kbd "M-]") 'gtags-find-pattern)
@@ -240,10 +244,7 @@
  )
 
 (make-face-bold 'font-lock-keyword-face)
-
-;;установка цветов экрана
-(set-background-color "black")
-(set-foreground-color "white")
+(make-face-italic 'font-lock-string-face)
 
 ;;установка режимов работы курсора
 (set-cursor-color "red")
@@ -273,6 +274,10 @@
 (defun dos () "Reload this buffer as dos linebreaked text" (interactive) 
   (let ((coding-system-for-read 'cp1251-dos))
     (revert-buffer nil t t)))
+
+;;установка цветов экрана
+;;(set-background-color "black")
+;;(set-foreground-color "white")
 
 (defun bw () "Black on white" (interactive) 
   (set-background-color "white")
