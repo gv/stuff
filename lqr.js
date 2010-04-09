@@ -225,7 +225,11 @@ function resizeAndDraw(img) {
 	var pathWidth = w - dWidth;
 
 	var ee = img.getEnergies();
-	var ww = ee.concat();
+	var ww = new Array(ee.size);
+	for(var i = 0; i < w; i++) {
+		ww[i] = -ee[i];
+	}
+
 	for(var i = w; i < len; i++) {
 		var xx = ww.slice(i - w, i);
 		xx.sort(greaterNumbersFirst);
@@ -300,26 +304,23 @@ function resizeAndDraw(img) {
 				cutMap[i] = 3;
 				ww[i] = -Infinity;
 			} else {
-				if(cutMap[i + 1]) {
+				if(cutMap[i + 1]) 
 					dbgOut += ' zasada';
-					cutMap[z] = 1;
-				} else {
-					cutMap[i + 1] = 1;
-					ww[i + 1] = -Infinity;
-				}
+				cutMap[i + 1] = 1;
+				ww[i + 1] = -Infinity;
 			}
 		}
 	}
 
 	ind.innerHTML = 'drawing...';
 	setTimeout(function() {
-			draw(img, dWidth, dbgOut, cutMap);
+			draw(img, dWidth, dbgOut, cutMap, ww);
 		}, 1);
 }
 		
 		
 var auxDispCanv = document.getElementById('auxDisplay');
-function draw(img, dWidth, dbgOut, dbgMap) {
+function draw(img, dWidth, dbgOut, dbgMap, ww) {
 	dbgOut = dbgOut || '';
 	var s = img.imData.data;
 	var sWidth = img.bs.width, height = img.bs.height;
@@ -353,9 +354,14 @@ function draw(img, dWidth, dbgOut, dbgMap) {
 
 	//dbgOut += 'x ' + downs.join(' ');
 
-	var ee = img.getEnergies();
+	//var ee = img.getEnergies();
+	var f = -0.05;
 	for(var j = dbgMap.length - 1, dp = d.length - 1; j >= 0; j--) {
-		if(dbgMap[j]) {
+		d[dp--] = 255;
+		d[dp--] = f*ww[j] - 512;
+		d[dp--] = f*ww[j] - 256;
+		d[dp--] = f*ww[j];
+		/*if(dbgMap[j]) {
 			d[dp--] = 255;
 			d[dp--] = 0;
 			d[dp--] = dbgMap[j] % 15 * 15;
@@ -365,7 +371,7 @@ function draw(img, dWidth, dbgOut, dbgMap) {
 			d[dp--] = ee[j] - 512;
 			d[dp--] = ee[j] - 256;
 			d[dp--] = ee[j];
-		}
+			}*/
 	}
 	
 	context.putImageData(dest, 0, 0);

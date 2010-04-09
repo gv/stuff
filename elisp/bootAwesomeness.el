@@ -9,7 +9,7 @@
 ;;
 (setq default-major-mode 'text-mode)
 ; Turn on auto-fill mode
-(add-hook 'text-mode-hook 'turn-on-auto-fill)
+;(add-hook 'text-mode-hook 'turn-on-auto-fill)
 ;(setq auto-fill-mode t)
 (setq fill-column 75)
 ;; Show marked text
@@ -110,15 +110,7 @@
 ;;установка левого верхнего угла фрейма 
 ;(set-frame-position (selected-frame) 60 0)
 ;;;
-;;установка цветов экрана
-(set-background-color "black")
-(set-foreground-color "white")
 
-;;установка режимов работы курсора
-(set-cursor-color "red")
-;(setq blink-matching-delay 0.1)
-(blink-cursor-mode nil);курсор не мигает!
-;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 ;;Установка значений клавиш
@@ -147,7 +139,7 @@
 (global-set-key [M-left] 'pop-tag-mark)
 
 ; for syntax highlighting
-(global-font-lock-mode 1 t)
+(global-font-lock-mode 1)
 
 ;; Выделение парных скобок
 (show-paren-mode 1)
@@ -178,37 +170,40 @@
 
 ; Загрузим другие программы 
 (autoload 'php-mode "php-mode.el" "XXX" t)
-;(load "ecmascript-mode.el")
-;(require 'ecmascript-mode)
 (autoload 'wikipedia-mode "wikipedia-mode.el"
 "Major mode for editing documents in Wikipedia markup." t)
 ; for ViewSourceWith Firefox extension
 (add-to-list 'auto-mode-alist '("index.\\.*" . wikipedia-mode))
 
-(add-hook 'c-mode-common-hook 
-		  '(lambda ()
-			 (setq c-basic-offset 2)
-			 (setq tab-width 2)
-			 (setq indent-tabs-mode t)
-			 (setq case-fold-search nil)
-			 (setq case-replace nil)
-			 (c-set-offset 'arglist-intro '+)
-			 (c-set-offset 'arglist-cont-nonempty '+)
-			 (c-set-offset 'arglist-close 0)
-			 (gtags-mode 1)
-			 (local-set-key (kbd "M-[") 'gtags-find-rtag)
-			 (local-set-key (kbd "M-]") 'gtags-find-pattern)
-			 (local-set-key [M-.] 'gtags-find-tag)
-			 (local-set-key [M-left] 'gtags-pop-stack)
-			 ))
+;;(global-set-key (kbd "M-[") 'gtags-find-rtag)
+;;(global-set-key (kbd "M-]") 'gtags-find-pattern)
+;;(global-set-key [M-.] 'gtags-find-tag)
+;;(global-set-key [M-left] 'gtags-pop-stack)
+
+(defun vg-tune-c ()
+  (setq c-basic-offset 2)
+  (setq tab-width 2)
+  (setq indent-tabs-mode t)
+  (setq case-fold-search nil)
+  (setq case-replace nil)
+  (c-set-offset 'arglist-intro '+)
+  (c-set-offset 'arglist-cont-nonempty '+)
+  (c-set-offset 'arglist-close 0)
+  (gtags-mode 1)
+  (setq js-indent-level 2)
+  )
+
+(add-hook 'c-mode-common-hook 'vg-tune-c)
+
+(add-hook 'js-mode-hook 'vg-tune-c)
 
 (defun etags () 
-  "Switch from global to etags, revert to go back"
+  "Switch from global to etags, revert to go back | doesn't work"
   (interactive)
   (local-set-key (kbd "M-[") 'gtags-find-rtag)
   (local-set-key (kbd "M-]") 'gtags-find-pattern)
   (local-set-key [M-.] 'find-tag)
-  (local-set-key [M-left] 'pop-tag-matk)
+  (local-set-key [M-left] 'pop-tag-mark)
   )
 
   
@@ -232,6 +227,8 @@
 
 ; Set file types.
 (add-to-list 'auto-mode-alist '("\\.ks\\'" . java-mode))
+;(setq javascript-mode 'java-mode)
+;(add-to-list 'auto-mode-alist '("\\.js\\'" . java-mode))
 
 ; Hide toolbar
 (tool-bar-mode -1)
@@ -243,7 +240,31 @@
 	 "Monospace-9"
    "Courier New 9")
  )
+
+(make-face-bold 'font-lock-keyword-face)
+(make-face-italic 'font-lock-string-face)
+
+;;установка режимов работы курсора
+(set-cursor-color "red")
+;(setq blink-matching-delay 0.1)
+(blink-cursor-mode nil);курсор не мигает!
+;;
+; because javascript-mode still doesn't work
+;(font-lock-add-keywords 'java-mode '("\\<\\(function)\\>"))
          
+;(defvar js-font-lock-keywords
+  ;'(;("\\<\\(function\\|constructor\\|prototype\\)\\>" . font-lock-keyword-face)
+;	("\\<\\(four\\|five\\|six\\)\\>" . font-lock-type-face))
+;  "Default expressions to highlight in Foo mode.")
+
+;(add-hook 'java-mode-hook
+;		  (lambda ()
+;			(set (make-local-variable 'font-lock-defaults)
+;				 '(js-font-lock-keywords t))))
+
+
+
+
 (defun utf () "Reload this buffer as utf-8" (interactive) 
   (let ((coding-system-for-read 'utf-8))
     (revert-buffer nil t t)))
@@ -251,6 +272,14 @@
 (defun dos () "Reload this buffer as dos linebreaked text" (interactive) 
   (let ((coding-system-for-read 'cp1251-dos))
     (revert-buffer nil t t)))
+
+;;установка цветов экрана
+;;(set-background-color "black")
+;;(set-foreground-color "white")
+
+(defun bw () "Black on white" (interactive) 
+  (set-background-color "white")
+  (set-foreground-color "black"))
 
 
 ;;
