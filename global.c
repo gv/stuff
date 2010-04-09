@@ -263,42 +263,185 @@ finish:
 	return db;
 }
 
+struct graph_link;
+
+struct graph_node {
+	char path[MAXPATHLEN];
+	char fid[32];
+	int ref_cnt;
+	int popularity; // how much it is referenced
+	int power; // how much does it reference
+	struct graph_link *first_link;
+};	
+
+struct graph_link {
+	int strength;
+	char comment[80];
+	struct graph_node *end;
+	struct graph_link *next;
+};
+
+void print_graph_node(struct graph_node *node, int indent, int flags) {
+	int c = indent;
+	struct graph_link *link;
+	while(c--)
+		printf("  ");
+
+	printf("%s : %d refs %d popularity\n",		
+		node->path, node->ref_cnt, node->popularity); 
+	node->ref_cnt = -1;
+
+	for(link = node->first_link; link; link = link->next) {
+		if(link->end->ref_cnt != -1) {
+			print_graph_node(link->end, indent + 1, 0);
+		} else {
+			for(c = indent + 1; c; c--)
+				printf("  ");
+			printf("%s %d %s\n", link->end->path, link->strength, link->comment);
+		}
+	}
+	node->ref_cnt = -1;
+}
+	
+
 int print_graph(unsigned file_cnt,  char **filenames, const char *cwd,
 	const char *prj_root, const char *dbpath) {
 	DBOP *refs_db = NULL;
-	const char *dat = NULL;
-	const char *fids[file_cnt];
-	const char * const *name;
-	const char  **p;
+	const char *line = NULL;
+	struct graph_node *node, **pnode, *primary_nodes[file_cnt + 1];
+	struct graph_link *link;
+	char **name, **end;
 	char bf[MAXPATHLEN];
+	STRHASH *table = strhash_open(100);
+	struct sh_entry *entry;
+	int cnt;
+	GTOP *defs_db;
 
 	if (gpath_open(dbpath, 0) < 0)
 		die("GPATH not found.");
-	
-	p = fids;
-	for(name = (const char* const*)filenames + file_cnt - 1; 
-			name >= (const char* const*)filenames; name--, p++) {
+
+	pnode = primary_nodes;
+	for(name = filenames, end = filenames + file_cnt; name < end; name++) {
+		const char *fid;
 
 		if(!normalize(*name, get_root_with_slash(), cwd, bf, sizeof bf))
 			die("'%s' is out of source tree.", *name);
-			
 
-		*p = gpath_path2fid(bf, NULL);
-		if(!*p) {
-			die("No %s in index", *name);
+		fid = gpath_path2fid(bf, NULL);
+		if(!fid) {
+			die("No '%s' in index", bf);
 		}
-		*p = check_strdup(*p);
-		puts(*p);
+
+		puts(fid);
+
+		node = check_malloc(sizeof (struct graph_node));
+		strncpy(node->path, *name, sizeof node->path);
+		strncpy(node->fid, fid, sizeof node->fid);
+		node->ref_cnt = node->popularity = node->power = 0;
+		node->first_link = NULL;
+		entry = strhash_assign(table, fid, 1);
+		entry->value = node;
+		*pnode++ = node;
 	}
+	*pnode = NULL;
+
+	// Read about references
 	
 	refs_db = dbop_open(makepath(dbpath, dbname(GRTAGS), NULL), 0, 0, DBOP_RAW);
 	if(!refs_db)
 		die("Bad %s", dbname(GRTAGS));
 
-	for(dat = dbop_first(refs_db, NULL, NULL, 0); dat; dat = dbop_next(refs_db)) {
-		printf("%s\n", refs_db->lastkey);
+	defs_db = gtags_open(dbpath, prj_root, GTAGS, GTAGS_READ, 0);
+	if(!defs_db)
+		die("No %s", dbname(GTAGS));
+
+	for(line = dbop_first(refs_db, NULL, NULL, 0); line; line = dbop_next(refs_db)) {
+		char *p = bf;
+		while(*line && *line != ' ')
+			*p++ = *line++;
+		if(p == bf)
+			continue;
+		*p = 0;
+
+		entry = strhash_assign(table, bf, 0);
+		if(entry) {
+			GTP *def;
+			struct sh_entry * def_entry;
+			struct graph_node *defining_node;
+			int def_cnt = 0, r;
+
+			node = entry->value;
+			for(def = gtags_first(defs_db, refs_db->lastkey, 0); 
+					def; def = gtags_next(defs_db)) {
+				char *p = bf;
+				int len;
+				line = def->tagline;
+				while(*line && *line != ' ')
+					*p++ = *line++;
+				if(p == bf)
+					continue;
+				*p = 0;
+				
+				if(!strcmp(node->fid, bf))
+					continue; // reference to itself
+
+				entry = strhash_assign(table, bf, 0);
+				if(!entry)
+					continue;
+
+				defining_node = entry->value;
+				// give 10 popularity for each ambigous def and 100 for unambiguous
+				defining_node->popularity += 10;
+				//printf("%s %s\n", refs_db->lastkey, defining_node->path);
+
+				// Store link with referencing node.
+
+				for(link = node->first_link; link; link = link->next) {
+					/*r = strcmp(defining_node->fid, link->end->fid);
+					if(r == 0)
+					break;*/
+					if(defining_node == link->end)
+						break;
+				}
+				
+				if(!link) {
+					link = check_malloc(sizeof(struct graph_link));
+					link->end = defining_node;
+					defining_node->ref_cnt++;
+					link->strength = 0;
+					link->comment[0] = 0;
+					link->next = node->first_link;
+					node->first_link = link;
+					printf("%s to %s\n", node->path, defining_node->path);
+				}
+				link->strength += 10;
+				p = strchr(link->comment, 0);
+			
+				len = link->comment + sizeof link->comment - p - 1;	
+				if(len > snprintf(p, len, "%s, ", refs_db->lastkey)) {
+					link->comment[sizeof link->comment - 1] = 0;
+				}
+
+				
+				def_cnt++;
+			}
+			
+			if(1 == def_cnt) {
+				defining_node->popularity += 1000;
+				link->strength += 1000;
+			}
+			
+		}
+
 	}
 
+
+	// Print
+
+	for(pnode = primary_nodes; *pnode; pnode++) {
+		if((*pnode)->ref_cnt != -1)
+			print_graph_node(*pnode, 0, 0);
+	}
 
 	dbop_close(refs_db);
 	gpath_close();
