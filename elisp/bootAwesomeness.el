@@ -170,17 +170,15 @@
 
 ; Загрузим другие программы 
 (autoload 'php-mode "php-mode.el" "XXX" t)
-;(load "ecmascript-mode.el")
-;(require 'ecmascript-mode)
 (autoload 'wikipedia-mode "wikipedia-mode.el"
 "Major mode for editing documents in Wikipedia markup." t)
 ; for ViewSourceWith Firefox extension
 (add-to-list 'auto-mode-alist '("index.\\.*" . wikipedia-mode))
 
-(global-set-key (kbd "M-[") 'gtags-find-rtag)
-(global-set-key (kbd "M-]") 'gtags-find-pattern)
-(global-set-key [M-.] 'gtags-find-tag)
-(global-set-key [M-left] 'gtags-pop-stack)
+;;(global-set-key (kbd "M-[") 'gtags-find-rtag)
+;;(global-set-key (kbd "M-]") 'gtags-find-pattern)
+;;(global-set-key [M-.] 'gtags-find-tag)
+;;(global-set-key [M-left] 'gtags-pop-stack)
 
 (defun vg-tune-c ()
   (setq c-basic-offset 2)
@@ -205,7 +203,7 @@
   (local-set-key (kbd "M-[") 'gtags-find-rtag)
   (local-set-key (kbd "M-]") 'gtags-find-pattern)
   (local-set-key [M-.] 'find-tag)
-  (local-set-key [M-left] 'pop-tag-matk)
+  (local-set-key [M-left] 'pop-tag-mark)
   )
 
   
