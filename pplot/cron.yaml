@@ -1,5 +1,5 @@
 cron:
 - description: daily summary job
   url: /update
-  schedule: every 24 hours 09:00
-  timezone: eqwroiqyowieruyqeowi
+  schedule: every day 09:00
+  timezone: Moscow

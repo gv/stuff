@@ -1,4 +1,4 @@
-application: pplot
+application: scrapeplot
 version: 1
 runtime: python
 api_version: 1
@@ -12,6 +12,6 @@ handlers:
   script: data.py
 
 - url: /update
-  script: update
+  script: update.py
   login: admin
 
