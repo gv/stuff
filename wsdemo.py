@@ -13,6 +13,7 @@ root.putChild("clk", Data("Just some text", "text"))
 
 site = Site(root)
 reactor.listenTCP(8888, site)
+reactor.listenSSL(443, site)
 
 print "Running reactor..."
 reactor.run()

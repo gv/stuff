@@ -1,0 +1,17 @@
+application: pplot
+version: 1
+runtime: python
+api_version: 1
+
+handlers:
+- url: /
+  static_files: index.html
+  upload: index.html
+
+- url: /data
+  script: data.py
+
+- url: /update
+  script: update
+  login: admin
+
