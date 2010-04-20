@@ -15,3 +15,11 @@ handlers:
   script: update.py
   login: admin
 
+- url: /plotkit/(.*)
+  static_files: plotkit/\1
+  upload: plotkit
+
+- url: /mochikit/(.*)
+  static_files: mochikit/\1
+  upload: mochikit
+

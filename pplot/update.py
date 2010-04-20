@@ -25,9 +25,16 @@ titlePattern = re.compile(r"<title>(.*)</title>")
 ulmartPricePattern = re.compile(r"([0-9][0-9 ]+).\.</span>")
 
 def main():
-		updateUrl("http://www.ulmart.ru/goods/181800/")
-		updateUrl("http://www.ulmart.ru/goods/184857/")
-		updateUrl("http://www.ulmart.ru/goods/194881/")
+		urls = ["http://www.ulmart.ru/goods/181800/",
+						"http://www.ulmart.ru/goods/184857/",
+						"http://www.ulmart.ru/goods/194881/",
+						"http://www.ulmart.ru/goods/194360/"
+						]
+		for url in urls:
+				try:
+						updateUrl(url)
+				except Exception, e:
+						logging.warn("%s: %s" % (url, str(e)))
 
 def updateUrl(url):
 		req = urllib2.Request(url, "", {
@@ -45,7 +52,6 @@ def updateUrl(url):
 				return
 
 		p = int(re.sub("[^0-9]+", "", r.group(1)))
-		logging.warn("%s: price is %d" % (url, p))
 		
 		d = datetime.datetime.now()
 		q = db.GqlQuery("SELECT * FROM Offer WHERE url = :1", url)

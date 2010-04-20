@@ -1,8 +1,42 @@
 <html>
   <body>
+	<div id="plot"></div>
+	<script type="text/javascript" src="mochikit/MochiKit.js"></script>
+	<script type="text/javascript" src="plotkit/PlotKit_Packed.js"></script>
 	<script type="text/javascript">
-	  
+	  var d = loadJSONDoc("/data");
+	  d.addCallbacks(function(m) {
+		  try {
+			  var l = new Layout("line", {
+				  xOriginIsZero: false
+			  });
+			  for(var k in m.lines) {
+				  var line = m.lines[k], points = [];
+				  for(var i in line.points) {
+					  var p = [line.points[i].date, line.points[i].value];
+					  console.log(p);
+					  points.push(p);
+				  }
+				  l.addDataset(line.title, points);
+			  }
 
+			  l.evaluate();
+			  
+			  var svg = SVGRenderer.SVG({
+				  "width": 900, 
+				  "height": 700, 
+				  "id":"chart"});
+			  $('plot').appendChild(svg);
+			  var chart = new SweetSVGRenderer(svg, l, { 
+				  "shouldFill": false,
+				  "strokeColor": Color.fromString("#e83232")});
+			  chart.render();
+		  } catch(e) {
+			  alert(e);
+		  }
+	  }, function(e) {
+		  alert(e);
+	  });
 	</script>
   </body>
 </html>
