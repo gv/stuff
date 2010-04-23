@@ -1,6 +1,3 @@
-;;Файл конфигурации для emacs версии 22.0.50.1
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
 (message "Trying to load init.el by vg...")
 ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -8,11 +5,6 @@
 ;; Установка режимов работы Emacs
 ;;
 (setq default-major-mode 'text-mode)
-; Turn on auto-fill mode
-;(add-hook 'text-mode-hook 'turn-on-auto-fill)
-;(setq auto-fill-mode t)
-(setq fill-column 75)
-;; Show marked text
 (setq transient-mark-mode '1)
 (setq font-lock-maximum-decoration t)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -24,22 +16,13 @@
 ;; Scratch buffer settings. Очищаем его.
 (setq initial-scratch-message nil)
 ;;гладкий скроллинг с полями
-;(setq scroll-conservatively 50)
-;(setq scroll-preserve-screen-position 't)
-;(setq scroll-margin 10)
+(setq scroll-conservatively 100)
+(setq scroll-preserve-screen-position 't)
+;;(setq scroll-margin 2)
 ;; show column & line numbers in status bar
 (setq column-number-mode t)
 (setq line-number-mode t)
-;; hour format
-(setq display-time-24hr-format t)
-(setq display-time-day-and-date t)
-(display-time)
-(setq calendar-date-display-form (quote ((format "%04s-%02d-%02d" year (string-to-int month) (string-to-int day)))))
-(setq calendar-time-display-form (quote (24-hours ":" minutes (if time-zone " (") time-zone (if time-zone ")"))))
-(setq calendar-week-start-day 1)
-(setq european-calendar-style t)
-;;Табулятор
-(setq-default tab-width 4)
+
 ;; Start off in "C:/home" dir.
 (cd "~/")
 (setq my-author-name (getenv "USER"))
@@ -99,22 +82,11 @@
 ;; always end a file with a newline
 (setq require-final-newline t)
 (delete-selection-mode t) ; <del> удаляет выделенный текст
-;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-;;Настройка внешнего вида редактора
-;;
-;;установка размеров экрана
-;(set-frame-height (selected-frame) 55)
-;(set-frame-width (selected-frame) 100)
-;;установка левого верхнего угла фрейма 
-;(set-frame-position (selected-frame) 60 0)
-;;;
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-;;Установка значений клавиш
-;;
+;;     GENERAL KEYS
+;;     ``````` ````
+
 (global-set-key [home] 'beginning-of-line)
 (global-set-key [end] 'end-of-line)
 ; Workaround for windows remote terminals
@@ -138,14 +110,35 @@
 (global-set-key [C-tab]  'other-window) 
 (global-set-key [M-left] 'pop-tag-mark)
 
-; for syntax highlighting
-(global-font-lock-mode 1)
+;;
+;;    APPEARANCE
+;;    ``````````
+;;
+
+(setq-default tab-width 4)
+
+(global-font-lock-mode 1) ; for syntax highlighting
+
 
 ;; Выделение парных скобок
 (show-paren-mode 1)
 (setq show-paren-style 'expression);выделять все выражение в скобках
+(tool-bar-mode -1)
+(set-default-font 
+ (if (equal window-system 'x)
+    ; "Bitstream Vera Sans Mono-9"
+	 "Monospace-9"
+   "Courier New 9")
+ )
 
-;;Установка кодировки текста
+(set-cursor-color "red")
+(blink-cursor-mode nil)
+
+;; 
+;;    КОДИРОВКИ
+;;    `````````
+;;
+
 ;;Используем Windows 1251
 (set-language-environment "Russian")
 (define-coding-system-alias 'windows-1251 'cp1251)
@@ -156,29 +149,28 @@
 (prefer-coding-system 'cp1251-dos)
 ;;
 ;; Использовать окружение UTF-8
-;(set-language-environment 'UTF-8)
-;(set-buffer-file-coding-system 'utf-8-dos)
-;(set-default-coding-systems 'utf-8-dos)
-;(set-terminal-coding-system 'utf-8-dos)
-;(set-selection-coding-system 'utf-8-dos)
-;; Установки автоопределения кодировок. Первой будет определяться utf-8-dos
+;;(set-language-environment 'UTF-8)
+;;(set-buffer-file-coding-system 'utf-8-dos)
+;;(set-default-coding-systems 'utf-8-dos)
+;;(set-terminal-coding-system 'utf-8-dos)
+;;(set-selection-coding-system 'utf-8-dos)
 (prefer-coding-system 'cp866-dos)
 (prefer-coding-system 'koi8-r-dos)
 (prefer-coding-system 'utf-8-dos)
 (prefer-coding-system 'windows-1251-dos)
 
+;; 
+;;     PROGRAMMING
+;;     ```````````
+;;
 
 ; Загрузим другие программы 
 (autoload 'php-mode "php-mode.el" "XXX" t)
 (autoload 'wikipedia-mode "wikipedia-mode.el"
-"Major mode for editing documents in Wikipedia markup." t)
-; for ViewSourceWith Firefox extension
-(add-to-list 'auto-mode-alist '("index.\\.*" . wikipedia-mode))
+  "Major mode for editing documents in Wikipedia markup." t)
 
-(global-set-key (kbd "M-[") 'gtags-find-rtag)
-(global-set-key (kbd "M-]") 'gtags-find-symbol)
-(global-set-key [M-.] 'gtags-find-tag)
-(global-set-key [M-left] 'gtags-pop-stack)
+;; for ViewSourceWith Firefox extension
+(add-to-list 'auto-mode-alist '("index.\\.*" . wikipedia-mode))
 
 (defun vg-tune-c ()
   (setq c-basic-offset 2)
@@ -207,6 +199,9 @@
   )
 
   
+(require 'gtags)
+(fset 'find-tag 'gtags-find-tag)
+
 (add-hook 'gtags-select-mode-hook
 		  '(lambda ()
 			 (local-set-key (kbd "M-[") 'gtags-find-rtag)
@@ -225,29 +220,19 @@
 			 (setq case-replace nil)))
 
 
+(global-set-key (kbd "M-[") 'gtags-find-rtag)
+(global-set-key (kbd "M-]") 'gtags-find-symbol)
+(global-set-key (kbd "M-=") 'gtags-find-file)
+(global-set-key [M-.] 'gtags-find-tag)
+(global-set-key [M-left] 'gtags-pop-stack)
+
 ; Set file types.
 (add-to-list 'auto-mode-alist '("\\.ks\\'" . java-mode))
 ;(setq javascript-mode 'java-mode)
 ;(add-to-list 'auto-mode-alist '("\\.js\\'" . java-mode))
-
-; Hide toolbar
-(tool-bar-mode -1)
-
-;
-(set-default-font 
- (if (equal window-system 'x)
-    ; "Bitstream Vera Sans Mono-9"
-	 "Monospace-9"
-   "Courier New 9")
- )
-
 (make-face-bold 'font-lock-keyword-face)
 (make-face-italic 'font-lock-string-face)
 
-;;установка режимов работы курсора
-(set-cursor-color "red")
-;(setq blink-matching-delay 0.1)
-(blink-cursor-mode nil);курсор не мигает!
 ;;
 ; because javascript-mode still doesn't work
 ;(font-lock-add-keywords 'java-mode '("\\<\\(function)\\>"))
@@ -261,8 +246,6 @@
 ;		  (lambda ()
 ;			(set (make-local-variable 'font-lock-defaults)
 ;				 '(js-font-lock-keywords t))))
-
-
 
 
 (defun utf () "Reload this buffer as utf-8" (interactive) 
@@ -287,7 +270,8 @@
   (message "test")
 )
 
-(require 'gtags)
-(fset 'find-tag (symbol-function 'gtags-find-tag))
+(fset 'yes-or-no-p 'y-or-n-p)
+
 ;;
 (message "init.el by vg loaded OK.")
+
