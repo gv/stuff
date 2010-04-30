@@ -1,16 +1,12 @@
 (message "Trying to load init.el by vg...")
+
 ;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;     BEHAVIOR
+;;     ````````
 ;;
-;; Установка режимов работы Emacs
-;;
+
 (setq default-major-mode 'text-mode)
 (setq transient-mark-mode '1)
-(setq font-lock-maximum-decoration t)
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-;; Установка правил поведения редактора
-;;
 ;;загружается молча
 (setq inhibit-startup-message t)
 ;; Scratch buffer settings. Очищаем его.
@@ -43,8 +39,6 @@
    kept-new-versions 6
    kept-old-versions 2
    version-control t)       ; use versioned backups
-;(setq version-control t);нумерованный бэкап - 2 первых и 2 последних
-;(setq delete-old-versions t);удаление промежуточных бэкапов
 ;;
 ;;мышка...
 ;;
@@ -117,6 +111,7 @@
 
 (setq-default tab-width 4)
 
+(setq font-lock-maximum-decoration t)
 (global-font-lock-mode 1) ; for syntax highlighting
 
 
@@ -267,7 +262,9 @@
 (setq tramp-mode nil)
 
 (defun cock () (interactive)
-  (message "test")
+  (message "123")
+  (error "this used to" 1)
+  (message "234")
 )
 
 (fset 'yes-or-no-p 'y-or-n-p)

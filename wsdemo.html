@@ -1,5 +1,6 @@
 <html>
   <body>
+	<a href="#" onclick="connect(); return false">connect</a>
 	<div><b>open</b>
 	<div id="opens"></div>
 	</div>
@@ -13,29 +14,31 @@
 	<div id="errors"></div>
 	</div>
 	<script type="text/javascript">
-	  try {
 		  var openEvtNode = document.getElementById("opens");
 		  var msgEvtNode = document.getElementById("msgs");
 		  var closeEvtNode = document.getElementById("closes");
 		  var errEvtNode = document.getElementById("errors");
 		  
-		  var s = new WebSocket("ws://93.92.204.36:8888/clk");
+		  function connect() {
+		  try {
+		  var s = new WebSocket("ws://localhost:8888/clk");
 		  s.onopen = function(ev) {
-			  openEvtNode.innerHTML = JSON.stringify(ev);
+		  openEvtNode.innerHTML = JSON.stringify(ev);
 		  };
 		  s.onmessage = function(ev) {
-			  msgEvtNode.innerHTML = JSON.stringify(ev);
+		  msgEvtNode.innerHTML = JSON.stringify(ev);
 		  };
 		  s.onclose = function(ev) {
-			  closeEvtNode.innerHTML = JSON.stringify(ev);
+		  closeEvtNode.innerHTML = JSON.stringify(ev);
 		  };
 		  s.onerror = function(ev) {
-			  errEvtNode.innerHTML = JSON.stringify(ev);
+		  errEvtNode.innerHTML = JSON.stringify(ev);
 		  };
 		  
-	  } catch(e) {
+		  } catch(e) {
 		  alert(e);
-	  }
+		  }
+		  }
 	</script>
   </body>
 </html>
