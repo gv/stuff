@@ -8,6 +8,10 @@ handlers:
   static_files: index.html
   upload: index.html
 
+- url: /pplot.js
+  static_files: pplot.js
+  upload: pplot.js
+
 - url: /data
   script: data.py
 
