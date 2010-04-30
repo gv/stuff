@@ -28,7 +28,8 @@ def main():
 		urls = ["http://www.ulmart.ru/goods/181800/",
 						"http://www.ulmart.ru/goods/184857/",
 						"http://www.ulmart.ru/goods/194881/",
-						"http://www.ulmart.ru/goods/194360/"
+						"http://www.ulmart.ru/goods/194360/",
+						"http://www.ulmart.ru/goods/196607/"
 						]
 		for url in urls:
 				try:

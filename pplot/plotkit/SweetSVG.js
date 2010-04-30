@@ -118,35 +118,64 @@ PlotKit.SweetSVGRenderer.prototype._renderLineChart = function() {
     var bind = MochiKit.Base.bind;
     var shadowColor = Color.blackColor().toRGBString();
     var shadowStyle = "fill:" + shadowColor + ";fill-opacity:0.15";
-    var strokeStyle = "stroke-width: 2.0; stroke:" + Color.whiteColor().toRGBString();
+    var strokeStyle = "stroke-width: 2.0; stroke:" + 
+		Color.whiteColor().toRGBString();
 
-    var addPoint = function(attrs, point) {
-        this._tempPointsBuffer += (this.area.w * point.x + this.area.x) + "," +
-                                 (this.area.h * point.y + this.area.y) + " ";
-    };
+	var addPoint = function(attrs, point) {
+		var x = this.area.w * point.x + this.area.x;
+		var y = this.area.h * point.y + this.area.y;
+		this._tempPointsBuffer += x + "," + y + " ";
+		if(this.options.pointSize) {
+			var pa = {
+				x: x - this.options.pointSize / 2,
+				y: y - this.options.pointSize / 2,
+				width: this.options.pointSize,
+				height: this.options.pointSize,
+				color: this.options.strokeColor ?
+					this.options.strokeColor.toRGBString():
+					"#000000"
+			};
+			this.root.appendChild(this.createSVGElement("rect", pa));
+		}
+	};
 
-    var startLine = function(attrs) {
-        this._tempPointsBuffer = "";
-        this._tempPointsBuffer += (this.area.x) + "," + (this.area.y+this.area.h) + " ";
-    };
+	if(this.options.justLines) {
+		var startLine = function(attrs) {
+			this._tempPointsBuffer = "";
+		};
 
-    var endLine = function(attrs) {
-        this._tempPointsBuffer += (this.area.w + this.area.x) + ","  +(this.area.h + this.area.y);
-        attrs["points"] = this._tempPointsBuffer;    
+		var endLine = function(attrs) {
+			attrs.points = this._tempPointsBuffer;
+			attrs.style = {};
+			if(this.options.strokeColor)
+				attrs.style.stroke = this.options.strokeColor.toRGBString();
+			var l = this.createSVGElement("polyline", attrs);
+			this.root.appendChild(l);
+		};
+	} else {
+		var startLine = function(attrs) {
+			this._tempPointsBuffer = "";
+			this._tempPointsBuffer += (this.area.x) + "," + 
+				(this.area.y+this.area.h) + " ";
+		};
+
+		var endLine = function(attrs) {
+			this._tempPointsBuffer += (this.area.w + this.area.x) + ","  +
+				(this.area.h + this.area.y);
+			attrs["points"] = this._tempPointsBuffer;    
             
-        attrs["stroke"] = "none";
-        attrs["transform"] = "translate(-2, -1)";
-        attrs["style"] = shadowStyle;
-        var shadow = this.createSVGElement("polygon", attrs);
-        this.root.appendChild(shadow);
+			attrs["stroke"] = "none";
+			attrs["transform"] = "translate(-2, -1)";
+			attrs["style"] = shadowStyle;
+			var shadow = this.createSVGElement("polygon", attrs);
+			this.root.appendChild(shadow);
         
-        attrs["transform"] = "";
-        attrs["style"] = strokeStyle;
-        var elem = this.createSVGElement("polygon", attrs);
-        this.root.appendChild(elem);
-        
-       
-    };
+			attrs["transform"] = "";
+			attrs["style"] = strokeStyle;
+			var elem = this.createSVGElement("polygon", attrs);
+			this.root.appendChild(elem);
+		};
+	} 
 
     this._renderBarOrLine(this.layout.points, 
                              bind(addPoint, this), 
