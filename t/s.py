@@ -37,8 +37,6 @@ import world
 DEBUG = False
 DEBUG = True
 
-
-
 				
 class DictResource(Resource):
 		def __init__(self, dct):
@@ -114,25 +112,14 @@ import thousand, tictactoe
 #			/games		(in)	->	 Game Manager. Routes POST requests from remotes to Game 
 #													 objects,	 which handle them according to specific game 
 #													 rules.
-#			/cometd					->	 Async message server.
-#			/templates			->	 A static directory for dojo widget templates. Must be 
-#													 XHR reachable from 'world' domain, so we put it here and 
-#													 not on a static server.
-#			/dlib						->	 Debug version of Dojo library.
-#
 class Entry(In):
 		def __init__(self):
 				Resource.__init__(self)
 				self.putChild('clients', DictResource(Client))
 				self.putChild('games', DictResource(Game))
-				self.putChild('cometd', world.bus) 
-				self.putChild('templates', static.File(os.path.abspath("templates")))
-				self.putChild('dlib', static.File('/opt/share/www/dojod'))
 				if not STATIC_PREFIX.startswith('http'): # got no static server
 						mediaPath = os.path.join(os.path.dirname(world.__file__), 'm')
 						self.child_m = static.File(mediaPath)
-				self.child_comettest = static.File(os.path.join(os.path.dirname(world.__file__), 
-																												'comettest.html'))
 				Client.get('players').postMessage(what = 'chat',
 																					author = 'World',
 																					phrase = 'Started working...')
