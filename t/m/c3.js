@@ -1,4 +1,4 @@
-if(console) {
+if("console" in window) {
 	warn = function(x) { console.log(x); };
 } else {
 	warn = function(x) { /* TODO */ };
@@ -53,8 +53,9 @@ In.prototype.processMessage = function(m) {
 
 
 function connect() {
-	var path = "ws://" + location.host + "/s"
-	alert(path);
+	var path = location.protocol.replace("http", "ws") + 
+		"//" + location.host + "/s"
+	//alert(path);
 	s = new WebSocket(path);
 	s.onopen = function(ev) {
 		setStatus("Joining...");

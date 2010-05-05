@@ -145,7 +145,16 @@ class BrowserConnection(websocket.WebSocketHandler):
 site = websocket.WebSocketSite(root)
 site.addHandler("/s", BrowserConnection)
 reactor.listenTCP(8888, site)
-#reactor.listenSSL(443, site)
+
+try:
+		from twisted.internet import ssl
+		sslContext = ssl.DefaultOpenSSLContextFactory(
+				'privkey.pem', 
+				'cacert.pem',
+				)
+		reactor.listenSSL(443, site, sslContext)
+except ImportError, e:
+		print "No SSL, ", e
 
 print "Running reactor..."
 reactor.run()
