@@ -15,6 +15,11 @@ function setStatus(s) {
 	statusNode.innerHTML = s;
 }
 
+
+//
+//    CONNECTION
+//
+
 ins = {};
 
 function In(id) {
@@ -100,6 +105,10 @@ function send(m) {
 }
 
 
+//
+//     UI
+//
+
 function RoomBrowser() {
 	var stage = document.body;
 	this.node = stage.appendChild(document.createElement("DIV"));
@@ -111,6 +120,7 @@ function RoomBrowser() {
 	h.innerHTML = "People";
 	this.peopleStage = this.peoplePanel.appendChild(document.createElement("DIV"));
 	this.peopleStage.className = "peopleStage";
+	this.people = {};
 
 	this.loginPanel = this.node.appendChild(document.createElement("DIV"));
 	this.loginPanel.className = "login";
@@ -140,7 +150,6 @@ function RoomBrowser() {
 	this.sayBtn = this.tribunePanel.appendChild(document.createElement("BUTTON"));
 	this.sayBtn.innerHTML = "Say";
 
-	this.loginPanel.style.display = 'none';
 	this.logoutPanel.style.display = 'none';
 
 	var b = this;
@@ -149,7 +158,21 @@ function RoomBrowser() {
 		if(13 == ev.keyCode) 
 			b.say();
 	};
+
+	this.loginBtn.onclick = function() { b.login(); };
 }
+
+RoomBrowser.prototype.login = function() {
+	var name = this.nameInp.value;
+	if(name) {
+		var m = {
+			what: "updatePerson",
+			name: name
+		};
+		setStatus("Sending...");
+		send(m);
+	}
+};
 
 RoomBrowser.prototype.say = function() {
 	var text = this.sayInp.value;
@@ -167,36 +190,72 @@ RoomBrowser.prototype.say = function() {
 RoomBrowser.prototype.addComment = function(item) {
 	var node = this.conversationStage.appendChild(document.createElement("DIV"));
 	node.className = "comment";
-	node.innerHTML = "<b>" + item.author + "</b>: " + item.text;
+	var author = item.author;
+	if(this.people[author] && this.people[author].name)
+		author = this.people[author].name;
+	node.innerHTML = "<b>" + author + "</b>: " + item.text;
 };
+
+RoomBrowser.prototype.updatePerson = function(p) {
+	var person = this.people[p.target];
+	if(!person) {
+		warn('No person: ' + p.target);
+		return;
+	}
+
+	var node = person.node;
+	person.name = p.name;
+	node.className = "person";
+	if(p.name) {
+		node.className += " withName"; 
+		node.innerHTML = p.name;
+	} else {
+		node.innerHTML = "*" + p.id + "*";
+	}
+	this.updateConversation();
+};		
+	
+
+RoomBrowser.prototype.addPerson = function(p) {
+	var node = this.peopleStage.appendChild(
+		document.createElement("DIV"));
+	var person = {
+		id: p.target,
+		node: node
+	};
+	this.people[p.target] = person;
+	this.updatePerson(p);
+};
+
+
+RoomBrowser.prototype.updateConversation = function() {
+	this.conversationStage.innerHTML = "";
+	for(var i in this.conversation) {
+		var item = this.conversation[i];
+		this.addComment(item);
+	}
+};
+	
 	
 
 RoomBrowser.prototype.processMessage = function(m, client) {
 	switch(m.what) {
 	case "state":
 		if("room" == m.id) {
-			this.peopleStage.innerHTML = "";
 			if(m.people) {
+				alert(JSON.stringify(m.people));
+				this.people = {};
+				this.peopleStage.innerHTML = "";
 				for(var i in m.people) {
 					var p = m.people[i];
-					var node = this.peopleStage.appendChild(
-						document.createElement("DIV"));
-					node.className = "person";
-					if(p.name) {
-						node.className += " withName"; 
-						node.innerHTML = p.name;
-					} else {
-						node.innerHTML = "*" + p.id + "*";
-					}
+					p.target = p.id;
+					this.addPerson(p);
 				}
 			}
 
 			if(m.conversation) {
-				this.conversationStage.innerHTML = "";
-				for(var i in m.conversation) {
-					var item = m.conversation[i];
-					this.addComment(item);
-				}
+				this.conversation = m.conversation;
+				this.updateConversation();
 			}
 		} else { // player state here
 
@@ -206,10 +265,23 @@ RoomBrowser.prototype.processMessage = function(m, client) {
 		break;
 
 	case "createComment":
+		this.conversation.push(m);
 		this.addComment(m);
+		break;
+
+	case "createPerson":
+		this.addPerson(m);
+		break;
+
+	case "updatePerson":
+		this.updatePerson(m);
+		break;
 	}
 }
-					
+
+//
+//    MAIN
+//   
 					
 
 try {

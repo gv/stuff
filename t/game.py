@@ -24,7 +24,7 @@ root.putChild("m", static.File("m"))
 #    MESSAGE EXCHANGE
 #    ``````` ````````
 #    Simple rules:
-#    'id' property always refers to client id
+#    'id' property always refers to client id, to whom the message is routed to
 #
 
 outs = {}
@@ -75,6 +75,10 @@ class Room(Out):
 						self.conversation = (self.conversation + [m])[-10:]
 				elif what == "createPerson":
 						pass # list is updated already here
+				elif what == "updatePerson":
+						person = outs[m['target']]
+						person.name = m['name']
+						
 
 		def getState(self):
 				people = [{
@@ -103,7 +107,7 @@ class Person(Out):
 				id = randomString()
 				Out.__init__(self, id)
 				self.name = ""
-				room.postMessage(what="createPerson", newPersonId=self.id)
+				room.postMessage(what="createPerson", target=self.id)
 
 		def processMessage(self, m):
 				what = m['what']
@@ -133,6 +137,9 @@ class BrowserConnection(websocket.WebSocketHandler):
 						self.owner = p
 				elif what == 'createComment':
 						m['author'] = self.owner.id
+						room.postMessage(m)
+				elif what == 'updatePerson':
+						m['target'] = self.owner.id
 						room.postMessage(m)
 								
 
