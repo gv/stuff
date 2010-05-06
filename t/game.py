@@ -20,6 +20,13 @@ root = resource.Resource()
 root.putChild("", static.File("index.html"))
 root.putChild("m", static.File("m"))
 
+#
+#    MESSAGE EXCHANGE
+#    ``````` ````````
+#    Simple rules:
+#    'id' property always refers to client id
+#
+
 outs = {}
 
 class Out:
@@ -43,10 +50,7 @@ class Out:
 				m['version'] = self.version
 				m['id'] = self.id
 				for r in self.remotes:
-						#if r.lost:
-						#		self.remotes.discard(r)
-						#else:
-								r.transport.write(cjson.encode(m))
+						r.transport.write(cjson.encode(m))
 				self.version = self.version + 1
 				self.processMessage(m)
 
@@ -63,13 +67,13 @@ class Out:
 class Room(Out):
 		def __init__(self):
 				Out.__init__(self, "room")
-				self.chatHistory = []
+				self.conversation = []
 
 		def processMessage(self, m):
 				what = m['what']
-				if what == "iSay":
-						self.chatHistory = (self.chatHistory + [m])[-10:]
-				elif what == "newPerson":
+				if what == "createComment":
+						self.conversation = (self.conversation + [m])[-10:]
+				elif what == "createPerson":
 						pass # list is updated already here
 
 		def getState(self):
@@ -79,12 +83,12 @@ class Room(Out):
 								} for p in outs.values() 
 									if isinstance(p, Person)]
 				return {
-						'chat': self.chatHistory,
+						'conversation': self.conversation,
 						'people': people
 						}
 
 room = Room()
-room.postMessage(what="iSay", speaker="Server", speech="Server started...");
+room.postMessage(what="createComment", author="Server", text="Started...");
 
 
 def randomString():
@@ -99,16 +103,16 @@ class Person(Out):
 				id = randomString()
 				Out.__init__(self, id)
 				self.name = ""
-				room.postMessage(what="newPerson", newPersonId=self.id)
+				room.postMessage(what="createPerson", newPersonId=self.id)
 
 		def processMessage(self, m):
 				what = m['what']
-				if what == 'newName':
+				if what == 'updatePerson':
 						self.name = m['name']
 				
 
 class BrowserConnection(websocket.WebSocketHandler):
-		lost = False
+		#lost = False
 		owner = None
 		
 		def __init__(self, transport):
@@ -121,19 +125,19 @@ class BrowserConnection(websocket.WebSocketHandler):
 				m = cjson.decode(frame)
 				print m
 				what = m['what']
-				if what == 'newHere':
+				if what == 'createPerson':
 						self.disown()
 						p = Person()
 						room.connect(self)
 						p.connect(self)
 						self.owner = p
-				elif what == 'iSay':
-						room.postMessage(what='iSay', 
-														 speaker=self.owner.id, speech=m['speech'])
+				elif what == 'createComment':
+						m['author'] = self.owner.id
+						room.postMessage(m)
 								
 
 		def connectionLost(self, reason):
-				print "lost: ", reason
+				#print "lost: ", reason
 				self.lost = True
 				self.disown()
 

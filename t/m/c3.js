@@ -15,8 +15,6 @@ function setStatus(s) {
 	statusNode.innerHTML = s;
 }
 
-setStatus("Connecting...");
-
 ins = {};
 
 function In(id) {
@@ -53,14 +51,14 @@ In.prototype.processMessage = function(m) {
 
 
 function connect() {
-	var path = location.protocol.replace("http", "ws") + 
-		"//" + location.host + "/s"
+	var path = //location.protocol.replace("http", "ws") + 
+		"wss://" + location.hostname + "/s";
 	//alert(path);
 	s = new WebSocket(path);
 	s.onopen = function(ev) {
 		setStatus("Joining...");
 		var m = {
-			what: "newHere"
+			what: "createPerson"
 		};
 		send(m);
 	};
@@ -88,6 +86,12 @@ function connect() {
 	
 	s.onclose = function(ev) {
 		setStatus("Closed");
+		alert(JSON.stringify(ev));
+		
+	};
+
+	s.onerror = function(ev) {
+		alert(JSON.stringify(ev));
 	};
 }
 
@@ -119,16 +123,17 @@ function RoomBrowser() {
 	this.logoutBtn = this.logoutPanel.appendChild(document.createElement("BUTTON"));
 	this.logoutBtn.innerHTML = "Logout";
 	
-	this.chatPanel = this.node.appendChild(document.createElement("DIV"));
-	this.chatPanel.className = "chat";
-	var h = this.chatPanel.appendChild(document.createElement("H1"));
-	h.innerHTML = "Conversation";
-	this.conversationPanel = this.chatPanel.appendChild(
-		document.createElement("DIV"));
+	this.conversationPanel = this.node.appendChild(document.createElement("DIV"));
 	this.conversationPanel.className = "conversation";
+	var h = this.conversationPanel.appendChild(document.createElement("H1"));
+	h.innerHTML = "Conversation";
+	this.conversationStage = this.conversationPanel.appendChild(
+		document.createElement("DIV"));
+	this.conversationStage.className = "comments";
 
-	this.tribunePanel = this.chatPanel.appendChild(document.createElement("DIV"));
-	this.tribunePanel.className = "send";
+	this.tribunePanel = this.conversationPanel.appendChild(
+		document.createElement("DIV"));
+	this.tribunePanel.className = "tribune";
 	
 	this.sayInp = this.tribunePanel.appendChild(document.createElement("INPUT"));
 	this.sayInp.type = "text";
@@ -147,11 +152,11 @@ function RoomBrowser() {
 }
 
 RoomBrowser.prototype.say = function() {
-	var speech = this.sayInp.value;
-	if(speech) {
+	var text = this.sayInp.value;
+	if(text) {
 		var m = {
-			what: "iSay",
-			speech: speech
+			what: "createComment",
+			text: text
 		};
 		setStatus("Sending...");
 		send(m);
@@ -159,10 +164,10 @@ RoomBrowser.prototype.say = function() {
 	}
 };
 
-RoomBrowser.prototype.addChatItem = function(item) {
-	var node = this.conversationPanel.appendChild(document.createElement("DIV"));
-	node.className = "chatItem";
-	node.innerHTML = "<b>" + item.speaker + "</b>: " + item.speech;
+RoomBrowser.prototype.addComment = function(item) {
+	var node = this.conversationStage.appendChild(document.createElement("DIV"));
+	node.className = "comment";
+	node.innerHTML = "<b>" + item.author + "</b>: " + item.text;
 };
 	
 
@@ -178,7 +183,7 @@ RoomBrowser.prototype.processMessage = function(m, client) {
 						document.createElement("DIV"));
 					node.className = "person";
 					if(p.name) {
-						node.className += "withName"; 
+						node.className += " withName"; 
 						node.innerHTML = p.name;
 					} else {
 						node.innerHTML = "*" + p.id + "*";
@@ -186,11 +191,11 @@ RoomBrowser.prototype.processMessage = function(m, client) {
 				}
 			}
 
-			if(m.chat) {
-				this.conversationPanel.innerHTML = "";
-				for(var i in m.chat) {
-					var item = m.chat[i];
-					this.addChatItem(item);
+			if(m.conversation) {
+				this.conversationStage.innerHTML = "";
+				for(var i in m.conversation) {
+					var item = m.conversation[i];
+					this.addComment(item);
 				}
 			}
 		} else { // player state here
@@ -200,8 +205,8 @@ RoomBrowser.prototype.processMessage = function(m, client) {
 		}
 		break;
 
-	case "iSay":
-		this.addChatItem(m);
+	case "createComment":
+		this.addComment(m);
 	}
 }
 					
@@ -210,6 +215,7 @@ RoomBrowser.prototype.processMessage = function(m, client) {
 try {
 	if(!("WebSocket" in window))
 		throw "No WebSockets!";
+	setStatus("Connecting...");
 	room = new In("room");
 	connect();
 	//new RoomBrowser();	
