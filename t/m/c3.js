@@ -72,9 +72,9 @@ function connect() {
 		hideStatus();
 		//alert(ev.data);
 		var m = JSON.parse(ev.data);
-		var id = m.id;
+		var id = m.dn;
 		if(!id) {
-			warn(ev.data + ": No id!");
+			warn(ev.data + ": No destignation!");
 			return;
 		}
 		
@@ -187,19 +187,10 @@ RoomBrowser.prototype.say = function() {
 	}
 };
 
-RoomBrowser.prototype.addComment = function(item) {
-	var node = this.conversationStage.appendChild(document.createElement("DIV"));
-	node.className = "comment";
-	var author = item.author;
-	if(this.people[author] && this.people[author].name)
-		author = this.people[author].name;
-	node.innerHTML = "<b>" + author + "</b>: " + item.text;
-};
-
 RoomBrowser.prototype.updatePerson = function(p) {
-	var person = this.people[p.target];
+	var person = this.people[p.id];
 	if(!person) {
-		warn('No person: ' + p.target);
+		warn('No person: ' + p.id);
 		return;
 	}
 
@@ -217,13 +208,9 @@ RoomBrowser.prototype.updatePerson = function(p) {
 	
 
 RoomBrowser.prototype.addPerson = function(p) {
-	var node = this.peopleStage.appendChild(
+	p.node = this.peopleStage.appendChild(
 		document.createElement("DIV"));
-	var person = {
-		id: p.target,
-		node: node
-	};
-	this.people[p.target] = person;
+	this.people[p.id] = p;
 	this.updatePerson(p);
 };
 
@@ -236,19 +223,25 @@ RoomBrowser.prototype.updateConversation = function() {
 	}
 };
 	
-	
+RoomBrowser.prototype.addComment = function(item) {
+	var node = this.conversationStage.appendChild(document.createElement("DIV"));
+	node.className = "comment";
+	var author = item.author;
+	var a = this.people[author];
+	if(a && a.name)
+		author = a.name;
+	node.innerHTML = "<b>" + author + "</b>: " + item.text;
+};
 
 RoomBrowser.prototype.processMessage = function(m, client) {
 	switch(m.what) {
 	case "state":
-		if("room" == m.id) {
+		if("room" == m.dn) {
 			if(m.people) {
-				alert(JSON.stringify(m.people));
 				this.people = {};
 				this.peopleStage.innerHTML = "";
 				for(var i in m.people) {
 					var p = m.people[i];
-					p.target = p.id;
 					this.addPerson(p);
 				}
 			}

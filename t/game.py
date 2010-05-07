@@ -24,7 +24,7 @@ root.putChild("m", static.File("m"))
 #    MESSAGE EXCHANGE
 #    ``````` ````````
 #    Simple rules:
-#    'id' property always refers to client id, to whom the message is routed to
+#    'dn' property always refers to client id, to whom the message is routed to
 #
 
 outs = {}
@@ -40,7 +40,7 @@ class Out:
 				self.remotes.add(remote)
 				s = self.getState()
 				s['what'] = 'state'
-				s['id'] = self.id
+				s['dn'] = self.id
 				s['version'] = self.version
 				remote.transport.write(cjson.encode(s))
 				
@@ -48,7 +48,7 @@ class Out:
 				m = m or kw
 				# Let remotes process, then process locally
 				m['version'] = self.version
-				m['id'] = self.id
+				m['dn'] = self.id
 				for r in self.remotes:
 						r.transport.write(cjson.encode(m))
 				self.version = self.version + 1
@@ -76,7 +76,7 @@ class Room(Out):
 				elif what == "createPerson":
 						pass # list is updated already here
 				elif what == "updatePerson":
-						person = outs[m['target']]
+						person = outs[m['id']]
 						person.name = m['name']
 						
 
@@ -107,7 +107,7 @@ class Person(Out):
 				id = randomString()
 				Out.__init__(self, id)
 				self.name = ""
-				room.postMessage(what="createPerson", target=self.id)
+				room.postMessage(what="createPerson", id=self.id)
 
 		def processMessage(self, m):
 				what = m['what']
@@ -139,7 +139,7 @@ class BrowserConnection(websocket.WebSocketHandler):
 						m['author'] = self.owner.id
 						room.postMessage(m)
 				elif what == 'updatePerson':
-						m['target'] = self.owner.id
+						m['id'] = self.owner.id
 						room.postMessage(m)
 								
 
