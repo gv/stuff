@@ -3,8 +3,6 @@ sys.path = ['ws', '/opt/ws'] + sys.path
 
 print "Loading libraries..."
 
-from random import randint
-
 from twisted.web import server, resource, static, websocket
 from twisted.internet import reactor
 try:
@@ -101,6 +99,7 @@ class Person(Out):
 				self.name = ""
 				self.password = randomString()
 				self.invitations = []
+				self.games = {}
 				room.postMessage(what="createPerson", id=self.id)
 
 		def processMessage(self, m):
@@ -111,8 +110,17 @@ class Person(Out):
 						self.invitations.append(m)
 
 		def getState(self):
-				return {'invitations': self.invitations}
-				
+				return {'invitations': self.invitations,
+								'games': [dict(g.getState(), id=g.id)	for g in self.games.values()]
+								}
+		#
+		# These will be const methods?
+		#
+		
+		def findInvitation(self, srcId):
+				for inv in self.invitations:
+						if srcId == inv['src']:
+								return inv
 
 class BrowserConnection(websocket.WebSocketHandler):
 		#lost = False
@@ -163,13 +171,17 @@ class BrowserConnection(websocket.WebSocketHandler):
 								target = m['target']
 								if(target == self.owner.id):
 										raise ValueError("It's sort of depressing to invite yourself")
-								target = outs[target]
+								target = getPerson(target)
+								if target.findInvitation(self.owner.id):
+										# still need to respond somehow
+										self.send(what="info", infoText="Duplicate invitation")
+										return
 								m['src'] = self.owner.id
 								target.postMessage(m)
 						elif what == "createGame":
 								players = m['players']
 								for p in players:
-										if not self.owner.hasInvitation(p):
+										if not self.owner.findInvitation(p):
 												raise ValueError("Invitation from %s not found!" % p)
 								
 								players.append(self.owner.id)
@@ -214,7 +226,6 @@ class Game:
 		
 		def getState(self):
 				return {
-						'id': self.id, 
 						'whoseTurn': self.players[self.turnIndex].id,
 						'pieces': self.pieces
 						}
@@ -254,6 +265,6 @@ if __name__ == "__main__":
 		except ImportError, e:
 				print "No SSL, ", e
 
-				print "Running reactor..."
-				reactor.run()
+		print "Running server..."
+		reactor.run()
 				

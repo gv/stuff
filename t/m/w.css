@@ -1,6 +1,16 @@
 .status, #status {
- position: absolute;
-background: #336633;
-color: white;
- }
+	position: absolute;
+	background: #336633;
+	color: white;
+}
+
+.grid div {
+	border: 1px solid black;
+}
+
+h1 {
+	font: 12px Courier;
+	font-weight: bold;
+	background: #e3ffff;
+}
 

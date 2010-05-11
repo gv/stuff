@@ -77,6 +77,10 @@ Connection.prototype.onmessage = function(ev) {
 		return;
 	}
 
+	if(m.infoText) {
+		setStatus(m.infoText);
+	}
+
 	if("person" == m.what) {
 		document.cookie = "dontpanic_p=" + m.id + '|' + m.password;
 	} else {
@@ -181,6 +185,8 @@ function RoomBrowser() {
 	this.sayInp.type = "text";
 	this.sayBtn = this.tribunePanel.appendChild(document.createElement("BUTTON"));
 	this.sayBtn.innerHTML = "Say";
+
+	this.gamesStage = this.node.appendChild(document.createElement("DIV"));
 
 	this.logoutPanel.style.display = 'none';
 
@@ -314,14 +320,59 @@ RoomBrowser.prototype.addInvitation = function(inv) {
 	var s = inv.btn.appendChild(document.createElement("SPAN"));
 	s.innerHTML = "Play with ";
 	inv.btn.appendChild(this.createPersonsNameNode(inv.src));
+	inv.btn.onclick = function() {
+		var m = {
+			what: "createGame",
+			players: [inv.src]
+		};
+		connection.send(m);
+	};
 };
 
 
-function TicTacToeBrowser(state) {
-	
+function TicTacToeBrowser(stage) {
+	this.node = stage;
+	this.node.className += " tictactoe";
+
+	var cellWidth = 20, cellHeight = 20, rowCnt = 20, colCnt = 20;
+	this.grid = this.node.appendChild(document.createElement("DIV"));
+	this.grid.className = "grid";
+	this.grid.style.position = "relative";
+	this.grid.style.width = cellWidth * colCnt + "px";
+	this.grid.style.height = cellHeight * rowCnt + "px";
+	for(var i = 0; i < rowCnt; i++) {
+		for(var j = 0; j < colCnt; j++) {
+			var cell = this.grid.appendChild(document.createElement("DIV"));
+			cell.style.position = "absolute";
+			cell.style.width = cellWidth + "px";
+			cell.style.height = cellHeight + "px";
+			cell.style.left = i * cellWidth + "px";
+			cell.style.top = j * cellHeight + "px";
+		}
+	}
+}
+
+
+TicTacToeBrowser.prototype.update = function(stage) {
+
+};
+
+TicTacToeBrowser.prototype.processMessage = function(m) {
+
+};
+			
 	
 RoomBrowser.prototype.addGame = function(m) {
-	this.games[m.id] = 
+	var stage = this.gamesStage.appendChild(document.createElement("DIV"));
+	var h = stage.appendChild(document.createElement("H1"));
+	h.innerHTML = "Game " + m.id;
+	var smallerStage = stage.appendChild(document.createElement("DIV"));
+	var game = new TicTacToeBrowser(smallerStage);
+	game.id = m.id;
+	game.stage = stage;
+	game.update(m);
+	this.games[m.id] = game;
+};
 
 RoomBrowser.prototype.processMessage = function(m, client) {
 	if(m.game) {
@@ -356,7 +407,7 @@ RoomBrowser.prototype.processMessage = function(m, client) {
 			if(m.games) {
 				this.games = {};
 				this.gamesStage.innerHTML = "";
-				for(var id in m.games)
+				for(var i in m.games)
 					this.addGame(m.games[i]);
 			}
 		}
@@ -383,7 +434,7 @@ RoomBrowser.prototype.processMessage = function(m, client) {
 		this.addInvitation(m);
 		break;
 	}
-}
+};
 
 //
 //    MAIN
