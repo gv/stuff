@@ -146,15 +146,14 @@ function RoomBrowser() {
 	this.node = stage.appendChild(document.createElement("DIV"));
 	this.node.className = "roomBrowser";
 
+	this.gamesStage = this.node.appendChild(document.createElement("DIV"));
+
 	this.peoplePanel = this.node.appendChild(document.createElement("DIV"));
 	this.peoplePanel.className = "people";
 	var h = this.peoplePanel.appendChild(document.createElement("H1"));
 	h.innerHTML = "People";
 	this.peopleStage = this.peoplePanel.appendChild(document.createElement("DIV"));
 	this.peopleStage.className = "peopleStage";
-	/*this.invitePanel = this.peoplePanel.appendChild(document.createElement("DIV"));
-	this.inviteBtn = this.invitePanel.appendChild(document.createElement("BUTTON"));
-	this.inviteBtn.innerHTML = "invite";*/
 
 	this.loginPanel = this.node.appendChild(document.createElement("DIV"));
 	this.loginPanel.className = "login";
@@ -185,8 +184,6 @@ function RoomBrowser() {
 	this.sayInp.type = "text";
 	this.sayBtn = this.tribunePanel.appendChild(document.createElement("BUTTON"));
 	this.sayBtn.innerHTML = "Say";
-
-	this.gamesStage = this.node.appendChild(document.createElement("DIV"));
 
 	this.logoutPanel.style.display = 'none';
 
@@ -434,6 +431,7 @@ RoomBrowser.prototype.addGame = function(m) {
 	var game = new TicTacToeBrowser(smallerStage);
 	game.id = m.id;
 	game.stage = stage;
+	game.header = h;
 	game.update(m);
 	this.games[m.id] = game;
 };
@@ -480,6 +478,28 @@ RoomBrowser.prototype.processMessage = function(m, client) {
 	case "createGame":
 		this.addGame(m);
 		break;
+
+	case "delGame":
+	var game = this.games[m.id];
+	if(game) {
+		delete this.games[m.id];
+		game.header.appendChild(document.createElement("SPAN")).innerHTML = " (won by ";
+		game.header.appendChild(this.createPersonsNameNode(m.winner));
+		game.header.appendChild(document.createElement("SPAN")).innerHTML = " )";
+		game.node.style.position = "relative";
+		var curtain = game.node.appendChild(document.createElement("DIV"));
+		curtain.style.position = "absolute";
+		curtain.style.top = 0;
+		curtain.style.width = game.node.offsetWidth + "px";
+		curtain.style.height = game.node.offsetHeight + "px";
+		curtain.style.zIndex = 2;
+		curtain.className = "curtain";
+		curtain.onclick = function() {
+			this.parentNode.parentNode.removeChild(this.parentNode);
+		};
+	}
+	break;
+		
 
 	case "createComment":
 		this.conversation.push(m);

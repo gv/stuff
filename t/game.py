@@ -108,6 +108,8 @@ class Person(Out):
 						self.name = m['name']
 				elif what == 'createInvitation':
 						self.invitations.append(m)
+				elif what == "delGame":
+						del self.games[m['id']]
 
 		def getState(self):
 				return {'invitations': self.invitations,
@@ -191,6 +193,8 @@ class BrowserConnection(websocket.WebSocketHandler):
 				except Exception, e:
 						errMsg = "ERROR: %s" % str(e)
 						self.transport.write(errMsg)
+						import traceback
+						traceback.print_exc()
 								
 
 		def connectionLost(self, reason):
@@ -211,6 +215,22 @@ def getPerson(id):
 
 
 games = {}
+
+class Vec:
+		def __init__(self, x, y, **kw):
+				self.x, self.y = x, y
+
+		def grow(self, v):
+				self.x += v.x
+				self.y += v.y
+
+		def reverse(self):
+				#return Vec(-self.x, -self.y)
+				self.x = -self.x
+				self.y = -self.y
+
+		def __str__(self):
+				return "%d,%d" % (self.x, self.y)
 
 class Game:
 		def __init__(self, playerIds):
@@ -238,9 +258,9 @@ class Game:
 						'pieces': self.pieces
 						}
 
-		def findPiece(self, x, y):
+		def findPiece(self, point):
 				for p in self.pieces:
-						if p['x'] == x and p['y'] == y:
+						if point.x == p['x'] and point.y == p['y']:
 								return p
 
 		def processMessage(self, m, src):
@@ -248,13 +268,35 @@ class Game:
 				if src != self.players[self.turnIndex]:
 						raise ValueError("Not your turn")
 				if what == 'createPiece':
-						if self.findPiece(m['x'], m['y']):
-								raise ValueError("Cell %d,%d busy" % (m['x'], m['y'])) 
+						p = Vec(**m)
+						if self.findPiece(p):
+								raise ValueError("Cell %s busy" % p) 
 						self.pieces.append(m)
 						self.turnIndex = (self.turnIndex + 1) % 2
-						# TODO check for victory
-						for p in self.players:
-								p.postMessage(m)
+						for p in self.players:	p.postMessage(m)
+						
+						for d in (Vec(1, 0), Vec(0, 1), Vec(1,1), Vec(1, -1)):
+								c = 3
+								p = Vec(**m)
+								while c:
+										p.grow(d)
+										piece = self.findPiece(p)
+										if (not piece) or (piece['src'] != src.id): break
+										c -= 1 
+
+								p = Vec(**m)
+								d.reverse()
+								while c:
+										p.grow(d)
+										piece = self.findPiece(p)
+										if (not piece) or (piece['src'] != src.id): break
+										c -= 1 
+
+								if c == 0:
+										for p in self.players:	
+												p.postMessage(what="delGame", id=self.id, 
+																			winner=src.id, 
+																			infoText="%s wins!" % src.id)
 				
 
 

@@ -35,3 +35,8 @@ h1 {
 	background: #449922;
 	color: white;
 }
+
+.curtain {
+	background: #1111cb;
+	opacity: 0.4
+}
