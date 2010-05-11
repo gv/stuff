@@ -1,9 +1,14 @@
 .status, #status {
 	position: absolute;
-	background: #336633;
+	background: #33337f;
 	color: white;
 }
 
+
+.grid div, .busyGrid div {
+	text-align: center;
+	font: sans serif;
+}
 .grid div {
 	border: 1px solid black;
 }
@@ -13,8 +18,20 @@
 }
 
 h1 {
-	font: 12px Courier;
+	font-size: 12px;
 	font-weight: bold;
-	background: #e3ffff;
+	background: #e3e3ff;
 }
 
+.person {
+	color: #449922;
+}
+
+.withName {
+	font-weight: bold;
+}
+
+.you {
+	background: #449922;
+	color: white;
+}
