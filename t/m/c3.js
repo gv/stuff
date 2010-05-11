@@ -1,3 +1,15 @@
+function cancel(e){
+	if(window.event)
+		e=window.event;
+	if(e.preventDefault){
+		e.preventDefault();
+		e.stopPropagation();
+		}else{
+		e.returnValue=false;
+		e.cancelBubble=true;
+	}
+}
+
 if("console" in window) {
 	warn = function(x) { console.log(x); };
 } else {
@@ -148,24 +160,6 @@ function RoomBrowser() {
 
 	this.gamesStage = this.node.appendChild(document.createElement("DIV"));
 
-	this.peoplePanel = this.node.appendChild(document.createElement("DIV"));
-	this.peoplePanel.className = "people";
-	var h = this.peoplePanel.appendChild(document.createElement("H1"));
-	h.innerHTML = "People";
-	this.peopleStage = this.peoplePanel.appendChild(document.createElement("DIV"));
-	this.peopleStage.className = "peopleStage";
-
-	this.loginPanel = this.node.appendChild(document.createElement("DIV"));
-	this.loginPanel.className = "login";
-	this.nameInp = this.loginPanel.appendChild(document.createElement("INPUT"));
-	this.loginBtn = this.loginPanel.appendChild(document.createElement("BUTTON"));
-	this.loginBtn.innerHTML = "Login";
-	
-	this.logoutPanel = this.node.appendChild(document.createElement("DIV"));
-	this.logoutPanel.className = "logout";
-	this.logoutBtn = this.logoutPanel.appendChild(document.createElement("BUTTON"));
-	this.logoutBtn.innerHTML = "Logout";
-	
 	this.conversationPanel = this.node.appendChild(document.createElement("DIV"));
 	this.conversationPanel.className = "conversation";
 	var h = this.conversationPanel.appendChild(document.createElement("H1"));
@@ -185,6 +179,24 @@ function RoomBrowser() {
 	this.sayBtn = this.tribunePanel.appendChild(document.createElement("BUTTON"));
 	this.sayBtn.innerHTML = "Say";
 
+	this.peoplePanel = this.node.appendChild(document.createElement("DIV"));
+	this.peoplePanel.className = "people";
+	var h = this.peoplePanel.appendChild(document.createElement("H1"));
+	h.innerHTML = "People";
+	this.peopleStage = this.peoplePanel.appendChild(document.createElement("DIV"));
+	this.peopleStage.className = "peopleStage";
+
+	this.loginPanel = this.node.appendChild(document.createElement("DIV"));
+	this.loginPanel.className = "login";
+	this.nameInp = this.loginPanel.appendChild(document.createElement("INPUT"));
+	this.loginBtn = this.loginPanel.appendChild(document.createElement("BUTTON"));
+	this.loginBtn.innerHTML = "Login";
+	
+	this.logoutPanel = this.node.appendChild(document.createElement("DIV"));
+	this.logoutPanel.className = "logout";
+	this.logoutBtn = this.logoutPanel.appendChild(document.createElement("BUTTON"));
+	this.logoutBtn.innerHTML = "Logout";
+	
 	this.logoutPanel.style.display = 'none';
 
 	var b = this;
@@ -198,8 +210,13 @@ function RoomBrowser() {
 	this.nameInp.onkeydown = function(ev) {
 		if(13 == ev.keyCode)
 			b.login();
+		//cancel(ev);
 	};
 
+	document.onkeydown = function(ev) {
+		if(ev.target != b.nameInp)
+			b.sayInp.focus();
+	};
 }
 
 			
@@ -289,11 +306,10 @@ RoomBrowser.prototype.updateConversation = function() {
 RoomBrowser.prototype.addComment = function(item) {
 	var node = this.conversationStage.appendChild(document.createElement("DIV"));
 	node.className = "comment";
-	var author = item.author;
-	var a = this.people[author];
-	if(a && a.name)
-		author = a.name;
-	node.innerHTML = "<b>" + author + "</b>: " + item.text;
+	node.appendChild(this.createPersonsNameNode(item.author));
+	node.appendChild(document.createElement("B")).innerHTML = ": ";
+	node.appendChild(document.createElement("SPAN")).innerHTML = item.text;
+	this.conversationStage.scrollTop = this.conversationStage.scrollHeight;
 };
 
 RoomBrowser.prototype.createPersonsNameNode = function(id) {
@@ -480,25 +496,27 @@ RoomBrowser.prototype.processMessage = function(m, client) {
 		break;
 
 	case "delGame":
-	var game = this.games[m.id];
-	if(game) {
-		delete this.games[m.id];
-		game.header.appendChild(document.createElement("SPAN")).innerHTML = " (won by ";
-		game.header.appendChild(this.createPersonsNameNode(m.winner));
-		game.header.appendChild(document.createElement("SPAN")).innerHTML = " )";
-		game.node.style.position = "relative";
-		var curtain = game.node.appendChild(document.createElement("DIV"));
-		curtain.style.position = "absolute";
-		curtain.style.top = 0;
-		curtain.style.width = game.node.offsetWidth + "px";
-		curtain.style.height = game.node.offsetHeight + "px";
-		curtain.style.zIndex = 2;
-		curtain.className = "curtain";
-		curtain.onclick = function() {
-			this.parentNode.parentNode.removeChild(this.parentNode);
-		};
-	}
-	break;
+		var game = this.games[m.id];
+		if(game) {
+			delete this.games[m.id];
+			game.header.appendChild(document.createElement("SPAN")).innerHTML = 
+				" (won by ";
+			game.header.appendChild(this.createPersonsNameNode(m.winner));
+			game.header.appendChild(document.createElement("SPAN")).innerHTML = " )";
+			game.node.style.position = "relative";
+			var curtain = game.node.appendChild(document.createElement("DIV"));
+			curtain.style.position = "absolute";
+			curtain.style.top = 0;
+			curtain.style.width = game.node.offsetWidth + "px";
+			curtain.style.height = game.node.offsetHeight + "px";
+			curtain.style.zIndex = 2;
+			curtain.className = "curtain";
+			curtain.onclick = function() {
+				this.parentNode.parentNode.parentNode.removeChild(
+					this.parentNode.parentNode);
+			};
+		}
+		break;
 		
 
 	case "createComment":

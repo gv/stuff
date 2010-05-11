@@ -276,7 +276,7 @@ class Game:
 						for p in self.players:	p.postMessage(m)
 						
 						for d in (Vec(1, 0), Vec(0, 1), Vec(1,1), Vec(1, -1)):
-								c = 3
+								c = 4
 								p = Vec(**m)
 								while c:
 										p.grow(d)

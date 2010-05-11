@@ -38,5 +38,10 @@ h1 {
 
 .curtain {
 	background: #1111cb;
-	opacity: 0.4
+	opacity: 0.4;
+}
+
+.comments {
+	height: 200px;
+	overflow: auto;
 }
