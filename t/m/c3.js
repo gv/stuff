@@ -252,6 +252,9 @@ RoomBrowser.prototype.updatePerson = function(p) {
 	if(connection.person && connection.person.id == p.id)
 		node.className += " you";
 	this.updateConversation();
+
+	for(var i in this.invitations)
+		this.updateInvitation(this.invitations[i]);
 };		
 	
 
@@ -311,15 +314,19 @@ RoomBrowser.prototype.createPersonsNameNode = function(id) {
 	}
 	
 	return n;
-}
+};
+
+RoomBrowser.prototype.updateInvitation = function(inv) {
+	inv.btn.innerHTML = "";
+	var s = inv.btn.appendChild(document.createElement("SPAN"));
+	s.innerHTML = "Play with ";
+	inv.btn.appendChild(this.createPersonsNameNode(inv.src));
+};
 
 RoomBrowser.prototype.addInvitation = function(inv) {
 	this.invitations.push(inv);
 	inv.node = this.invitationsStage.appendChild(document.createElement("DIV"));
 	inv.btn = inv.node.appendChild(document.createElement("BUTTON"));
-	var s = inv.btn.appendChild(document.createElement("SPAN"));
-	s.innerHTML = "Play with ";
-	inv.btn.appendChild(this.createPersonsNameNode(inv.src));
 	inv.btn.onclick = function() {
 		var m = {
 			what: "createGame",
@@ -327,6 +334,7 @@ RoomBrowser.prototype.addInvitation = function(inv) {
 		};
 		connection.send(m);
 	};
+	this.updateInvitation(inv);
 };
 
 
@@ -456,8 +464,8 @@ RoomBrowser.prototype.processMessage = function(m, client) {
 			if(m.invitations) {
 				this.invitations = [];
 				this.invitationsStage.innerHTML = "";
-				for(var i in this.invitations)
-					this.addInvitation(this.invitations[i]);
+				for(var i in m.invitations)
+					this.addInvitation(m.invitations[i]);
 			}
 
 			if(m.games) {
