@@ -8,6 +8,10 @@
 	border: 1px solid black;
 }
 
+.busyGrid div {
+	border: 1px solid #e2e2e2;
+}
+
 h1 {
 	font: 12px Courier;
 	font-weight: bold;

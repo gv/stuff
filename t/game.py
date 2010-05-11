@@ -111,7 +111,7 @@ class Person(Out):
 
 		def getState(self):
 				return {'invitations': self.invitations,
-								'games': [dict(g.getState(), id=g.id)	for g in self.games.values()]
+								'games': [g.getState() for g in self.games.values()]
 								}
 		#
 		# These will be const methods?
@@ -144,7 +144,8 @@ class BrowserConnection(websocket.WebSocketHandler):
 						gameId = m.get('game')
 						if gameId:
 								game = self.owner.games[gameId]
-								game.processMessage(m)
+								m['src'] = self.owner.id
+								game.processMessage(m, self.owner)
 
 						what = m['what']
 						if what in ['createPerson', 'openPerson']:
@@ -222,18 +223,35 @@ class Game:
 
 				for p in self.players:
 						p.games[self.id] = self
-						p.postMessage(what="createGame", id=self.id)
-		
+						m = self.getState()
+						p.postMessage(what="createGame", **m)
+
 		def getState(self):
+				s = self.getGameState()
+				s['id'] = self.id
+				s['players'] = [p.id for p in self.players]
+				return s
+		
+		def getGameState(self):
 				return {
-						'whoseTurn': self.players[self.turnIndex].id,
+						'turnIndex': self.turnIndex,
 						'pieces': self.pieces
 						}
 
-		def processMessage(m):
+		def findPiece(self, x, y):
+				for p in self.pieces:
+						if p['x'] == x and p['y'] == y:
+								return p
+
+		def processMessage(self, m, src):
 				what = m['what']
+				if src != self.players[self.turnIndex]:
+						raise ValueError("Not your turn")
 				if what == 'createPiece':
+						if self.findPiece(m['x'], m['y']):
+								raise ValueError("Cell %d,%d busy" % (m['x'], m['y'])) 
 						self.pieces.append(m)
+						self.turnIndex = (self.turnIndex + 1) % 2
 						# TODO check for victory
 						for p in self.players:
 								p.postMessage(m)

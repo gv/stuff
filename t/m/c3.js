@@ -51,7 +51,7 @@ Connection.prototype.connect = function() {
 
 	s.onclose = function(ev) {
 		setStatus("Closed");
-		alert(JSON.stringify(ev));
+		//alert(JSON.stringify(ev));
 		
 	};
 
@@ -340,6 +340,7 @@ function TicTacToeBrowser(stage) {
 	this.grid.style.position = "relative";
 	this.grid.style.width = cellWidth * colCnt + "px";
 	this.grid.style.height = cellHeight * rowCnt + "px";
+	this.cells = {};
 	for(var i = 0; i < rowCnt; i++) {
 		for(var j = 0; j < colCnt; j++) {
 			var cell = this.grid.appendChild(document.createElement("DIV"));
@@ -348,17 +349,72 @@ function TicTacToeBrowser(stage) {
 			cell.style.height = cellHeight + "px";
 			cell.style.left = i * cellWidth + "px";
 			cell.style.top = j * cellHeight + "px";
+			this.cells[i + '.' + j] = cell;
 		}
 	}
+
+	var b = this;
+	this.grid.onclick = function(ev) {
+		var s = '';
+		for(var k in this) if(!k.match("HTML")) s += k + ':' + this[k] + ' ';
+		//alert(s);
+		b.pressCell(Math.floor((ev.pageX - this.offsetLeft)/ cellWidth),
+			Math.floor((ev.pageY - this.offsetTop) / cellHeight));
+	};		
 }
 
+TicTacToeBrowser.prototype.pressCell = function(x, y) {
+	if(!connection.areWe(this.whoseTurn)) {
+		setStatus("Wait for your turn");
+		return;
+	}
+	var m = {
+		what: "createPiece",
+		game: this.id,
+		x: x, 
+		y: y
+	};
+	connection.send(m);
+};
 
-TicTacToeBrowser.prototype.update = function(stage) {
+TicTacToeBrowser.prototype.getCell = function(x, y) {
+	var index = x + '.' + y;
+	return this.cells[index];
+};
 
+TicTacToeBrowser.prototype.renderPieces = function() {
+	for(var key in this.cells) {
+		this.cells[key].innerHTML = "";
+	}
+	
+	var xSrc = this.players[0];
+	for(var i in this.pieces) {
+		var p = this.pieces[i];
+		this.getCell(p.x, p.y).innerHTML = (xSrc == p.src) ? "X" : "O";
+	}
+};
+
+TicTacToeBrowser.prototype.setTurnIndex = function(index) {
+	this.turnIndex = index;
+	this.whoseTurn = this.players[this.turnIndex];
+	this.grid.className = connection.areWe(this.whoseTurn) ? "grid" : "busyGrid";
+};
+
+TicTacToeBrowser.prototype.update = function(state) {
+	this.players = state.players;
+	this.setTurnIndex(state.turnIndex);
+	this.pieces = state.pieces;
+	this.renderPieces();
 };
 
 TicTacToeBrowser.prototype.processMessage = function(m) {
-
+	switch(m.what) {
+	case "createPiece":
+	this.pieces.push(m);
+	this.renderPieces();
+	this.setTurnIndex((this.players[0] == m.src) ? 1 : 0); 
+	break;
+	}
 };
 			
 	
