@@ -7,11 +7,11 @@
 
 (setq default-major-mode 'text-mode)
 (setq transient-mark-mode '1)
-;;Р·Р°РіСЂСѓР¶Р°РµС‚СЃСЏ РјРѕР»С‡Р°
+;;загружается молча
 (setq inhibit-startup-message t)
-;; Scratch buffer settings. РћС‡РёС‰Р°РµРј РµРіРѕ.
+;; Scratch buffer settings. Очищаем его.
 (setq initial-scratch-message nil)
-;;РіР»Р°РґРєРёР№ СЃРєСЂРѕР»Р»РёРЅРі СЃ РїРѕР»СЏРјРё
+;;гладкий скроллинг с полями
 (setq scroll-conservatively 100)
 (setq scroll-preserve-screen-position 't)
 (setq scroll-margin 0)
@@ -29,7 +29,7 @@
 ; (kill-buffer "*Messages*")
 (recentf-mode 1); Recent files in menu
 ;;
-;;РЎРѕР·РґР°РЅРёРµ СЂРµР·РµСЂРІРЅС‹С… РєРѕРїРёР№ СЂРµРґР°РєС‚РёСЂСѓРµРјС‹С… С„Р°Р№Р»РѕРІ (Backup)
+;;Создание резервных копий редактируемых файлов (Backup)
 ;;
 (setq
    backup-by-copying t      ; don't clobber symlinks
@@ -40,18 +40,18 @@
    kept-old-versions 2
    version-control t)       ; use versioned backups
 ;;
-;;РјС‹С€РєР°...
+;;мышка...
 ;;
 ;; Scroll Bar gets dragged by mouse butn 1
 (global-set-key [vertical-scroll-bar down-mouse-1] 'scroll-bar-drag)
 ;; Paste at point NOT at cursor
 (setq mouse-yank-at-point 't)
-;;РєРѕР»РµСЃРѕ РјС‹С€РєРё
+;;колесо мышки
 (mouse-wheel-mode 1)
 ;;
-;;РќР°СЃС‚СЂРѕР№РєР° РїРѕРІРµРґРµРЅРёСЏ СЂРµРґР°РєС‚РѕСЂР° "РєР°Рє РІ Windows"
+;;Настройка поведения редактора "как в Windows"
 ;;
-;;РЅР°СЃС‚СЂРѕР№РєР° РєР»Р°РІРёР°С‚СѓСЂС‹ РєР°Рє РІ Windows
+;;настройка клавиатуры как в Windows
 ;;
 ;;Delete (and its variants) delete forward instead of backward.
 ;;C-Backspace kills backward a word (as C-Delete normally would).
@@ -60,22 +60,22 @@
 ;;C-Home and C-End move to beginning and end of buffer.
 ;;C-Escape does list-buffers." 
 (pc-bindings-mode)
-;;РќР°СЃС‚СЂРѕР№РєР° РІС‹РґРµР»РµРЅРёСЏ "РєР°Рє РІ Windows"
+;;Настройка выделения "как в Windows"
 (pc-selection-mode)
 (delete-selection-mode nil)
 ;;
-;;РЈСЃС‚Р°РЅРѕРІРєР° СЂРµР¶РёРјР° CUA
-;;РїРѕРґРґРµСЂР¶РєР° Ctr-c,v,x,d РєР°Рє РІ windows
+;;Установка режима CUA
+;;поддержка Ctr-c,v,x,d как в windows
 ;;
 (require 'cua-base)
 (cua-mode t)
-;;СѓСЃС‚Р°РЅРѕРІРєР° СЂРµР¶РёРјРѕРІ СЂР°Р±РѕС‚С‹ РєСѓСЂСЃРѕСЂР° С‡РµСЂРµР· CUA
+;;установка режимов работы курсора через CUA
 (setq cua-normal-cursor-color "black")
 (setq cua-overwrite-cursor-color "red")
 (setq cua-read-only-cursor-color "green") 
 ;; always end a file with a newline
 (setq require-final-newline t)
-(delete-selection-mode t) ; <del> СѓРґР°Р»СЏРµС‚ РІС‹РґРµР»РµРЅРЅС‹Р№ С‚РµРєСЃС‚
+(delete-selection-mode t) ; <del> удаляет выделенный текст
 
 ;;
 ;;     GENERAL KEYS
@@ -87,8 +87,8 @@
 (global-set-key [select] 'end-of-line)
 (global-set-key [\C-home] 'beginning-of-buffer)
 (global-set-key [\C-end] 'end-of-buffer)
-;;СѓРґР°Р»СЏРµРј СЃС‚СЂРѕРєСѓ С†РµР»РёРєРѕРј
-;(setq kill-whole-line t) СѓРґР°Р»СЏРµС‚ РћРў РїРѕР·РёС†РёРё РєСѓСЂСЃРѕСЂР° РґРѕ РєРѕРЅС†Р° СЃС‚СЂРѕРєРё
+;;удаляем строку целиком
+;(setq kill-whole-line t) удаляет ОТ позиции курсора до конца строки
 (global-set-key [(control y)] 
   '(lambda () 
      (interactive)
@@ -115,9 +115,9 @@
 (global-font-lock-mode 1) ; for syntax highlighting
 
 
-;; Р’С‹РґРµР»РµРЅРёРµ РїР°СЂРЅС‹С… СЃРєРѕР±РѕРє
+;; Выделение парных скобок
 (show-paren-mode 1)
-(setq show-paren-style 'expression);РІС‹РґРµР»СЏС‚СЊ РІСЃРµ РІС‹СЂР°Р¶РµРЅРёРµ РІ СЃРєРѕР±РєР°С…
+(setq show-paren-style 'expression);выделять все выражение в скобках
 (tool-bar-mode -1)
 (set-default-font 
  (if (equal window-system 'x)
@@ -130,28 +130,27 @@
 (blink-cursor-mode nil)
 
 ;; 
-;;    РљРћР”РР РћР’РљР
+;;    КОДИРОВКИ
 ;;    `````````
 ;;
 
-;;РСЃРїРѕР»СЊР·СѓРµРј Windows 1251
+;;Используем Windows 1251
 (set-language-environment "Russian")
-(define-coding-system-alias 'windows-1251 'cp1251)
-(set-buffer-file-coding-system 'cp1251-dos)
-(set-default-coding-systems 'cp1251-dos)
-(set-terminal-coding-system 'cp1251-dos)
-(set-selection-coding-system 'cp1251-dos)
-(prefer-coding-system 'cp1251-dos)
+;(define-coding-system-alias 'windows-1251 'cp1251)
+(set-buffer-file-coding-system 'windows-1251-dos)
+(set-default-coding-systems 'windows-1251-dos)
+(set-terminal-coding-system 'windows-1251-dos)
+(set-selection-coding-system 'windows-1251-dos)
 ;;
-;; РСЃРїРѕР»СЊР·РѕРІР°С‚СЊ РѕРєСЂСѓР¶РµРЅРёРµ UTF-8
+;; Использовать окружение UTF-8
 ;;(set-language-environment 'UTF-8)
 ;;(set-buffer-file-coding-system 'utf-8-dos)
 ;;(set-default-coding-systems 'utf-8-dos)
 ;;(set-terminal-coding-system 'utf-8-dos)
 ;;(set-selection-coding-system 'utf-8-dos)
-(prefer-coding-system 'cp866-dos)
-(prefer-coding-system 'koi8-r-dos)
-(prefer-coding-system 'utf-8-dos)
+;(prefer-coding-system 'cp866-dos)
+;(prefer-coding-system 'koi8-r-dos)
+;(prefer-coding-system 'utf-8-dos)
 (prefer-coding-system 'windows-1251-dos)
 
 ;; 
@@ -159,7 +158,7 @@
 ;;     ```````````
 ;;
 
-; Р—Р°РіСЂСѓР·РёРј РґСЂСѓРіРёРµ РїСЂРѕРіСЂР°РјРјС‹ 
+; Загрузим другие программы 
 (autoload 'php-mode "php-mode.el" "XXX" t)
 (autoload 'wikipedia-mode "wikipedia-mode.el"
   "Major mode for editing documents in Wikipedia markup." t)
@@ -210,7 +209,7 @@
     (gtags-goto-tag tagname "PD" other-win)))
 
 (fset 'gtags-find-tag 'gtags-find-tag-or-path)
-(fset 'find-tag 'gtags-find-tag)
+(fset 'find-tag 'gtags-find-tag-or-path)
 
 (add-hook 'gtags-select-mode-hook
 		  '(lambda ()
@@ -262,10 +261,10 @@
     (revert-buffer nil t t)))
 
 (defun dos () "Reload this buffer as dos linebreaked text" (interactive) 
-  (let ((coding-system-for-read 'cp1251-dos))
+  (let ((coding-system-for-read 'windows-1251-dos))
     (revert-buffer nil t t)))
 
-;;СѓСЃС‚Р°РЅРѕРІРєР° С†РІРµС‚РѕРІ СЌРєСЂР°РЅР°
+;;установка цветов экрана
 ;;(set-background-color "black")
 ;;(set-foreground-color "white")
 

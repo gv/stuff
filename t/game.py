@@ -3,7 +3,7 @@ sys.path = ['ws', '/opt/ws'] + sys.path
 
 print "Loading libraries..."
 
-from twisted.web import server, resource, static, websocket
+from twisted.web import server, resource, static, websocket, http
 from twisted.internet import reactor
 try:
 		import cjson
@@ -28,13 +28,16 @@ class Out:
 				self.version = 0
 				outs[id] = self
 
-		def connect(self, remote):
-				self.remotes.add(remote)
+		def getStateMessage(self):
 				s = self.getState()
 				s['what'] = 'state'
 				s['dn'] = self.id
 				s['version'] = self.version
-				remote.transport.write(cjson.encode(s))
+				return s
+
+		def connect(self, remote):
+				self.remotes.add(remote)
+				remote.transport.write(cjson.encode(self.getStateMessage()))
 				
 		def postMessage(self, m=None, **kw):
 				m = m or kw
@@ -277,20 +280,14 @@ class Game:
 						
 						for d in (Vec(1, 0), Vec(0, 1), Vec(1,1), Vec(1, -1)):
 								c = 4
-								p = Vec(**m)
-								while c:
-										p.grow(d)
-										piece = self.findPiece(p)
-										if (not piece) or (piece['src'] != src.id): break
-										c -= 1 
-
-								p = Vec(**m)
-								d.reverse()
-								while c:
-										p.grow(d)
-										piece = self.findPiece(p)
-										if (not piece) or (piece['src'] != src.id): break
-										c -= 1 
+								for _ in range(2):
+										p = Vec(**m)
+										while c:
+												p.grow(d)
+												piece = self.findPiece(p)
+												if (not piece) or (piece['src'] != src.id): break
+												c -= 1 
+										d.reverse()
 
 								if c == 0:
 										for p in self.players:	
@@ -299,8 +296,32 @@ class Game:
 																			infoText="%s wins!" % src.id)
 				
 
+#
+#  WebSocket-free connection
+#
 
+from twisted.web import http
 
+def getArg(req, argName):
+		try: return unicode(req.args[argName][0], 'utf-8')
+		except: raise ValueError('"%s" parameter expected' % argName)
+
+class FakeConnection(resource.Resource):
+		def __init__(self):
+				resource.Resource.__init__(self)
+
+		def render(self, req):
+				q = getArg(req, "q")
+				q = cjson.decode(q)
+				messages = []
+				for prescription in q['p']:
+					id = prescription['id']
+					version = prescription['version']
+					out = outs.get(id)
+					if version != out.version:
+							state = out.getStateMessage()
+							messages.append(state)
+				return cjson.encode({"messages": messages})
 
 
 
@@ -310,6 +331,7 @@ if __name__ == "__main__":
 		root = resource.Resource()
 		root.putChild("", static.File("index.html"))
 		root.putChild("m", static.File("m"))
+		root.putChild("n", FakeConnection())
 
 		site = websocket.WebSocketSite(root)
 		site.addHandler("/s", BrowserConnection)
