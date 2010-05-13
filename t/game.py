@@ -44,9 +44,13 @@ class Out:
 				# Let remotes process, then process locally
 				m['version'] = self.version
 				m['dn'] = self.id
-				for r in self.remotes:
-						r.transport.write(cjson.encode(m))
-				self.version = self.version + 1
+				
+				remotes = set(r for r in self.remotes)
+
+				for r in remotes:
+						r.send(m, self)
+
+				self.version += 1
 				self.processMessage(m)
 
 		#
@@ -59,6 +63,10 @@ class Out:
 		def getState(self):
 				return {}
 
+
+def someOf(d, *keys):
+		return dict((k, v) for k, v in d.iteritems() if k in keys)
+
 class Room(Out):
 		def __init__(self):
 				Out.__init__(self, "room")
@@ -67,6 +75,7 @@ class Room(Out):
 		def processMessage(self, m):
 				what = m['what']
 				if what == "createComment":
+						m = someOf(m, "author", "text")
 						self.conversation = (self.conversation + [m])[-10:]
 				elif what == "createPerson":
 						pass # list is updated already here
@@ -127,7 +136,44 @@ class Person(Out):
 						if srcId == inv['src']:
 								return inv
 
-class BrowserConnection(websocket.WebSocketHandler):
+class ClientConnection:
+		def handleInput(self, m):
+				gameId = m.get('game')
+				if gameId:
+						game = self.owner.games[gameId]
+						m['src'] = self.owner.id
+						game.processMessage(m, self.owner)
+						return 
+
+				what = m['what']
+				if what == 'createComment':
+						m['author'] = self.owner.id
+						room.postMessage(m)
+				elif what == 'updatePerson':
+						m['id'] = self.owner.id
+						room.postMessage(m)
+				elif what == 'createInvitation':
+						target = m['target']
+						if(target == self.owner.id):
+								raise ValueError("It's sort of depressing to invite yourself")
+						target = getPerson(target)
+						if target.findInvitation(self.owner.id):
+								# still need to respond somehow
+								self.owner.postMessage(what="info", infoText="Duplicate invitation")
+								return
+						m['src'] = self.owner.id
+						target.postMessage(m)
+				elif what == "createGame":
+						players = m['players']
+						for p in players:
+								if not self.owner.findInvitation(p):
+										raise ValueError("Invitation from %s not found!" % p)
+								
+						players.append(self.owner.id)
+						Game(players)
+		
+
+class BrowserConnection(websocket.WebSocketHandler, ClientConnection):
 		#lost = False
 		owner = None
 		
@@ -137,7 +183,7 @@ class BrowserConnection(websocket.WebSocketHandler):
 		def connectionOpened(self):
 				pass
 
-		def send(self, m=None, **kw):
+		def send(self, m=None, out=None, **kw):
 				m = m or kw
 				self.transport.write(cjson.encode(m))
 
@@ -145,12 +191,6 @@ class BrowserConnection(websocket.WebSocketHandler):
 				try:
 						m = cjson.decode(frame)
 						print m
-
-						gameId = m.get('game')
-						if gameId:
-								game = self.owner.games[gameId]
-								m['src'] = self.owner.id
-								game.processMessage(m, self.owner)
 
 						what = m['what']
 						if what in ['createPerson', 'openPerson']:
@@ -167,32 +207,9 @@ class BrowserConnection(websocket.WebSocketHandler):
 								room.connect(self)
 								p.connect(self)
 								self.owner = p
-						elif what == 'createComment':
-								m['author'] = self.owner.id
-								room.postMessage(m)
-						elif what == 'updatePerson':
-								m['id'] = self.owner.id
-								room.postMessage(m)
-						elif what == 'createInvitation':
-								target = m['target']
-								if(target == self.owner.id):
-										raise ValueError("It's sort of depressing to invite yourself")
-								target = getPerson(target)
-								if target.findInvitation(self.owner.id):
-										# still need to respond somehow
-										self.send(what="info", infoText="Duplicate invitation")
-										return
-								m['src'] = self.owner.id
-								target.postMessage(m)
-						elif what == "createGame":
-								players = m['players']
-								for p in players:
-										if not self.owner.findInvitation(p):
-												raise ValueError("Invitation from %s not found!" % p)
-								
-								players.append(self.owner.id)
-								Game(players)
+								return
 
+						self.handleInput(m)
 				except Exception, e:
 						errMsg = "ERROR: %s" % str(e)
 						self.transport.write(errMsg)
@@ -201,9 +218,9 @@ class BrowserConnection(websocket.WebSocketHandler):
 								
 
 		def connectionLost(self, reason):
-				#print "lost: ", reason
-				self.lost = True
+				# self.lost = True
 				self.disown()
+				room.remotes.discard(self)
 
 		def disown(self):
 				if self.owner:
@@ -306,24 +323,91 @@ def getArg(req, argName):
 		try: return unicode(req.args[argName][0], 'utf-8')
 		except: raise ValueError('"%s" parameter expected' % argName)
 
+class HttpRemote:
+		locked = True
+		def __init__(self, req):
+				self.req = req
+				self.messages = []
+
+		def send(self, m=None, out=None, **kw):
+				m = m or kw
+				self.messages.append(m)
+				if not self.locked:
+						out.remotes.discard(self)
+						room.remotes.discard(self)
+						self.req.write(cjson.encode({"messages": [m]}))
+						self.req.finish()
+				
+		def unlock(self):
+				self.locked = False
+				if self.messages:
+						return cjson.encode({"messages": self.messages})
+
 class FakeConnection(resource.Resource):
 		def __init__(self):
 				resource.Resource.__init__(self)
 
 		def render(self, req):
-				q = getArg(req, "q")
-				q = cjson.decode(q)
-				messages = []
-				for prescription in q['p']:
-					id = prescription['id']
-					version = prescription['version']
-					out = outs.get(id)
-					if version != out.version:
-							state = out.getStateMessage()
-							messages.append(state)
-				return cjson.encode({"messages": messages})
+				try:
+						q = getArg(req, "q")
+						q = cjson.decode(q)
+				
+						remote = HttpRemote(req)
+						clients = []
+						rp = q.get("room")
+						if rp:
+								version = rp.get('version')
+								if room.version != version:
+										remote.send(room.getStateMessage())
+								else:
+										clients.append(room)
+						
+						pp = q.get('person')
+						if pp:
+								id = pp['id']
+								person = outs.get(id)
+								if person: 
+										if pp['password'] != person.password:
+												raise ValueError("%s is not a password for %s" % 
+																				 (pp['password'], person.id))
+								else: # expired
+										person = Person()
+										remote.send(what="person", id=person.id, 
+																password=person.password)
+
+								version = pp.get('version')
+								if person.version != version:
+										remote.send(person.getStateMessage())
+								else:
+										clients.append(person)
+
+						r = remote.unlock()
+						if r:
+								return r
+						else:
+								for out in clients:
+										out.remotes.add(remote)
+								return server.NOT_DONE_YET
+				except Exception, e:
+						import traceback
+						traceback.print_exc()
+						return "ERROR: %s" % str(e)
 
 
+class FakeConnectionInput(resource.Resource, ClientConnection):
+		def __init__(self):
+				resource.Resource.__init__(self)
+
+		def render(self, req):
+				src = getArg(req, "src")
+				password = getArg(req, "password")
+				self.owner = getPerson(src)
+				#if src.password != password:
+				#		return "Bad password"
+				m = cjson.decode(getArg(req, "m"))
+				self.handleInput(m)
+				
+				
 
 if __name__ == "__main__":
 		print 'Starting server...'
@@ -332,6 +416,7 @@ if __name__ == "__main__":
 		root.putChild("", static.File("index.html"))
 		root.putChild("m", static.File("m"))
 		root.putChild("n", FakeConnection())
+		root.putChild("p", FakeConnectionInput())
 
 		site = websocket.WebSocketSite(root)
 		site.addHandler("/s", BrowserConnection)

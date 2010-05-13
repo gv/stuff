@@ -32,57 +32,20 @@ function setStatus(s) {
 //    CONNECTION
 //
 
-
 function Connection() {
 	this.ins = {};
 }
 
-Connection.prototype.connect = function() {
-	var path = "wss://" + location.hostname + "/s";
-	var s = new WebSocket(path), c = this;
-	this.s = s;
-	s.onopen = function(ev) {
-		setStatus("Joining...");
-		var m = document.cookie.match("dontpanic_p=([^;]+)");
-		if(m) {
-			var data = m[1].split('|');
-			m = {
-				what: "openPerson",
-				id: data[0],
-				password: data[1]
-			};
-		} else {
-			var m = {
-				what: "createPerson"
-			};
-		}
-		c.send(m);
-	};
-	
-	s.onmessage = function(ev) { c.onmessage(ev); };
-
-	s.onclose = function(ev) {
-		setStatus("Closed");
-		//alert(JSON.stringify(ev));
-		
-	};
-
-	s.onerror = function(ev) {
-		alert(JSON.stringify(ev));
-	};
-};
-
-Connection.prototype.send = function(m) {
-	this.s.send(JSON.stringify(m));
-};
-
-Connection.prototype.onmessage = function(ev) {
-	hideStatus();
-	if(ev.data.charAt(0) == '{') {
-		var m = JSON.parse(ev.data);
+var parseResponseText = function(text) {
+	if(text.charAt(0) == '{') {
+		return JSON.parse(text);
 	} else {
-		var m = {errMsg: ev.data};
+		return {errMsg: text};
 	}
+};
+
+Connection.prototype.handleMessage = function(m) {
+	hideStatus();
 
 	if(m.errMsg) {
 		alert("Connection: " + m.errMsg);
@@ -95,6 +58,9 @@ Connection.prototype.onmessage = function(ev) {
 
 	if("person" == m.what) {
 		document.cookie = "dontpanic_p=" + m.id + '|' + m.password;
+		this.person = new In(m.id);
+		this.person.password = m.password;
+		this.person.addObserver(browser);
 	} else {
 		if(!m.dn) {
 			warn(ev.data + ": No destignation!");
@@ -102,20 +68,114 @@ Connection.prototype.onmessage = function(ev) {
 		}
 		
 		var client = this.ins[m.dn];
-		
-		if(!client) { 
-			if(this.person) {
-				alert("SECOND PERSON!");
-			}
-			this.person = client = new In(m.dn);
-			var b = new RoomBrowser();
-			room.addObserver(b);
-			client.addObserver(b);
-		}
 		client.processMessage(m);
+
+		if("state" == m.what) {
+			client.version = m.version;
+		} else {
+			client.version++;
+		}
 	}
 };
 
+if("WebSocket" in window) {
+	Connection.prototype.connect = function() {
+		var path = "wss://" + location.hostname + "/s";
+		var s = new WebSocket(path), c = this;
+		this.s = s;
+		s.onopen = function(ev) {
+			setStatus("Joining...");
+			var m = document.cookie.match("dontpanic_p=([^;]+)");
+			if(m) {
+				var data = m[1].split('|');
+				m = {
+					what: "openPerson",
+					id: data[0],
+					password: data[1]
+				};
+			} else {
+				var m = {
+					what: "createPerson"
+				};
+			}
+			c.send(m);
+		};
+	
+		s.onmessage = function(ev) { c.onmessage(ev); };
+
+		s.onclose = function(ev) {
+			setStatus("Closed");
+			//alert(JSON.stringify(ev));
+		
+		};
+
+		s.onerror = function(ev) {
+			alert(JSON.stringify(ev));
+		};
+	};
+
+	Connection.prototype.send = function(m) {
+		this.s.send(JSON.stringify(m));
+	};
+
+	Connection.prototype.onmessage = function(ev) {
+		//alert(ev.data);
+		var m = parseResponseText(ev.data);
+		this.handleMessage(m);
+	};
+
+
+} else {
+	Connection.prototype.connect = function() {
+		var query = {
+			room: {version: room.version},
+			person: {}
+		};
+
+		var m = document.cookie.match("dontpanic_p=([^;]+)");
+		if(m) {
+			var data = m[1].split('|');
+			query.person.id = data[0];
+			query.person.password = data[1];
+			if(this.person)
+				query.person.version = this.person.version;
+		} else {
+			query.person.id = "open";
+		}
+			
+		var c = this;
+		$.ajax({
+				url: location + "n?q=" + escape(JSON.stringify(query)) + 
+					"&t=" + (new Date).getTime(),
+					dataType: 'json',
+
+					success: function(resp) {
+					//alert(JSON.stringify(resp));
+					for(var i in resp.messages) {
+						c.handleMessage(resp.messages[i]);
+					}
+				},
+
+					error: function(xhr, type, exc) {
+					alert(type + ": " + exc);
+				}, 
+
+					complete: function() {
+					c.connect();
+				}
+			});
+	};
+
+	Connection.prototype.send = function(m) {
+		var c = this;
+		$.ajax({
+				url: "p?src=" + this.person.id + "&password=" + this.person.password + 
+					"&t=" + (new Date).getTime() + "&m=" + escape(JSON.stringify(m))
+			});
+	};
+}
+		
+		
 Connection.prototype.areWe = function(id) {
 	return this.person && this.person.id == id;
 };
@@ -202,18 +262,24 @@ function RoomBrowser() {
 	var b = this;
 	this.sayBtn.onclick = function() { b.say(); };
 	this.sayInp.onkeydown = function(ev) {
+		if(window.event)
+			ev = window.event;
 		if(13 == ev.keyCode) 
 			b.say();
 	};
 
 	this.loginBtn.onclick = function() { b.login(); };
 	this.nameInp.onkeydown = function(ev) {
+		if(window.event)
+			ev = window.event;
 		if(13 == ev.keyCode)
 			b.login();
 		//cancel(ev);
 	};
 
 	document.onkeydown = function(ev) {
+		if(window.event)
+			ev = window.event;
 		if(ev.target != b.nameInp)
 			b.sayInp.focus();
 	};
@@ -544,11 +610,20 @@ RoomBrowser.prototype.processMessage = function(m, client) {
 					
 
 try {
-	if(!("WebSocket" in window))
-		throw "No WebSockets!";
+	browser = new RoomBrowser;
+	
 	setStatus("Connecting...");
 	connection = new Connection();
+	var m = document.cookie.match("dontpanic_p=([^;]+)");
+	if(m) {
+		var data = m[1].split('|');
+		connection.person = new In(data[0]);
+		connection.person.password = data[1];
+		connection.person.addObserver(browser);
+	}
 	room = new In("room");
+	room.addObserver(browser);
+	setStatus("Joining...");
 	connection.connect();
 } catch(e) {
 	alert(e);
