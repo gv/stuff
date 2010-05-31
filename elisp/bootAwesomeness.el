@@ -236,8 +236,9 @@
 
 ; Set file types.
 (add-to-list 'auto-mode-alist '("\\.ks\\'" . java-mode))
+(add-to-list 'auto-mode-alist '("\\.h\\'" . c++-mode))
 ;(setq javascript-mode 'java-mode)
-;(add-to-list 'auto-mode-alist '("\\.js\\'" . java-mode))
+(add-to-list 'auto-mode-alist '("\\.js\\'" . java-mode))
 (make-face-bold 'font-lock-keyword-face)
 (make-face-italic 'font-lock-string-face)
 
