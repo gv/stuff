@@ -335,8 +335,9 @@ class HttpRemote:
 				if not self.locked:
 						out.remotes.discard(self)
 						room.remotes.discard(self)
-						self.req.write(cjson.encode({"messages": [m]}))
-						self.req.finish()
+						if self.req.channel:
+								self.req.write(cjson.encode({"messages": [m]}))
+								self.req.finish()
 				
 		def unlock(self):
 				self.locked = False
