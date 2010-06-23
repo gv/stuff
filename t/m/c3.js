@@ -10,6 +10,11 @@ function cancel(e){
 	}
 }
 
+function write(node, text) {
+	text = text.replace(/[<>&]/g, '_');
+	node.innerHTML = text;
+}
+
 if("console" in window) {
 	warn = function(x) { console.log(x); };
 } else {
@@ -324,7 +329,7 @@ RoomBrowser.prototype.updatePerson = function(p) {
 	node.className = "person";
 	if(p.name) {
 		node.className += " withName"; 
-		node.innerHTML = p.name;
+		write(node, p.name);
 	} else {
 		node.innerHTML = "*" + p.id + "*";
 	}
@@ -374,7 +379,7 @@ RoomBrowser.prototype.addComment = function(item) {
 	node.className = "comment";
 	node.appendChild(this.createPersonsNameNode(item.author));
 	node.appendChild(document.createElement("B")).innerHTML = ": ";
-	node.appendChild(document.createElement("SPAN")).innerHTML = item.text;
+	write(node.appendChild(document.createElement("SPAN")), item.text);
 	this.conversationStage.scrollTop = this.conversationStage.scrollHeight;
 };
 
