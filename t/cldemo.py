@@ -11,10 +11,7 @@ except ImportError:
 		cjson.decode = cjson.loads
 
 SVR_IP = "172.16.0.77"
-
-def randomString():
-		return ''.join(random.choice("poiuytrewqasdfghjklmnbvcxz") for _ in range(16))
-
+SVR_IP = "93.92.204.36"
 
 clientCnt = 0
 sockCnt = 0
@@ -52,17 +49,21 @@ class Client:
 										"\r\n")
 				self.s.recv(1024) # handshake
 
-				self.send(what="createPerson")
+				self.send(what="createPerson", noRoom=1)
 				self.s.recv(64536)
 
 				global clientCnt
 				clientCnt += 1
 
 				while 1:
-						self.send(what="createComment", 
-											text=randomString() + " " + randomString())
+						r = random.random()
+						if r < 0.5:
+								text = getStatLine()
+						else:
+								text = '/stats'
+						self.send(what="createComment", text=text)
 						self.s.recv(64536)
-						time.sleep(random.random() * 10)
+						time.sleep(random.random() * 1000)
 
 		
 		def send(self, m=None, **kw):
@@ -90,11 +91,14 @@ class MasterTd(threading.Thread):
 				for _ in range(10000):
 						Td().start()
 						threadsStartedCnt += 1
-						
+			
+
+def getStatLine():
+		return "%d started, %d running, %d sockets, %d clients, %d conn fails" % (threadsStartedCnt, runningCnt, sockCnt, clientCnt, connectionFailureCnt)
 		
 # main
 
 MasterTd().start()
 while 1:
-		print "%d started, %d running, %d sockets, %d clients, %d conn fails" % (threadsStartedCnt, runningCnt, sockCnt, clientCnt, connectionFailureCnt)
+		print getStatLine()
 		time.sleep(1)
