@@ -148,6 +148,8 @@ class ClientConnection:
 				what = m['what']
 				if what == 'createComment':
 						m['author'] = self.owner.id
+						if '/stats' == m['text']:
+								m['text'] = getCommStats()
 						room.postMessage(m)
 				elif what == 'updatePerson':
 						m['id'] = self.owner.id
@@ -204,7 +206,10 @@ class BrowserConnection(websocket.WebSocketHandler, ClientConnection):
 								if not p:
 										p = Person()
 								self.send(what="person", id=p.id, password=p.password)
-								room.connect(self)
+
+								if 'noRoom' not in m:
+										room.connect(self)
+
 								p.connect(self)
 								self.owner = p
 								return
@@ -314,7 +319,9 @@ class Game:
 				
 
 #
-#  WebSocket-free connection
+#   WebSocket-free connection
+#
+#   Based on long polling.
 #
 
 from twisted.web import http
@@ -408,7 +415,11 @@ class FakeConnectionInput(resource.Resource, ClientConnection):
 				m = cjson.decode(getArg(req, "m"))
 				self.handleInput(m)
 				
-				
+
+def getCommStats():
+		return "%s, %d reads, %d writes" %(repr(reactor), 
+																			 len(reactor._reads),
+																			 len(reactor._writes))
 
 if __name__ == "__main__":
 		print 'Starting server...'
