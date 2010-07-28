@@ -94,7 +94,8 @@ class MasterTd(threading.Thread):
 			
 
 def getStatLine():
-		return "%d started, %d running, %d sockets, %d clients, %d conn fails" % (threadsStartedCnt, runningCnt, sockCnt, clientCnt, connectionFailureCnt)
+		return "%d started, %d running, %d sockets, %d clients, %d conn fails" % (
+				threadsStartedCnt, runningCnt, sockCnt, clientCnt, connectionFailureCnt)
 		
 # main
 
