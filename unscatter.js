@@ -1,4 +1,3 @@
-
 var needToPrintMencoderArgs = WScript.Arguments.Named.Exists('pma');
 if(needToPrintMencoderArgs) {
 	output = "";
@@ -9,10 +8,17 @@ var needToInstall = !WScript.Arguments.Named.Exists('noinstall');
 DEBUG = !needToPrintMencoderArgs;
 
 
+function print(x) {
+	return WScript.Echo(x);
+}
+
 // get a console
 var sh = new ActiveXObject('WScript.Shell');
 if(WScript.FullName.match(new RegExp('wscript', 'i'))) {
   var cmdLine = 'cscript /nologo ' + WScript.ScriptFullName + ' /pause';
+	for(var i = 0; i < WScript.Arguments.Unnamed.length; i++) {
+		cmdLine += ' ' + WScript.Arguments.Unnamed.Item(i);
+	}
   sh.Run(cmdLine);
   WScript.Quit();
 }
@@ -37,10 +43,6 @@ var playlistTypeNames = [
 ];
 
 var vidExts = ['avi', 'flv'];
-
-function print(x) {
-	return WScript.Echo(x);
-}
 
 function trace(x) {
 	DEBUG && print('* ' + x);
@@ -208,7 +210,6 @@ function run() {
 	//
 	//   *** ARG LOOP ***
 	//
-	
 	for(var i = 0; i < args.length; i++) { 
 		var path = args.Item(i);
 		trace('arg: ' + path);
@@ -223,7 +224,6 @@ function run() {
 			if(outputPath.indexOf('http://') >= 0) { // nonlocal
 				outputPath = outputPath.replace(new RegExp('[:/&]+', 'g'), '_');
 			}
-
 
 			/*
 			var vlcPath = "d:\\Programs\\vlc-1.1.0-git-20090710-2203\\vlc.exe";
@@ -244,7 +244,7 @@ function run() {
 			var fileOpts = ' -o "' + outputPath + '-incomplete.mp4"';
 			var subPath = path.replace(vidExtPattern, '.srt');
 			if(fs.FileExists(subPath)) {
-				// mencoder takes a comma separated path list for a -sub parameter. Yeah well.
+				// mencoder takes a comma separated path list for a -sub parameter.
 				fileOpts += ' -sub "' + subPath.replace(new RegExp(',', 'g'), "\\,") + '"';
 			}
 			fileOpts +=	' "' + path + '"';
