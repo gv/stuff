@@ -232,6 +232,7 @@
 	 (message "a"))
   (message "b")
 )
+
 (global-set-key (kbd "M-]") 'gtags-find-symbol)
 (global-set-key (kbd "M-=") 'gtags-find-file)
 (global-set-key [M-.] 'gtags-find-tag)
