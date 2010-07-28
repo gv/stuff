@@ -206,7 +206,7 @@
     (if (not (equal "" input))
 		(setq tagname input))
     (gtags-push-context)
-    (gtags-goto-tag tagname "PD" other-win)))
+    (gtags-goto-tag tagname "" other-win)))
 
 (fset 'gtags-find-tag 'gtags-find-tag-or-path)
 (fset 'find-tag 'gtags-find-tag-or-path)
@@ -227,12 +227,16 @@
 				   case-fold-search nil
 				   case-replace nil)))
 
-
-(global-set-key (kbd "M-[") 'gtags-find-rtag)
+(if window-system
+	((global-set-key (kbd "M-[") 'gtags-find-rtag)
+	 (message "a"))
+  (message "b")
+)
 (global-set-key (kbd "M-]") 'gtags-find-symbol)
 (global-set-key (kbd "M-=") 'gtags-find-file)
 (global-set-key [M-.] 'gtags-find-tag)
 (global-set-key [M-left] 'gtags-pop-stack)
+(global-set-key (kbd "ESC <left>") 'gtags-pop-stack)
 
 ; Set file types.
 (add-to-list 'auto-mode-alist '("\\.ks\\'" . java-mode))
