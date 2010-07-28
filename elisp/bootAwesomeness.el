@@ -206,7 +206,7 @@
     (if (not (equal "" input))
 		(setq tagname input))
     (gtags-push-context)
-    (gtags-goto-tag tagname "PD" other-win)))
+    (gtags-goto-tag tagname "" other-win)))
 
 (fset 'gtags-find-tag 'gtags-find-tag-or-path)
 (fset 'find-tag 'gtags-find-tag-or-path)
