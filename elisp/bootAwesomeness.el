@@ -228,9 +228,7 @@
 				   case-replace nil)))
 
 (if window-system
-	((global-set-key (kbd "M-[") 'gtags-find-rtag)
-	 (message "a"))
-  (message "b")
+	(global-set-key (kbd "M-[") 'gtags-find-rtag)
 )
 
 (global-set-key (kbd "M-]") 'gtags-find-symbol)
