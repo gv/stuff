@@ -225,23 +225,15 @@ function run() {
 				outputPath = outputPath.replace(new RegExp('[:/&]+', 'g'), '_');
 			}
 
-			/*
-			var vlcPath = "d:\\Programs\\vlc-1.1.0-git-20090710-2203\\vlc.exe";
-			var cmdLine = vlcPath + 
-			" -vvv --sout=#transcode{vcodec=mp4v,vb=1024,scale=1," +
-				"height=320,width=480,acodec=mp4a,ab=128,channels=2,soverlay}" + 
-				":duplicate{dst=std{access=file,mux=mp4,dst=" + 
-				outputPath + "}} --run-time 30 " + path + " vlc://quit";
-			*/
-
-
+			var converted = false;
+			var outputTempPath = outputPath+ '-incomplete.mp4'
 			var mencoderPath = "d:\\programs\\MPlayer-p4-svn-29355\\mencoder.exe";
 			var mencoderOpts = ' -vf scale=480:-10,harddup -lavfopts format=mp4 ' + 
 				'-faacopts mpeg=4:object=2:raw:br=128 -oac faac -ovc x264 -sws 9 ' + 
 				'-x264encopts nocabac:level_idc=30:bframes=0:global_header:threads=auto:' + 
 				'subq=5:frameref=6:partitions=all:trellis=1:chroma_me:me=umh:' +
 				'bitrate=500 -of lavf ';
-			var fileOpts = ' -o "' + outputPath + '-incomplete.mp4"';
+			var fileOpts = ' -o "' + outputTempPath;
 			var subPath = path.replace(vidExtPattern, '.srt');
 			if(fs.FileExists(subPath)) {
 				// mencoder takes a comma separated path list for a -sub parameter.
@@ -255,9 +247,26 @@ function run() {
 			} else {
 				var cmdLine = mencoderPath + mencoderOpts + fileOpts;
 				trace(cmdLine);
-				sh.Run(cmdLine, 5, true);
-				fs.MoveFile(outputPath + '-incomplete.mp4', outputPath);
-				files.push({path: outputPath, name: outputPath});
+				var exitCode = sh.Run(cmdLine, 5, true);
+				trace(exitCode);
+				if(!exitCode)
+					converted = true;
+
+				if(!converted) {
+					var vlcPath = "d:\\Programs\\vlc-1.1.0-git-20090710-2203\\vlc.exe";
+					var cmdLine = vlcPath + 
+						" -vvv --sout=#transcode{vcodec=mp4v,vb=1024,scale=1," +
+						"height=320,width=480,acodec=mp4a,ab=128,channels=2,soverlay}" + 
+						":duplicate{dst=std{access=file,mux=mp4,dst=" + 
+						outputTempPath + "}} --run-time 30 " + path + " vlc://quit";
+					sh.Run(cmdLine, 5, true);
+					converted = true;
+				}
+
+				if(converted) {
+					fs.MoveFile(outputTempPath, outputPath);
+					files.push({path: outputPath, name: outputPath});
+				}
 			}
 		} else { // it's a directory with music
 			var dirPath = path;
