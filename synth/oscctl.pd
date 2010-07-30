@@ -1,0 +1,20 @@
+#N canvas 371 302 815 450 10;
+#X obj 198 125 nbx 5 14 0 1e+37 0 0 empty empty fm/alpha 0 -8 0 10
+-262144 -1 -1 0 256;
+#X obj 105 125 nbx 5 14 1 99 0 0 empty empty fm_freq/pitch 0 -8 0 10
+-262144 -1 -1 1 256;
+#X obj 275 124 nbx 5 14 -1000 1000 0 0 empty empty freq-delta 0 -8
+0 10 -262144 -1 -1 0 256;
+#X obj 268 197 s freq/delta-\$1;
+#X obj 53 195 s fm_freq/pitch-\$1;
+#X obj 207 272 s fm/alpha-\$1;
+#X text 101 344 oscctl;
+#X text 101 357 ------;
+#X text 101 367 The oscillator controller controls all instances of
+same class oscillators in all voices;
+#X text 102 406 SYNTAX: oscctl <oscname>;
+#X obj 362 100 envmixctl \$1 saw;
+#X connect 0 0 5 0;
+#X connect 1 0 4 0;
+#X connect 2 0 3 0;
+#X coords 0 -1 1 1 660 60 1 100 100;

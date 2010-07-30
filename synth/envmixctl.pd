@@ -1,0 +1,28 @@
+#N canvas 255 176 509 520 10;
+#X obj 109 127 nbx 5 14 -100 100 0 0 empty empty alpha 0 -8 0 10 -262144
+-1 -1 0 256;
+#X text 117 32 envmixctl control envmixes in all voices;
+#X obj 95 266 / 100;
+#X text 116 48 syntax: envmixctl <oscname> <paramname>;
+#X obj 174 126 nbx 5 14 -100 100 0 0 empty empty beta 0 -8 0 10 -262144
+-1 -1 0 256;
+#X obj 197 264 / 100;
+#X obj 238 126 nbx 5 14 -100 100 0 0 empty empty gamma 0 -8 0 10 -262144
+-1 -1 0 256;
+#X obj 308 265 / 100;
+#X obj 298 127 nbx 5 14 -100 100 0 0 empty empty delta 0 -8 0 10 -262144
+-1 -1 0 256;
+#X obj 417 266 / 100;
+#X obj 79 313 s \$2/alpha-\$1;
+#X obj 181 311 s \$2/beta-\$1;
+#X obj 292 312 s \$2/gamma-\$1;
+#X obj 401 313 s \$2/delta-\$1;
+#X connect 0 0 2 0;
+#X connect 2 0 10 0;
+#X connect 4 0 5 0;
+#X connect 5 0 11 0;
+#X connect 6 0 7 0;
+#X connect 7 0 12 0;
+#X connect 8 0 9 0;
+#X connect 9 0 13 0;
+#X coords 0 -1 1 1 300 60 1 100 100;

@@ -1,0 +1,28 @@
+#N canvas 0 549 1257 375 10;
+#X obj 104 148 nbx 5 14 1 4000 0 0 \$1-atk empty att/period 0 -8 0
+10 -261682 -1 -1 1 256;
+#X obj 105 179 nbx 5 14 1 5000 0 0 \$1-dcy empty dcy 0 -8 0 10 -261682
+-1 -1 1 256;
+#X obj 171 179 nbx 5 14 1 6000 0 0 \$1-rls empty rls 0 -8 0 10 -261682
+-1 -1 1 256;
+#X text 97 6 envctl controls a single envelope it displays controls
+it is responsible for parameter values supplied to oscillator being
+inside acceptable intervals SYNTAX: envctl <envname>;
+#X text 601 6 TODO save state;
+#X text 604 45 TODO fix some button to connect midi controls to values
+;
+#X obj 173 148 nbx 5 14 0 100 0 0 \$1-sst-perc empty sst_p 0 -8 0 10
+-261682 -1 -1 70 256;
+#X obj 104 211 nbx 5 14 0 100 0 0 \$1-vibrato-perc empty vibrato_p
+0 -8 0 10 -1 -262144 -1 0 256;
+#X obj 395 141 r \$1-vibrato-perc;
+#X obj 525 141 r \$1-sst-perc;
+#X obj 395 174 / 100;
+#X obj 525 168 / 100;
+#X obj 395 207 s \$1-vibrato;
+#X obj 526 211 s \$1-sst;
+#X connect 8 0 10 0;
+#X connect 9 0 11 0;
+#X connect 10 0 12 0;
+#X connect 11 0 13 0;
+#X coords 0 -1 1 1 185 160 1 100 100;
