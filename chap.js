@@ -39,50 +39,27 @@ function len(p) {
 	return Math.sqrt(p.x*p.x+p.y*p.y);
 }
 
-function mm(v) {
-	return function(E) {
-		p = vec(E, v);
-		L = len(p);
-		//console.log(s);
-		ex = v.x - p.x/L*(R+0.2);
-		ey = v.y - p.y/L*(R+0.2);
-		P(r.x1, ex - p.x*5);
-		P(r.y1, ey - p.y*5);
-		P(r.x2, ex);
-		P(r.y2, ey);
-		r.style.setProperty("stroke", "#f63589", "");
-		r.style.setProperty("stroke-width", .1, "");
-		//r.style.stroke = "red";
-		//r.style.strokeWidth = .1;
-		
-		console.log(r.y2.baseVal.value);
-	}
-}
-
-function md(v) {
-	return function(E) {
-		v.v = vec(E, v);
-		tick();
-	}
-};
-
 F = .1;
-
 //function sb(p, q)
 
 function tick() {
-	pair = y = 0;
+	pair = cont = 0;
 	for(i in u) {
 		p = u[i];
 		v = p.v;
 		L = len(v);
 		if(L > F) {
+			cont = 1;
 			v.x -= v.x/L*F;
 			v.y -= v.y/L*F;
+			console.log("V" + i+":"+v.x + " " + v.y);
 		} else {
 			v.x = v.y = 0;
 		}
 	}
+	
+	if(!cont)
+		return;
 		
 	T = 1;
 	do {
@@ -116,10 +93,70 @@ function tick() {
 				}
 			}
 		}
+
+		for(i in u) {
+			u[i].x += u[i].v.x*t;
+			u[i].y += u[i].v.y*t;
+		}
+
+		if(pair) {
+			p = pair[0], q = pair[1];
+			var ex = p.x - q.x;
+			var ey = p.y - q.y;
+			var e2 = ex*ex + ey*ey;
+			var m0 = (ex*p.v.x+ey*p.v.y)/e2;
+			var m1 = (ex*q.v.x+ey*q.v.y)/e2;
+			var change = 0.75*(m1-m0);
+			p.v.x += ex*change;
+			p.v.y += ey*change;
+			q.v.x -= ex*change;
+			q.v.y -= ey*change;
+		}
+
+		T -= t;
 	} while(T > 0);
+
+	render();
+	setTimeout(tick, 40);
+}
 						
 				
-			
+function mm(v) {
+	return function(E) {
+		p = vec(E, v);
+		L = len(p);
+		//console.log(s);
+		ex = v.x - p.x/L*(R+0.2);
+		ey = v.y - p.y/L*(R+0.2);
+		P(r.x1, ex - p.x*5);
+		P(r.y1, ey - p.y*5);
+		P(r.x2, ex);
+		P(r.y2, ey);
+		r.style.visibility = "";
+		r.style.setProperty("stroke", "#f63589", "");
+		r.style.setProperty("stroke-width", .1, "");
+		//r.style.stroke = "red";
+		//r.style.strokeWidth = .1;
+		
+		//console.log(r.y2.baseVal.value);
+	}
+}
+
+function md(v) {
+	return function(E) {
+		v.v = vec(E, v);
+		v.v.x *= 10;
+		v.v.y *= 10;
+		console.log(v.v.x, v.v.y);
+		tick();
+	}
+};
+
+function mo(v) {
+	return function(E) {
+		r.style.visibility = "hidden";
+	}
+}
 		
 		
 for(i = 16; i--; ) {
@@ -133,18 +170,23 @@ for(i = 16; i--; ) {
 	};
 	l.onmousemove = mm(v);
 	l.onmousedown = md(v);
+	l.onmouseout = mo(v);
 	u.push(v);
 }
 
 r = C('line');
 
-for(i in u) {
-	v = u[i];
-	l = v.l;
-	P(l.cx, v.x * Q);
-	P(l.cy, v.y * Q);
-	P(l.r, R *Q);
+function render() {
+	for(i in u) {
+		v = u[i];
+		l = v.l;
+		P(l.cx, v.x * Q);
+		P(l.cy, v.y * Q);
+		P(l.r, R *Q);
+	}
 }
+
+render();
 
 
 
