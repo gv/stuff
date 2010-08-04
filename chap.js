@@ -5,6 +5,8 @@ Q = 1;
 N = "http://www.w3.org/2000/svg";
 
 f = D.createElementNS(N, 'svg');
+f.style.setProperty("width", "500px", "");
+f.style.setProperty("height", "500px", "");
 v = f.viewBox.baseVal;
 v.x = v.y = 0;
 v.height = v.width = 14 * Q;
@@ -26,8 +28,9 @@ function C(n) {
 u = [];
 function vec(E, v) {
 		var p = f.createSVGPoint();
-		p.x = E.pageX;
-		p.y = E.pageY;
+		p.x = E.clientX;
+		p.y = E.clientY;
+		//console.log(E);
 		//console.log(f.getScreenCTM().inverse());
 		p = p.matrixTransform(f.getScreenCTM().inverse());
 		p.x = v.x - p.x;
@@ -52,7 +55,6 @@ function tick() {
 			cont = 1;
 			v.x -= v.x/L*F;
 			v.y -= v.y/L*F;
-			console.log("V" + i+":"+v.x + " " + v.y);
 		} else {
 			v.x = v.y = 0;
 		}
@@ -79,12 +81,12 @@ function tick() {
 					
 					co = dx*fx + dy*fy;
 					if(co < 0) {
-						ff = fx*fx + fy*fy;
+						A = fx*fx + fy*fy;
 						pl = dx*fy - dy*fx;
 						dis = RR4*ff - pl*pl;
 						if(dis > 0) {
 							tt = co + Math.sqrt(dis)/ff;
-							if(tt < t) {
+							if(tt >= 0 && tt < t) {
 								t = tt;
 								pair = [p, q];
 							}
@@ -111,6 +113,11 @@ function tick() {
 			p.v.y += ey*change;
 			q.v.x -= ex*change;
 			q.v.y -= ey*change;
+			
+			render();
+			p.l.style.setProperty("stroke", "#3ff", "");
+			q.l.style.setProperty("stroke", "#3f3", "");
+			alert(t);
 		}
 
 		T -= t;
@@ -130,8 +137,10 @@ function mm(v) {
 		ey = v.y - p.y/L*(R+0.2);
 		P(r.x1, ex - p.x*5);
 		P(r.y1, ey - p.y*5);
-		P(r.x2, ex);
-		P(r.y2, ey);
+		P(r.x2, v.x - p.x, ex);
+		P(r.y2, v.y - p.y, ey);
+		v.l.style.setProperty("stroke", "#f6ff89", "");
+		v.l.style.setProperty("stroke-width", .1, "");
 		r.style.visibility = "";
 		r.style.setProperty("stroke", "#f63589", "");
 		r.style.setProperty("stroke-width", .1, "");
@@ -144,9 +153,10 @@ function mm(v) {
 
 function md(v) {
 	return function(E) {
+		console.log("md");
 		v.v = vec(E, v);
-		v.v.x *= 10;
-		v.v.y *= 10;
+		v.v.x *= 3;
+		v.v.y *= 3;
 		console.log(v.v.x, v.v.y);
 		tick();
 	}
@@ -183,6 +193,8 @@ function render() {
 		P(l.cx, v.x * Q);
 		P(l.cy, v.y * Q);
 		P(l.r, R *Q);
+		l.style.setProperty("stroke", "#3589f3", "");
+		l.style.setProperty("stroke-width", .01, "");
 	}
 }
 
