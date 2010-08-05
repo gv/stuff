@@ -83,9 +83,9 @@ function tick() {
 					if(co < 0) {
 						A = fx*fx + fy*fy;
 						pl = dx*fy - dy*fx;
-						dis = RR4*ff - pl*pl;
+						dis = RR4*A - pl*pl;
 						if(dis > 0) {
-							tt = co + Math.sqrt(dis)/ff;
+							tt = co + Math.sqrt(dis)/A;
 							if(tt >= 0 && tt < t) {
 								t = tt;
 								pair = [p, q];
