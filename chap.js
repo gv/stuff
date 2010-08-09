@@ -6,7 +6,12 @@ N = "http://www.w3.org/2000/svg";
 TB = LB = 2;
 BB = RB = 10;
 
-f = D.createElementNS(N, 'svg');
+function C(n) { 
+	return f.appendChild(D.createElementNS(N, n));
+}
+
+f = document.body;
+f = C('svg');
 v = f.viewBox.baseVal;
 v.x = v.y = 0;
 v.height = v.width = 14 * Q;
@@ -14,12 +19,6 @@ v.height = v.width = 14 * Q;
 function P(l, x) {
 	l.baseVal.value = x * Q;
 	return x;
-}
-
-$(f).appendTo("body");
-
-function C(n) { 
-	return f.appendChild(D.createElementNS(N, n));
 }
 
 function st(e, s) {
@@ -111,13 +110,13 @@ function tick() {
 					dx = q.x - p.x;
 					dy = q.y - p.y;
 					
-					co = dx*fx + dy*fy;
-					if(co < 0) {
-						A = fx*fx + fy*fy;
-						pl = dx*fy - dy*fx;
-						dis = 4*RR4*A - pl*pl;
+					k = dx*fx + dy*fy;
+					if(k < 0) {
+						a = fx*fx + fy*fy;
+						c = dx*dx + dy*dy - RR4;
+						dis = k*k - a*c;
 						if(dis > 0) {
-							tt = (co + Math.sqrt(dis))/A;
+							tt = (-k - Math.sqrt(dis))/a;
 							if(tt >= 0 && tt < t) {
 								t = tt;
 								pair = [p, q];
@@ -128,7 +127,6 @@ function tick() {
 			}
 		}
 
-		console.log(t);
 		for(i in u) {
 			p = u[i];
 			p.x += p.v.x*t;
@@ -152,9 +150,9 @@ function tick() {
 			q.v.x -= ex*change;
 			q.v.y -= ey*change;
 			
-			render();
+			/*render();
 			st(p.l, {"stroke": "#3ff", "stroke-width": 0.1*Q});
-			st(q.l, {"stroke": "#3ff", "stroke-width": 0.1*Q});
+			st(q.l, {"stroke": "#3ff", "stroke-width": 0.1*Q});*/
 			//alert(t);
 		}
 
@@ -165,27 +163,28 @@ function tick() {
 	setTimeout(tick, 40);
 }
 
+function point() {
+	if(lp) {
+		st(r, {visibility: "", "stroke": "#f63589", "stroke-width": .1 * Q});
+		v = lp.lv;
+		console.log(v.x, v.y);
+		L = len(v);
+		ex = lp.x - v.x/L*(R+0.2);
+		ey = lp.y - v.y/L*(R+0.2);
+		P(r.x1, ex - v.x*5);
+		P(r.y1, ey - v.y*5);
+		P(r.x2, ex);
+		P(r.y2, ey);
+	} else {
+		st(r, {visibility: "hidden"});
+	}
+}
 				
-function mm(v) {
+function mm(p) {
 	return function(E) {
-		p = vec(E, v);
-		v.lv = p;
-		lp = v;
-		L = len(p);
-		//console.log(s);
-		ex = v.x - p.x/L*(R+0.2);
-		ey = v.y - p.y/L*(R+0.2);
-		P(r.x1, ex - p.x*5);
-		P(r.y1, ey - p.y*5);
-		P(r.x2, v.x - p.x, ex);
-		P(r.y2, v.y - p.y, ey);
-		r.style.visibility = "";
-		r.style.setProperty("stroke", "#f63589", "");
-		r.style.setProperty("stroke-width", .1 * Q, "");
-		//r.style.stroke = "red";
-		//r.style.strokeWidth = .1;
-		
-		//console.log(r.y2.baseVal.value);
+		p.lv = vec(E, p);
+		lp = p;
+		point();
 	}
 }
 
@@ -193,6 +192,7 @@ function pu(p, v) {
 	v.x *= 3;
 	v.y *= 3;
 	p.v = v;
+	console.log(p.v.x, p.v.y);
 	tick();
 }
 	
@@ -207,14 +207,13 @@ f.onmousedown = function() {
 function md(p) {
 	return function(E) {
 		console.log("md");
-		pu(p, vec(E, v));
+		pu(lp, lp.lv);
 	}
 };
 
 function mo(v) {
 	return function(E) {
 		console.log('mo');
-		r.style.visibility = "hidden";
 		//lp = 0;
 	}
 }
@@ -246,7 +245,7 @@ function render() {
 		P(l.cy, v.y);
 		P(l.r, R);
 		l.style.setProperty("stroke", "#888", "");
-		l.style.setProperty("stroke-width", .01*Q, "");
+		l.style.setProperty("stroke-width", .05*Q, "");
 	}
 }
 
