@@ -77,7 +77,7 @@ F = .1;
 //function sb(p, q)
 
 function tick() {
-	pair = cont = 0;
+	cont = 0;
 	for(i in u) {
 		p = u[i];
 		v = p.v;
@@ -96,6 +96,7 @@ function tick() {
 		
 	T = 1;
 	do {
+		pair = 0;
 		t = T;
 		for(i = 0; i < u.length; i++) {
 			p = u[i];
@@ -114,9 +115,9 @@ function tick() {
 					if(co < 0) {
 						A = fx*fx + fy*fy;
 						pl = dx*fy - dy*fx;
-						dis = RR4*A - pl*pl;
+						dis = 4*RR4*A - pl*pl;
 						if(dis > 0) {
-							tt = co + Math.sqrt(dis)/A;
+							tt = (co + Math.sqrt(dis))/A;
 							if(tt >= 0 && tt < t) {
 								t = tt;
 								pair = [p, q];
@@ -127,6 +128,7 @@ function tick() {
 			}
 		}
 
+		console.log(t);
 		for(i in u) {
 			p = u[i];
 			p.x += p.v.x*t;
@@ -145,15 +147,15 @@ function tick() {
 			var m0 = (ex*p.v.x+ey*p.v.y)/e2;
 			var m1 = (ex*q.v.x+ey*q.v.y)/e2;
 			var change = 0.75*(m1-m0);
-			p.v.x =0;//+= ex*change;
-			p.v.y =0;//+= ey*change;
-			q.v.x =0;//-= ex*change;
-			q.v.y =0;//-= ey*change;
+			p.v.x += ex*change;
+			p.v.y += ey*change;
+			q.v.x -= ex*change;
+			q.v.y -= ey*change;
 			
 			render();
 			st(p.l, {"stroke": "#3ff", "stroke-width": 0.1*Q});
 			st(q.l, {"stroke": "#3ff", "stroke-width": 0.1*Q});
-			alert(t);
+			//alert(t);
 		}
 
 		T -= t;
