@@ -233,7 +233,7 @@ function run() {
 				'-x264encopts nocabac:level_idc=30:bframes=0:global_header:threads=auto:' + 
 				'subq=5:frameref=6:partitions=all:trellis=1:chroma_me:me=umh:' +
 				'bitrate=500 -of lavf ';
-			var fileOpts = ' -o "' + outputTempPath;
+			var fileOpts = ' -o "' + outputTempPath + '"';
 			var subPath = path.replace(vidExtPattern, '.srt');
 			if(fs.FileExists(subPath)) {
 				// mencoder takes a comma separated path list for a -sub parameter.
