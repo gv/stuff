@@ -4,7 +4,8 @@ RR4 = 4*R*R;
 Q = 200;
 N = "http://www.w3.org/2000/svg";
 TB = LB = 2;
-BB = RB = 10;
+BB = RB = 12;
+ZB = 40;
 
 function C(n) { 
 	return f.appendChild(D.createElementNS(N, n));
@@ -13,8 +14,10 @@ function C(n) {
 f = document.body;
 f = C('svg');
 v = f.viewBox.baseVal;
-v.x = v.y = 0;
-v.height = v.width = 14 * Q;
+v.x = 2* Q;
+v.y = 0;
+v.height = 14 * Q;
+v.width = 10 * Q;
 
 function P(l, x) {
 	l.baseVal.value = x * Q;
@@ -25,6 +28,7 @@ function st(e, s) {
 	for(k in s) {
 		e.style.setProperty(k, s[k], "");
 	}
+	return s;
 }
 
 (function() {
@@ -34,7 +38,7 @@ function st(e, s) {
 	P(r.rx, P(r.ry, .1));
 	st(r, {"stroke-width": .05,
 				"stroke": "#100",
-				fill: "#fff"
+				fill: "#fff",
 				});
 				
 	var s = C("rect");
@@ -49,13 +53,12 @@ function st(e, s) {
 		P(r.x, x + 3);
 		P(r.y, y + 3);
 		P(r.rx, P(r.ry, 0.12));
-		st(r, {fill : (x+y)%2 ? "#fff" : "#000"});
+		st(r, {fill: (x+y)%2 ? "#fff" : "#000"});
 	}
 })();
 		
 
 
-u = [];
 function vec(E, v) {
 		var p = f.createSVGPoint();
 		p.x = E.clientX;
@@ -72,9 +75,11 @@ function len(p) {
 	return Math.sqrt(p.x*p.x+p.y*p.y);
 }
 
-F = .1;
-//function sb(p, q)
+function pck(a) {
+	return a[Math.floor(Math.random() * a.length)];
+}
 
+F = .1;
 function tick() {
 	cont = 0;
 	for(i in u) {
@@ -88,20 +93,55 @@ function tick() {
 		} else {
 			v.x = v.y = 0;
 		}
+
+		if(p.z && (p.z < ZB))
+			cont = 1;
 	}
 	
-	if(!cont)
-		return;
+	if(!cont) {
+		mg = 0;
+		cc ^= 1;
+		bs = [[],[]];
+		for(i in u)
+			if(!u[i].z)
+				bs[u[i].c].push(u[i]);
+		if(bs[0].length) {
+			if(bs[1].length) {
+				b = pck(bs[0]);
+				t = pck(bs[1]);
+				v = {x: t.x - b.x, y: t.y - b.y};
+				l = len(v);
+				v.x *= R/l;
+				v.y *= R/l;
+				ph(b, v);
+			} else {
+				sn("You lose");
+			}
+		} else {
+			if(bs[1].length)
+				sn("You win");
+			else 
+				sn("Draw");
+		}
 		
+		return;
+	}
+	
+	setTimeout(tick, 40);
+
 	T = 1;
 	do {
 		pair = 0;
 		t = T;
 		for(i = 0; i < u.length; i++) {
 			p = u[i];
+			if(p.z) 
+				continue;
 			v = p.v;
 			for(j = i+1; j < u.length; j++) {
 				q = u[j];
+				if(q.z)
+					continue;
 				w = q.v;
 				
 				fx = w.x - v.x;
@@ -129,12 +169,18 @@ function tick() {
 
 		for(i in u) {
 			p = u[i];
-			p.x += p.v.x*t;
-			p.y += p.v.y*t;
-			if(p.z)
+			if(p.v.x || p.v.y) {
+				p.x += p.v.x*t;
+				p.y += p.v.y*t;
+				p.rd = 0;
+			}
+			if(p.z) {
 				p.z += 1;
-			if(p.y < TB || p.y > BB || p.x > RB || p.x < LB)
+				p.rd = 0;
+			} else if(p.y < TB || p.y > BB || p.x > RB || p.x < LB) {
 				p.z = 1;
+				f.insertBefore(p.l, f.firstChild);
+			}
 		}
 
 		if(pair) {
@@ -149,25 +195,18 @@ function tick() {
 			p.v.y += ey*change;
 			q.v.x -= ex*change;
 			q.v.y -= ey*change;
-			
-			/*render();
-			st(p.l, {"stroke": "#3ff", "stroke-width": 0.1*Q});
-			st(q.l, {"stroke": "#3ff", "stroke-width": 0.1*Q});*/
-			//alert(t);
 		}
 
 		T -= t;
 	} while(T > 0);
 
-	render();
-	setTimeout(tick, 40);
+	rr();
 }
 
-function point() {
+function aim() {
 	if(lp) {
 		st(r, {visibility: "", "stroke": "#f63589", "stroke-width": .1 * Q});
 		v = lp.lv;
-		console.log(v.x, v.y);
 		L = len(v);
 		ex = lp.x - v.x/L*(R+0.2);
 		ey = lp.y - v.y/L*(R+0.2);
@@ -182,17 +221,19 @@ function point() {
 				
 function mm(p) {
 	return function(E) {
+		if(mg || cc != p.c)
+			return;
 		p.lv = vec(E, p);
 		lp = p;
-		point();
+		aim();
 	}
 }
 
-function pu(p, v) {
+function ph(p, v) {
 	v.x *= 3;
 	v.y *= 3;
 	p.v = v;
-	console.log(p.v.x, p.v.y);
+	mg = 1;
 	tick();
 }
 	
@@ -200,34 +241,36 @@ lp = 0;
 f.onmousedown = function() {
 	console.log("oo");
 	if(lp){
-		pu(lp, lp.lv);
+		ph(lp, lp.lv);
 	}
 };
 						
 function md(p) {
 	return function(E) {
+		if(mg || cc != p.c)
+			return;
 		console.log("md");
-		pu(lp, lp.lv);
+		ph(lp, lp.lv);
 	}
 };
 
 function mo(v) {
 	return function(E) {
-		console.log('mo');
+		console.log('out');
 		//lp = 0;
 	}
 }
 		
 		
+u = [];
 for(i = 16; i--; ) {
 	l = f.appendChild(C('circle'));
+	P(l.r, R);
+	st(l, {stroke: "#888", fill: i&1 ? "#fff": "#000", 
+				"stroke-width": .05*Q});
 	v = {
-		x: (i>>1) + 3.5,
-		y: i&1 ? 3.5 : 10.5,
-		v: {x:0,y:0},
 		c: i&1,
-		l: l,
-		z: 0
+		l: l
 	};
 	l.onmousemove = mm(v);
 	l.onmousedown = md(v);
@@ -235,21 +278,69 @@ for(i = 16; i--; ) {
 	u.push(v);
 }
 
+function go() {
+	st(ST, st(SN, {visibility: "hidden"}));
+	mg = 0;
+	for(i in u) {
+		p = u[i];
+		p.x = (i>>1) + 3.5;
+		p.y = i&1 ? 3.5 : 10.5;
+		p.rd = 0;
+		p.z = 0;
+		p.v = {x:0, y:0};
+		f.appendChild(p.l);
+	}
+	rr();
+}
+
 r = C('line');
 
-function render() {
+function rr() {
 	for(i in u) {
-		v = u[i];
-		l = v.l;
-		P(l.cx, v.x);
-		P(l.cy, v.y);
-		P(l.r, R);
-		l.style.setProperty("stroke", "#888", "");
-		l.style.setProperty("stroke-width", .05*Q, "");
+		p = u[i];
+		if(p.rd)
+			continue;
+		l = p.l;
+		P(l.cx, p.x);
+		P(l.cy, p.y);
+		P(l.r, R*20/(p.z+20));
+		p.rd = 1;
+		//l.style.setProperty("stroke", "#888", "");
+		//l.style.setProperty("stroke-width", .05*Q, "");
 	}
 }
 
-render();
+function PR(l,x,y,w,h) {
+	P(l.x, x);
+	P(l.y, y);
+	P(l.width,w);
+	P(l.height, h);
+}
+
+SN = C("rect");
+P(SN.rx, P(SN.ry, .6));
+P(SN.x, 2.5);
+P(SN.y, 4);
+P(SN.width, 9);
+P(SN.height, 6);
+st(SN, {fill: "#8ac", opacity: .9, stroke: "#246", "stroke-width": 0.1*Q});
+
+ST = SN.appendChild(C("text"));
+P(ST.x, 3.5);
+P(ST.y, 5);
+
+st(ST, {fill: "#fff"});
+
+SN.onmousedown = go;
+
+function sn(t) {
+	f.appendChild(SN);
+	ST.appendChild(D.createTextNode(t));
+	st(ST, st(SN, {visibility: ""}));
+}
+
+cc = 1;
+go();
 
 
 
