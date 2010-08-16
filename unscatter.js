@@ -161,48 +161,53 @@ function run() {
 	}		
 	
 	// Find iPod
-	var app = WScript.CreateObject("iTunes.Application"), lib, iPod, ourPlaylist;
-	var srcs = app.Sources;
-	trace(' == SOURCES == ');
-	for(var i = 1 /* sic! */; i <= srcs.Count; i++) {
-		var src = srcs.Item(i);
-		trace(src.Name + ' (' + src.Kind + ') ' + srcTypeNames[src.Kind]);
-
-		if(DEBUG || 2 == src.Kind) { // IPod here
-			var pls = src.Playlists;
-			for(var j = 1; j <= pls.Count; j++) {
-				var pl = pls.Item(j);
-				trace('  ' + pl.Name + ' (' + pl.Kind + ') ' + 
-					playlistTypeNames[pl.Kind] );
-
-				if(2 == src.Kind) {
-					iPod = src;
-					if(1 == pl.Kind) { // "Library" kind of playlist
-						lib = pl;
-					}
-					if('Pushed' == pl.Name) {
-						ourPlaylist = pl;
+	var getTargetLib = function() {
+		var app = WScript.CreateObject("iTunes.Application"), lib, iPod, ourPlaylist;
+		var srcs = app.Sources;
+		trace(' == SOURCES == ');
+		for(var i = 1 /* sic! */; i <= srcs.Count; i++) {
+			var src = srcs.Item(i);
+			trace(src.Name + ' (' + src.Kind + ') ' + srcTypeNames[src.Kind]);
+			
+			if(DEBUG || 2 == src.Kind) { // IPod here
+				var pls = src.Playlists;
+				for(var j = 1; j <= pls.Count; j++) {
+					var pl = pls.Item(j);
+					trace('  ' + pl.Name + ' (' + pl.Kind + ') ' + 
+						playlistTypeNames[pl.Kind] );
+					
+					if(2 == src.Kind) {
+						iPod = src;
+						if(1 == pl.Kind) { // "Library" kind of playlist
+							lib = pl;
+						}
+						if('Pushed' == pl.Name) {
+							ourPlaylist = pl;
+						}
 					}
 				}
 			}
 		}
-	}
-	trace("\n");
-
-	if(!iPod) {
-		print('iPod not found');
-	} else {
-		if(!ourPlaylist) {
-			trace('Creating "Pushed" playlist...');
-			ourPlaylist = app.CreatePlaylistInSource('Pushed', iPod);
+		trace("\n");
+		
+		if(!iPod) {
+			print('iPod not found');
+		} else {
 			if(!ourPlaylist) {
-				print("Can't create 'Pushed' playlist");
+				trace('Creating "Pushed" playlist...');
+				ourPlaylist = app.CreatePlaylistInSource('Pushed', iPod);
+				if(!ourPlaylist) {
+					print("Can't create 'Pushed' playlist");
+				}
 			}
 		}
-	}
+		
+		if(ourPlaylist)
+			lib = ourPlaylist;
 	
-	if(ourPlaylist)
-		lib = ourPlaylist;
+		getTargetLib = function() {return lib;}
+		return lib;
+	}
 
 	var fs = new ActiveXObject('Scripting.FileSystemObject'), 
 		args = WScript.Arguments.Unnamed;
@@ -233,7 +238,7 @@ function run() {
 				'-x264encopts nocabac:level_idc=30:bframes=0:global_header:threads=auto:' + 
 				'subq=5:frameref=6:partitions=all:trellis=1:chroma_me:me=umh:' +
 				'bitrate=500 -of lavf ';
-			var fileOpts = ' -o "' + outputTempPath;
+			var fileOpts = ' -o "' + outputTempPath + '"';
 			var subPath = path.replace(vidExtPattern, '.srt');
 			if(fs.FileExists(subPath)) {
 				// mencoder takes a comma separated path list for a -sub parameter.
@@ -284,7 +289,7 @@ function run() {
 
 
 		// Now we know what to push
-
+		var lib = getTargetLib();
 		if(!lib) {
 			print("Can't push: Target library not found");
 			continue;
