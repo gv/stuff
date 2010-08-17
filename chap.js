@@ -15,7 +15,7 @@ f = document.body;
 f = C('svg');
 v = f.viewBox.baseVal;
 v.x = 2* Q;
-v.y = 0;
+v.y = 1 *Q;
 v.height = 14 * Q;
 v.width = 10 * Q;
 
@@ -324,18 +324,27 @@ P(SN.y, 4);
 P(SN.width, 9);
 P(SN.height, 6);
 st(SN, {fill: "#8ac", opacity: .9, stroke: "#246", "stroke-width": 0.1*Q});
+SN.onmousedown = go;
 
 ST = SN.appendChild(C("text"));
-P(ST.x, 3.5);
-P(ST.y, 5);
 
-st(ST, {fill: "#fff"});
+function T(a, v) {
+	l = f.createSVGLength();
+	l.value = v *Q;
+	a.baseVal.appendItem(l);
+	return v;
+}
+T(ST.x, 3.5);
+T(ST.y, 5);
+st(ST, {fill: "#fff", "font-size": Q});
 
-SN.onmousedown = go;
+SU = 0;
 
 function sn(t) {
 	f.appendChild(SN);
-	ST.appendChild(D.createTextNode(t));
+	if(SU)
+		ST.removeChild(SU)
+	SU = ST.appendChild(D.createTextNode(t));
 	st(ST, st(SN, {visibility: ""}));
 }
 
