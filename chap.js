@@ -7,6 +7,15 @@ TB = LB = 2;
 BB = RB = 12;
 ZB = 40;
 
+function cancel(e){
+	if(window.event)
+		e=window.event;
+	if(e.preventDefault)
+		e.preventDefault(),	e.stopPropagation();
+	else
+		e.returnValue=e.cancelBubble=true;
+}
+
 function C(n) { 
 	return f.appendChild(D.createElementNS(N, n));
 }
@@ -25,9 +34,8 @@ function P(l, x) {
 }
 
 function st(e, s) {
-	for(k in s) {
+	for(k in s) 
 		e.style.setProperty(k, s[k], "");
-	}
 	return s;
 }
 
@@ -60,15 +68,15 @@ function st(e, s) {
 
 
 function vec(E, v) {
-		var p = f.createSVGPoint();
-		p.x = E.clientX;
-		p.y = E.clientY;
-		//console.log(E);
-		//console.log(f.getScreenCTM().inverse());
-		p = p.matrixTransform(f.getScreenCTM().inverse());
-		p.x = v.x - p.x/Q;
-		p.y = v.y - p.y/Q;
-		return p;
+	var p = f.createSVGPoint();
+	p.x = E.clientX;
+	p.y = E.clientY;
+	//console.log(E);
+	//console.log(f.getScreenCTM().inverse());
+	p = p.matrixTransform(f.getScreenCTM().inverse());
+	p.x = v.x - p.x/Q;
+	p.y = v.y - p.y/Q;
+	return p;
 }
 
 function len(p) {
@@ -77,6 +85,35 @@ function len(p) {
 
 function pck(a) {
 	return a[Math.floor(Math.random() * a.length)];
+}
+
+function mv() {
+	console.log(cc);
+	bs = [[],[]];
+	for(i in u)
+		if(!u[i].z)
+			bs[u[i].c].push(u[i]);
+	if(bs[0].length) {
+		if(bs[1].length) {
+			if(!cc) {
+				b = pck(bs[0]);
+				t = pck(bs[1]);
+				v = {x: t.x - b.x, y: t.y - b.y};
+				l = len(v);
+				v.x *= R/l;
+				v.y *= R/l;
+				ph(b, v);
+			}
+		} else {
+			cc = 0;
+			sn("You lose");
+		}
+	} else {
+		if(bs[1].length)
+			sn("You win"), cc = 1;
+		else 
+			sn("Draw");
+	}
 }
 
 F = .1;
@@ -101,29 +138,7 @@ function tick() {
 	if(!cont) {
 		mg = 0;
 		cc ^= 1;
-		bs = [[],[]];
-		for(i in u)
-			if(!u[i].z)
-				bs[u[i].c].push(u[i]);
-		if(bs[0].length) {
-			if(bs[1].length) {
-				b = pck(bs[0]);
-				t = pck(bs[1]);
-				v = {x: t.x - b.x, y: t.y - b.y};
-				l = len(v);
-				v.x *= R/l;
-				v.y *= R/l;
-				ph(b, v);
-			} else {
-				sn("You lose");
-			}
-		} else {
-			if(bs[1].length)
-				sn("You win");
-			else 
-				sn("Draw");
-		}
-		
+		mv();
 		return;
 	}
 	
@@ -157,10 +172,8 @@ function tick() {
 						dis = k*k - a*c;
 						if(dis > 0) {
 							tt = (-k - Math.sqrt(dis))/a;
-							if(tt >= 0 && tt < t) {
-								t = tt;
-								pair = [p, q];
-							}
+							if(tt >= 0 && tt < t) 
+								t = tt,	pair = [p, q];
 						}
 					}
 				}
@@ -169,18 +182,12 @@ function tick() {
 
 		for(i in u) {
 			p = u[i];
-			if(p.v.x || p.v.y) {
-				p.x += p.v.x*t;
-				p.y += p.v.y*t;
-				p.rd = 0;
-			}
-			if(p.z) {
-				p.z += 1;
-				p.rd = 0;
-			} else if(p.y < TB || p.y > BB || p.x > RB || p.x < LB) {
-				p.z = 1;
-				f.insertBefore(p.l, f.firstChild);
-			}
+			if(p.v.x || p.v.y) 
+				p.x += p.v.x*t, p.y += p.v.y*t,	p.rd = 0;
+			p.z ? 
+				(p.z += 1,	p.rd = 0):
+				(p.y < TB || p.y > BB || p.x > RB || p.x < LB) && 
+				(p.z = 1, f.insertBefore(p.l, f.firstChild));
 		}
 
 		if(pair) {
@@ -214,9 +221,8 @@ function aim() {
 		P(r.y1, ey - v.y*5);
 		P(r.x2, ex);
 		P(r.y2, ey);
-	} else {
+	} else 
 		st(r, {visibility: "hidden"});
-	}
 }
 				
 function mm(p) {
@@ -230,11 +236,8 @@ function mm(p) {
 }
 
 function ph(p, v) {
-	v.x *= 3;
-	v.y *= 3;
-	p.v = v;
-	mg = 1;
-	tick();
+	if(v.x || v.y)
+		v.x *= 6, v.y *= 6,	p.v = v, 	mg = 1, tick();
 }
 	
 lp = 0;
@@ -273,7 +276,7 @@ for(i = 16; i--; ) {
 		l: l
 	};
 	l.onmousemove = mm(v);
-	l.onmousedown = md(v);
+	//l.onmousedown = md(v);
 	l.onmouseout = mo(v);
 	u.push(v);
 }
@@ -291,6 +294,7 @@ function go() {
 		f.appendChild(p.l);
 	}
 	rr();
+	mv();
 }
 
 r = C('line');
@@ -305,8 +309,6 @@ function rr() {
 		P(l.cy, p.y);
 		P(l.r, R*20/(p.z+20));
 		p.rd = 1;
-		//l.style.setProperty("stroke", "#888", "");
-		//l.style.setProperty("stroke-width", .05*Q, "");
 	}
 }
 
@@ -324,7 +326,10 @@ P(SN.y, 4);
 P(SN.width, 9);
 P(SN.height, 6);
 st(SN, {fill: "#8ac", opacity: .9, stroke: "#246", "stroke-width": 0.1*Q});
-SN.onmousedown = go;
+SN.onmousedown = function(e) {
+	cancel(e);
+	go();
+};
 
 ST = SN.appendChild(C("text"));
 
@@ -342,8 +347,7 @@ SU = 0;
 
 function sn(t) {
 	f.appendChild(SN);
-	if(SU)
-		ST.removeChild(SU)
+	SU&&ST.removeChild(SU)
 	SU = ST.appendChild(D.createTextNode(t));
 	st(ST, st(SN, {visibility: ""}));
 }
