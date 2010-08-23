@@ -16,13 +16,17 @@ function cancel(e){
 		e.returnValue=e.cancelBubble=true;
 }
 
-function C(n) { 
-	return f.appendChild(D.createElementNS(N, n));
+function fr(l) {
+	return F.appendChild(l);
 }
 
-f = document.body;
-f = C('svg');
-v = f.viewBox.baseVal;
+function C(n) { 
+	return fr(D.createElementNS(N, n));
+}
+
+F = document.body;
+F = C('svg');
+v = F.viewBox.baseVal;
 v.x = 2* Q;
 v.y = 1 *Q;
 v.height = 14 * Q;
@@ -39,7 +43,6 @@ function st(e, s) {
 	return s;
 }
 
-(function() {
 	var r = C("rect");
 	P(r.y, P(r.x, 2));
 	P(r.width, P(r.height, 10));
@@ -63,17 +66,16 @@ function st(e, s) {
 		P(r.rx, P(r.ry, 0.12));
 		st(r, {fill: (x+y)%2 ? "#fff" : "#000"});
 	}
-})();
 		
 
 
 function vec(E, v) {
-	var p = f.createSVGPoint();
+	var p = F.createSVGPoint();
 	p.x = E.clientX;
 	p.y = E.clientY;
 	//console.log(E);
-	//console.log(f.getScreenCTM().inverse());
-	p = p.matrixTransform(f.getScreenCTM().inverse());
+	//console.log(F.getScreenCTM().inverse());
+	p = p.matrixTransform(F.getScreenCTM().inverse());
 	p.x = v.x - p.x/Q;
 	p.y = v.y - p.y/Q;
 	return p;
@@ -187,7 +189,7 @@ function tick() {
 			p.z ? 
 				(p.z += 1,	p.rd = 0):
 				(p.y < TB || p.y > BB || p.x > RB || p.x < LB) && 
-				(p.z = 1, f.insertBefore(p.l, f.firstChild));
+				(p.z = 1, F.insertBefore(p.l, F.firstChild));
 		}
 
 		if(pair) {
@@ -241,7 +243,7 @@ function ph(p, v) {
 }
 	
 lp = 0;
-f.onmousedown = function() {
+F.onmousedown = function() {
 	console.log("oo");
 	if(lp){
 		ph(lp, lp.lv);
@@ -264,10 +266,9 @@ function mo(v) {
 	}
 }
 		
-		
 u = [];
 for(i = 16; i--; ) {
-	l = f.appendChild(C('circle'));
+	l = C('circle');
 	P(l.r, R);
 	st(l, {stroke: "#888", fill: i&1 ? "#fff": "#000", 
 				"stroke-width": .05*Q});
@@ -291,7 +292,7 @@ function go() {
 		p.rd = 0;
 		p.z = 0;
 		p.v = {x:0, y:0};
-		f.appendChild(p.l);
+		fr(p.l);
 	}
 	rr();
 	mv();
@@ -331,22 +332,22 @@ SN.onmousedown = function(e) {
 	go();
 };
 
-ST = SN.appendChild(C("text"));
+ST = C("text");
 
 function T(a, v) {
-	l = f.createSVGLength();
+	l = F.createSVGLength();
 	l.value = v *Q;
 	a.baseVal.appendItem(l);
 	return v;
 }
-T(ST.x, 3.5);
-T(ST.y, 5);
-st(ST, {fill: "#fff", "font-size": Q});
+T(ST.x, 4.5);
+T(ST.y, 7);
+st(ST, {fill: "#fff", "font-size": Q+"px"});
 
 SU = 0;
-
 function sn(t) {
-	f.appendChild(SN);
+	fr(SN);
+	fr(ST);
 	SU&&ST.removeChild(SU)
 	SU = ST.appendChild(D.createTextNode(t));
 	st(ST, st(SN, {visibility: ""}));
