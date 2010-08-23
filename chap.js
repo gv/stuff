@@ -43,29 +43,29 @@ function st(e, s) {
 	return s;
 }
 
-	var r = C("rect");
-	P(r.y, P(r.x, 2));
-	P(r.width, P(r.height, 10));
-	P(r.rx, P(r.ry, .1));
-	st(r, {"stroke-width": .05,
-				"stroke": "#100",
-				fill: "#fff",
-				});
+r = C("rect");
+P(r.y, P(r.x, 2));
+P(r.width, P(r.height, 10));
+P(r.rx, P(r.ry, .1));
+st(r, {"stroke-width": .05,
+			"stroke": "#100",
+			fill: "#fff",
+			});
 				
-	var s = C("rect");
-	P(s.y, P(s.x, 3));
-	P(s.width, P(s.height, 8));
-	st(s, {fill: "#000"});
-	for(i = 64; i;) {
-		r = C("rect");
-		P(r.width, P(r.height, 1));
-		x = --i % 8;
-		y = (i-x)/8;
-		P(r.x, x + 3);
-		P(r.y, y + 3);
-		P(r.rx, P(r.ry, 0.12));
-		st(r, {fill: (x+y)%2 ? "#fff" : "#000"});
-	}
+var s = C("rect");
+P(s.y, P(s.x, 3));
+P(s.width, P(s.height, 8));
+st(s, {fill: "#000"});
+for(i = 64; i;) {
+	r = C("rect");
+	P(r.width, P(r.height, 1));
+	x = --i % 8;
+	y = (i-x)/8;
+	P(r.x, x + 3);
+	P(r.y, y + 3);
+	P(r.rx, P(r.ry, 0.12));
+	st(r, {fill: (x+y)%2 ? "#fff" : "#000"});
+}
 		
 
 
@@ -118,21 +118,18 @@ function mv() {
 	}
 }
 
-F = .1;
+G = .1;
 function tick() {
 	cont = 0;
 	for(i in u) {
 		p = u[i];
 		v = p.v;
 		L = len(v);
-		if(L > F) {
-			cont = 1;
-			v.x -= v.x/L*F;
-			v.y -= v.y/L*F;
-		} else {
+		if(L > G) 
+			cont = 1, v.x -= v.x/L*G, v.y -= v.y/L*G;
+		else 
 			v.x = v.y = 0;
-		}
-
+		
 		if(p.z && (p.z < ZB))
 			cont = 1;
 	}
@@ -214,7 +211,6 @@ function tick() {
 
 function aim() {
 	if(lp) {
-		st(r, {visibility: "", "stroke": "#f63589", "stroke-width": .1 * Q});
 		v = lp.lv;
 		L = len(v);
 		ex = lp.x - v.x/L*(R+0.2);
@@ -223,6 +219,7 @@ function aim() {
 		P(r.y1, ey - v.y*5);
 		P(r.x2, ex);
 		P(r.y2, ey);
+		st(r, {visibility: "", "stroke": "#35a677", "stroke-width": .1 * Q});
 	} else 
 		st(r, {visibility: "hidden"});
 }
@@ -352,6 +349,48 @@ function sn(t) {
 	SU = ST.appendChild(D.createTextNode(t));
 	st(ST, st(SN, {visibility: ""}));
 }
+
+function pt(e) {
+	z = F.createSVGPoint();
+	z.x = e.clientX;
+	z.y = e.clientY;
+	console.log(z.x + ' ' + z.y);
+	z = z.matrixTransform(F.getScreenCTM().inverse());
+	z.x /= Q;
+	z.y /= Q;
+	return z;
+}	
+
+function sl(e) {
+	g = pt(e);
+	for(i in u) {
+		p = u[i];
+		if(p.c && (R <= len({x: g.x - p.x, y: g.y - p.y}))) {
+			p.gx = e.clientX;
+			p.gy = e.clientY;
+			TC = p.l;
+			st(p.l, {stroke: "#a88908"})
+		}
+	}
+}
+			
+document.body.ontouchstart = function(e) {
+	cancel(e);
+	sl(e.targetTouches[0]);
+};
+
+document.body.ontouchmove = function(e) {
+	cancel(e);
+	g = e.targetTouches[0];
+	h = pt(g);
+	if(TC) {
+		
+	} else 
+		sl(g);
+}
+		
+	
+	
 
 cc = 1;
 go();
