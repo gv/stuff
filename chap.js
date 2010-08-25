@@ -1,10 +1,12 @@
 D = document;
 R = .48;
 RR4 = 4*R*R;
-Q = 200;
+WK = /WebKit/.test(navigator.appVersion);
+Q = 30;
 N = "http://www.w3.org/2000/svg";
 
 MO = /iP(hone|od)/.test(navigator.userAgent);
+MS = /Microsoft/.test(navigator.appName);
 X = MO?0:2;
 TB = 2;
 LB = X;
@@ -35,21 +37,47 @@ function st(e, s) {
 	return s;
 }
 
+function P(l, x) {
+	l.baseVal.value = x * Q;
+	return x;
+}
+
+GI = 0;
+function rg(l, c0, c1, cx, cy, r, fx, fy) {
+	gr = C('radialGradient');
+	gr.id = 'a'+(GI++)+(new Date).getTime();
+	st(sp = gr.appendChild(C('stop')), {color: c0});
+	sp.setAttribute('offset','0');
+	sp.setAttribute('stop-color',c0);
+	st(sp = gr.appendChild(C('stop')), {color: c1});
+	sp.setAttribute('offset','100%');
+	sp.setAttribute('stop-color',c1);
+	st(l, {fill: "url(#" + gr.id + ")"});
+	if(WK) 
+		gr.setAttribute('cx', cx*Q),
+			gr.setAttribute('cy', cy*Q),
+			gr.setAttribute('r', r*Q),
+			gr.setAttribute('fx', fx*Q),
+			gr.setAttribute('fy', fy*Q);
+	 else 
+		 P(gr.cx, cx),
+			 P(gr.cy, cy),
+			 P(gr.r, r),
+			 P(gr.fx, fx),
+			 P(gr.fy, fy);
+	return gr;
+}
+
+
 F = document.body;
 if(MO) 
 	st(F, {margin: 0});
 F = C('svg');
 v = F.viewBox.baseVal;
 v.x = 0* Q;
-v.y = 1 *Q;
+v.y = (MO?1:0) *Q;
 v.height = 14 * Q;
 v.width = (2*X +10) * Q;
-
-function P(l, x) {
-	l.baseVal.value = x * Q;
-	return x;
-}
-
 
 r = C("rect");
 P(r.x, X);
@@ -60,12 +88,16 @@ st(r, {"stroke-width": .05,
 			"stroke": "#100",
 			fill: "#fff",
 			});
+MO || rg(r, "#fff", "#000", 0, 0, 200, 0, 0);
 				
-var s = C("rect");
+s = C("rect");
 P(s.y, 3);
 P(s.x, 1+X);
 P(s.width, P(s.height, 8));
 st(s, {fill: "#777"});
+
+WG = rg(F, "#fff", "#bbb", 0, 20, 100, 0, 20);
+BG = rg(F, "#000", "#fff", 0, 20, 100, 0, 20);
 for(i = 64; i;) {
 	r = C("rect");
 	P(r.width, P(r.height, .98));
@@ -74,21 +106,31 @@ for(i = 64; i;) {
 	P(r.x, x + 1.01+X);
 	P(r.y, y + 3.01);
 	P(r.rx, P(r.ry, .09));
-	st(r, {fill: (x+y)%2 ? "#fff" : "#000"});
+		st(r, {fill: (x+y)%2 ? 
+					(MO ? "#fff" : "url(#"+WG.id+")" ):
+				(MO? "#000": "url(#"+BG.id+")")});
 }
 		
 
-WK = /WebKit/.test(navigator.appVersion);
-function vec(E, v) {
-	var p = F.createSVGPoint();
-	p.x = WK ? E.pageX : E.clientX;
-	p.y = WK ? E.pageY : E.clientY;
-	//console.log(F.getScreenCTM().inverse());
+function vec(E, v, p) {
+	p = F.createSVGPoint();
 	M = F.getScreenCTM();
-	//p = p.matrixTransform(M.inverse());
-	console.log(p.x/Q, p.y/Q);
-	p.x = v.x - p.x/Q*M.e/8;
-	p.y = v.y - p.y/Q*M.e/8;
+	if(MS) {
+		p.x = E.offsetX;
+		p.y = E.offsetY;
+		EE = E;
+
+		p.x = p.x/M.a;30*7;
+		p.y = p.y/M.a;30*7;
+	} else {
+		p.x = WK ? E.pageX : E.clientX;
+		p.y = WK ? E.pageY : E.clientY;
+		if(WK)
+			M = F.createSVGMatrix(), M.a = M.d = 200/Q/7, M.e = 8, M.f = 108;
+		p = p.matrixTransform(M.inverse());
+	}
+	p.x = v.x - p.x/Q;
+	p.y = v.y - p.y/Q;
 	return p;
 }
 
@@ -104,6 +146,8 @@ CT = [0, 0];
 function dc() {
 	return "You: " + CT[1] + "\nMachine: " + CT[0];
 }
+
+AD = 0;
 function mv() {
 	bs = [[],[]];
 	for(i in u)
@@ -111,26 +155,22 @@ function mv() {
 			bs[u[i].c].push(u[i]);
 	if(bs[0].length) {
 		if(bs[1].length) {
-			if(!cc) {
-				b = pck(bs[0]);
-				t = pck(bs[1]);
-				l = len(v = {x: t.x - b.x, y: t.y - b.y});
-				v.x *= R/l;
-				v.y *= R/l;
-				ph(b, v);
-			}
-		} else {
-			cc = 0;
-			CT[0]++;
-			sn("You lose", dc());
-		}
+			if(!cc) 
+				b = pck(bs[0]),	t = pck(bs[1]),	
+					l = len(v = {x: t.x - b.x, y: t.y - b.y}),v.x *= R/l,v.y *= R/l,ph(b, v);
+		} else 
+			cc = 0,CT[0]++,AD--,sn("You lose", dc());
 	} else {
 		CT[1]++;
 		if(bs[1].length)
-			sn("You win", dc()), cc = 1;
+			sn("You win", dc()), cc = 1, AD++;
 		else 
 			CT[0]++, sn("Draw", dc());
 	}
+	if(AD<-6)
+		AD=-6;
+	if(AD>6)
+		AD=6;
 }
 
 G = .1;
@@ -142,8 +182,8 @@ function tick(omg) {
 		v = p.v;
 		L = len(v);
 		if(L > G) {
-			if(!p.z)
-				MG = CO = 1;
+			if(!p.z || !MO) 
+				MG = CO = 1; 
 			v.x -= v.x/L*G, v.y -= v.y/L*G;
 		}
 		else 
@@ -231,6 +271,11 @@ function tick(omg) {
 	}
 }
 
+r = C('line');
+ra = C('line');
+rb = C('line');
+AG = rg(r, "#fff", "#35a677", 0, 20, 10, 0, 20);
+st(r, st(ra, st(rb, {stroke: "url(#"+AG.id+")"})));
 function aim() {
 	if(lp) {
 		v = lp.lv;
@@ -241,14 +286,25 @@ function aim() {
 		P(r.y1, ey - v.y*5);
 		P(r.x2, ex);
 		P(r.y2, ey);
-		st(fr(r), {visibility: "", "stroke": "#35a677", "stroke-width": .1 * Q});
+		an = Math.atan(-v.y/v.x);
+		sg = v.x>=0 ? -R : R;
+		
+		P(ra.x1, ex + sg*Math.sin(an+1.3));
+		P(ra.y1, ey + sg*Math.cos(an+1.3));
+		P(ra.x2, ex);
+		P(ra.y2, ey);
+		P(rb.x1, ex + sg*Math.sin(an+1.8));
+		P(rb.y1, ey + sg*Math.cos(an+1.8));
+		P(rb.x2, ex);
+		P(rb.y2, ey);
+		st(fr(ra), st(fr(rb), 
+				st(fr(r), {visibility: "",  "stroke-width": .1 * Q})));
 	} else 
-		st(r, {visibility: "hidden"});
+		st(ra, st(rb, st(r, {visibility: "hidden"})));
 }
 				
 CO = 0;
 function ph(p, v) {
-	//console.log(CO);
 	if(v.x || v.y) {
 		v.x *= 6, v.y *= 6,	p.v = v;
 		if(!CO)
@@ -259,7 +315,6 @@ function ph(p, v) {
 lp = 0;
 if(!MO) 
 	F.onmousedown = function() {
-		//console.log("oo");
 		if(lp){
 			ph(lp, lp.lv);
 		}
@@ -270,7 +325,7 @@ for(i = 16; i--; ) {
 	l = C('circle');
 	P(l.r, R);
 	st(l, {stroke: "#888", 
-				fill: i&1 ? "#fff": "#000", 
+				fill: MO? (i&1?"#fff":"#000"): "url(#" + (i&1 ? WG : BG).id +")", 
 				"stroke-width": .05*Q,
 				visibility: "hidden"});
 	v = {
@@ -292,19 +347,16 @@ for(i = 16; i--; ) {
 			return function(E) {
 				if(MG || 1 != p.c)
 					return;
-				//console.log("md");
 				ph(lp, lp.lv);
 			}
 		}
 
 		function mo(v) {
 			return function(E) {
-				//lp = 0;
 			}
 		}
 		
 		l.onmousemove = mm(v);
-		//l.onmousedown = md(v);
 		l.onmouseout = mo(v);
 	}
 	u.push(v);
@@ -316,13 +368,12 @@ function go() {
 		p = u[i];
 		st(p.l, {visibility: ""});
 		p.x = (i>>1) + 1.5 + X;
-		p.y = i&1 ? 3.5 : 10.5;
+		p.y = p.c? 10.5 -Math.max(AD, 0): 3.5-Math.min(AD,0);
 		p.rd = 0;
 		p.z = 0;
 		p.v = {x:0, y:0};
 		fr(p.l);
 	}
-	rr();
 
 	st(SN, {visibility: "hidden"});
 	SU&&ST.removeChild(SU);
@@ -330,10 +381,9 @@ function go() {
 		St[i].removeChild(Su[i]);
 	Su = [];
 
+	rr();
 	mv();
 }
-
-r = C('line');
 
 function rr() {
 	for(i in u) {
@@ -362,6 +412,7 @@ P(SN.y, 4);
 P(SN.width, 9);
 P(SN.height, 7);
 st(SN, {fill: "#8ac", opacity: .9, stroke: "#246", "stroke-width": 0.1*Q});
+rg(SN, "#fff", "#8ac", 20, 0, 15, 20, 0);
 function cg(e) {
 	cancel(e);
 	go();
@@ -381,9 +432,9 @@ T(ST.y, 5.5);
 st(ST, {fill: "#fff", "font-size": Q+"px"});
 
 St = [], Su = [];
-for(y = 7.5; y <= 10; y+=.5) {
+for(y = 7; y <= 11; y+=.5) {
 	Sv = C("text");
-	T(Sv.x, 1.2+X);
+	T(Sv.x, 1+X);
 	T(Sv.y, y);
 	st(Sv, {fill: "#fff", "font-size": Q/2+"px"});
 	Sv.onmousedown = cg;
@@ -406,7 +457,6 @@ function pt(e) {
 	z = F.createSVGPoint();
 	z.x = e.clientX;
 	z.y = e.clientY;
-	//console.log(z.x + ' ' + z.y);
 	z = z.matrixTransform(F.getScreenCTM().inverse());
 	z.x /= Q;
 	z.y /= Q;
@@ -472,11 +522,19 @@ document.body.ontouchmove = function(e) {
 	
 
 cc = 1;
-sn("Chapaev", 
-	"Pick a white piece and drag it swiftly\n" + 
-	"to throw it. Objective is to knock all\n" + 
+sn("Chapaev",
+	(MO?
+		"Pick a white piece and drag it swiftly\n" + 
+		"to throw it.":
+		"When you move your mouse over a white\n" + 
+		"piece, you'll see an arrow, that points\n" + 
+		"in the direction in which it will be thrown\n" + 
+		"if you click. Length of the arrow signifies\n" + 
+		"force.") +
+	" Objective is to knock all the\n" + 
 	"black pieces off the board.\n\n" + 
-	"Tap here to start.");
+	(MO?"Tap":"Click") + " here to start."
+);
 
 
 
