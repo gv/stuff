@@ -30,6 +30,21 @@ void run(char *stmt) {
   }
 }
 
+struct Region {
+	char *word;
+	int start, end;
+	char *path;
+	char *options;
+	struct Region *parent;
+	void *particular;
+};
+		
+
+void parseJava(const char *path) {
+	
+
+}
+
 // Let's be consistent with a metaphor of a tree
 #define UP '/' 
 
