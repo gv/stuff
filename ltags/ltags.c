@@ -42,10 +42,13 @@ struct Span {
 
 // parser state		
 struct File {
-	int size;
 	char *contents;
+	char *contentsEnd;
+	char *token;
+	char *tokenEnd;
 	struct Span *rootSpan;
 	struct Span *curLeafSpan;
+	void *langParserState;
 };
 
 // Let's be consistent with a metaphor of a tree
@@ -70,16 +73,32 @@ const int charFlags[/*256*/128] = {
 
 #define countof(something_M) (sizeof(something_M)/sizeof(something_M[0]))
 
-void parseJavaToken(struct File *pFile, const char *start, 
-	const char *end) {
-	char bf[121], *p;
-	p = bf;
-	while(start<end)
-		*p++ = *start++;
-	*p =0;
-	puts(bf);
+struct JavaParserState {
+	char *probableName, *probableNameEnd;
+};
 
+#define THIS ((struct JavaParserState*)pFile->langParserState)
+
+static void startParsingJavaSrc(struct File *pFile) {
+	THIS = calloc(sizeof *THIS, 1);
 }
+
+static void parseJavaWord(struct File *pFile) {
+	char bf[121], *p = bf, *start = pFile->token;
+	while(start < pFile->tokenEnd)
+		*p++ = *start++;
+	*p = 0;
+	puts(bf);
+}
+
+static void parseJavaPunctuation(struct File *pFile, const char *p) {
+	struct Span *newSpan;
+	if('{' == *p) {
+		if(probableName) {
+			newSpan = malloc
+}
+
+
 
 #define SPACE         0
 #define TOKEN         1
@@ -96,7 +115,7 @@ void parseJava(const char *path) {
 	sqlite3_stmt *stm;
 	int storedTime = 0;
 
-	char *token, *p, *contentsEnd;
+	char *p;
 	int mode, flags;
 	
 	rc = stat(path, &st);
@@ -135,16 +154,15 @@ void parseJava(const char *path) {
 	}
 
 	fp = fopen(path, "r");
-	file.size = st.st_size;
 	file.contents = malloc(st.st_size + 1);
 	if(!file.contents)
 		goto end;
 
 	fread(file.contents, 1, st.st_size, fp);
-	contentsEnd = file.contents + st.st_size;
-	*contentsEnd = '\n'; //padding
+	file.contentsEnd = file.contents + st.st_size;
+	*file.contentsEnd = '\n'; //padding
 
-	token = p = file.contents;
+	file.token = p = file.contents;
 	mode = SPACE;
 	flags = 0;
 	for(;;p++) {
@@ -156,14 +174,14 @@ void parseJava(const char *path) {
 			if(mode == *p) {
 				if('\\' != p[-1]) 
 					mode = SPACE;
-			}	else if(contentsEnd == p)
+			}	else if(file.contentsEnd == p)
 				goto end;
 			break;
 					
 			
 		case COMMENT_LINE:
 			if('\n' == *p) {
-				if(contentsEnd == p)
+				if(file.contentsEnd == p)
 					goto end;
 				mode = SPACE;
 			}
@@ -174,7 +192,7 @@ void parseJava(const char *path) {
 				// p[1] is valid here, bc last valid byte is padded '\n'
 				if('/' == p[1])
 					mode = SPACE;
-			} else if (contentsEnd == p) 
+			} else if (file.contentsEnd == p) 
 				goto end;
 			break;
 
@@ -201,7 +219,8 @@ void parseJava(const char *path) {
 				break;
 			else {
 				// token just completed!
-				parseJavaToken(&file, token, p);
+				file.tokenEnd = p;
+				parseJavaWord(&file);
 				mode = SPACE;
 				// no break
 			}
@@ -232,17 +251,16 @@ void parseJava(const char *path) {
 				flags = charFlags[*p];
 			
 			if(CHAR_TOKENSTART & flags) {
-				token = p;
+				file.token = p;
 				mode = TOKEN;
 			} else if(CHAR_TOKENMIDDLE & flags) {
 				mode = NUMBER;
 			} else if(CHAR_SPACE & flags) {
-				if(contentsEnd == p)
+				if(file.contentsEnd == p)
 					goto end;
 				break;
-			}
-				
-			// punctuation
+			} else 
+				parseJavaPunctuation(&file, p);
 			
 		} // switch(mode)
 	} // for(;;p++)
