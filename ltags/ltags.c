@@ -16,6 +16,40 @@ void debug(const char *fmt, ...) {
 
 sqlite3 *db;
 
+char *loadWhole(const char *path, char **end) {
+	char *r = 0;
+	struct stat st;
+		
+	if(0 <= stat(path, &st)) {
+		r = malloc(st.st_size + 1);
+		
+		if(r) {
+			FILE *fp = fopen(path, "r");
+			if(fp) {
+				int size = fread(r, 1, st.st_size, fp);
+				if(end)
+					*end = r + size;
+					
+				if(size < st.st_size) {
+					fprintf(stderr, "Can't read more than %d of %d in %s", 
+						size, st.st_size, path);
+				}
+
+				fclose(fp);
+			} else {
+				fprintf(stderr, "Can't fopen %s\n", path);
+			}
+				
+		} else {
+			fprintf(stderr, "No memory to load %s\n", path);
+		}
+	} else {
+		fprintf(stderr, "Can't stat %s\n", path);
+	}
+
+	return r;
+}
+
 static int callback(void *NotUsed, int argc, char **argv, char **azColName){
   int i;
   for(i=0; i<argc; i++){
@@ -206,7 +240,6 @@ static void parseJavaPunctuation(struct File *pFile, const char *p) {
 #define COMMENT_LINES '*'
 
 void parseJava(const char *path) {
-	FILE *fp;
 	struct File file;
 	struct stat st;
 	int r;
@@ -243,25 +276,11 @@ void parseJava(const char *path) {
 		return;
 	}
 
-	fp = fopen(path, "r");
-	if(!fp) {
-		fprintf(stderr, "Can't fopen %s\n", path);
-		goto end;
-	}
-
 	file.path = path;
 	file.mtime = st.st_mtime;
 
-	file.contents = malloc(st.st_size + 1);
-	if(!file.contents) {
-		fprintf(stderr, "No memory to load %s\n", path);
-		goto end;
-	}
-
 	debug("Loading: %s", path);
-
-	fread(file.contents, 1, st.st_size, fp);
-	file.contentsEnd = file.contents + st.st_size;
+	file.contents = loadWhole(path, &file.contentsEnd);
 	*file.contentsEnd = '\n'; //padding
 
 	file.token = p = file.contents;
@@ -369,9 +388,7 @@ void parseJava(const char *path) {
 		
 		
 	
- end:
-	if(fp)
-		fclose(fp);
+ end:;
 }
 
 
