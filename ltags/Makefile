@@ -1,14 +1,21 @@
-BP := build/
+B := build/
 
-$(shell mkdir $(BP))
+$(shell mkdir $(B))
 
-ltags.exe: $(BP)ltags.o $(BP)sqlite3.o
-	link $(BP)ltags.o $(BP)sqlite3.o
+CFLAGS := /Zi
 
-$(BP)ltags.o: ltags.c
-	cl /c ltags.c /Fo$(BP)ltags.o 
+ltags.exe: $(B)ltags.o $(B)sqlite3.o $(B)getopt.o $(B)getopt1.o
+	link /DEBUG $(B)ltags.o $(B)sqlite3.o $(B)getopt.o $(B)getopt1.o
 
-$(BP)sqlite3.o: ext/sqlite/sqlite3.c
-	cl /c /DSQLITE_ENABLE_RTREE=1 ext/sqlite/sqlite3.c /Fo$(BP)sqlite3.o 
+$(B)ltags.o: ltags.c
+	cl /c $(CFLAGS) ltags.c /Fo$(B)ltags.o 
 
+$(B)sqlite3.o: ext/sqlite/sqlite3.c
+	cl /c $(CFLAGS) /DSQLITE_ENABLE_RTREE=1 ext/sqlite/sqlite3.c /Fo$(B)sqlite3.o 
+
+$(B)getopt.o: ext/getopt/getopt.c 	
+	cl /c $(CFLAGS) ext/getopt/getopt.c /Fo$(B)getopt.o 
+
+$(B)getopt1.o: ext/getopt/getopt1.c 	
+	cl /c $(CFLAGS) ext/getopt/getopt1.c /Fo$(B)getopt1.o 
 

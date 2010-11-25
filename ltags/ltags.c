@@ -5,8 +5,8 @@
 #include "ext/dirent.h"
 #include "ext/getopt/getopt.h"
 
-void debug(const char *s) {
-	fprintf(stderr, "%s\n", s);
+void debug(const char *fmt) {
+	fprintf(stderr, "%s\n", fmt);
 }
 
 sqlite3 *db;
@@ -81,6 +81,12 @@ int loadSpan(struct Span *pSpan) {
 	return 1;
 }
 
+#define ASSERTSQL(expr_M) do{\
+	r = expr_M; if(r != SQLITE_OK) {\
+	fprintf(stderr, "SQLite assertion fail: '%s', code %d\n", #expr_M, r);\
+	exit(1);\
+	}}while(0)
+
 void saveSpan(const struct Span *pSpan) {
 	int r;
 	sqlite3_stmt *stm;
@@ -97,40 +103,15 @@ void saveSpan(const struct Span *pSpan) {
 			exit(1);
 		}
 
-		r = sqlite3_bind_text(stm, 1, pSpan->name, pSpan->nameEnd - pSpan->name, 
-			SQLITE_STATIC);
-		if(r != SQLITE_OK) { 
-			fprintf(stderr, "bind name: %d\n", r);
-			exit(1);
-		}
-
-		r = sqlite3_bind_text(stm, 2, pSpan->path, -1, 
-			SQLITE_STATIC);
-		if(r != SQLITE_OK) { 
-			fprintf(stderr, "bind path: %d\n", r);
-			exit(1);
-		}
-
-		r = sqlite3_bind_int(stm, 3, pSpan->start);
-		if(r != SQLITE_OK) { 
-			fprintf(stderr, "bind start: %d\n", r);
-			exit(1);
-		}
-
-		r = sqlite3_bind_int(stm, 4, pSpan->end);
-		if(r != SQLITE_OK) { 
-			fprintf(stderr, "bind end: %d\n", r);
-			exit(1);
-		}
-
+		ASSERTSQL(sqlite3_bind_text(stm, 1, pSpan->name, pSpan->nameEnd - pSpan->name, 
+				SQLITE_STATIC));
+		ASSERTSQL(sqlite3_bind_text(stm, 2, pSpan->path, -1, SQLITE_STATIC));
+		ASSERTSQL(sqlite3_bind_int(stm, 3, pSpan->start));
+		ASSERTSQL(sqlite3_bind_int(stm, 4, pSpan->end));
+		
 		if(insert == op) {
-			r = sqlite3_bind_int(stm, 4, pSpan->mtime);
-			if(r != SQLITE_OK) { 
-				fprintf(stderr, "bind mtime: %d\n", r);
-				exit(1);
-			}
+			ASSERTSQL(sqlite3_bind_int(stm, 5, pSpan->mtime));
 		}
-			
 
 		// TODO LOCK
 
@@ -196,10 +177,10 @@ struct Span *finishLastSpan(struct File *pf, const char *end) {
 
 static void parseJavaWord(struct File *pf) {
 	char bf[121], *p = bf, *start = pf->token;
-	while(start < pf->tokenEnd)
+	/*while(start < pf->tokenEnd)
 		*p++ = *start++;
 	*p = 0;
-	puts(bf);
+	puts(bf);*/
 
 	startSpan(pf, pf->token, pf->tokenEnd, pf->token);
 	finishLastSpan(pf, pf->tokenEnd);
@@ -223,7 +204,7 @@ void parseJava(const char *path) {
 	FILE *fp;
 	struct File file;
 	struct stat st;
-	int rc;
+	int r;
 	char bf[2 * MAX_PATH], *name, *nameEnd;
 	sqlite3_stmt *stm;
 	int storedTime = 0;
@@ -231,32 +212,24 @@ void parseJava(const char *path) {
 	char *p;
 	int mode, flags;
 	
-	rc = stat(path, &st);
-	if(rc < 0) {
+	r = stat(path, &st);
+	if(r < 0) {
 		debug("Can't stat");
 		return;
 	}
 
 	name = strrchr(path, UP);
 	nameEnd = strchr(name, '.');
-	rc = sqlite3_prepare_v2(db, "SELECT mtime FROM spans WHERE name = ?", -1,
-		&stm, 0);
-	if(rc != SQLITE_OK) {
-		fprintf(stderr, "prepare: %d\n", rc);
-		return;
-	}
+	ASSERTSQL(sqlite3_prepare_v2(db, "SELECT mtime FROM spans WHERE name = ?", -1,
+			&stm, 0));
 
-	rc = sqlite3_bind_text(stm, 1, name, nameEnd - name, SQLITE_TRANSIENT);
-	if(rc != SQLITE_OK) {
-		fprintf(stderr, "bind: %d\n", rc);
-		return;
-	}
+	ASSERTSQL(sqlite3_bind_text(stm, 1, name, nameEnd - name, SQLITE_STATIC));
 
-	rc = sqlite3_step(stm);
-	if(SQLITE_ROW == rc) {
+	r = sqlite3_step(stm);
+	if(SQLITE_ROW == r) {
 		storedTime = sqlite3_column_int(stm, 0);
-	} else if(rc != SQLITE_DONE) {
-		fprintf(stderr, "step: %d\n", rc);
+	} else if(r != SQLITE_DONE) {
+		fprintf(stderr, "step: %d\n", r);
 		return;
 	}
 	
@@ -430,17 +403,18 @@ void updateDir(char *path) {
 }
 
 void update() {
-  int rc;
+	int rc;
 	char curPath[MAX_PATH];
 	
-  rc = sqlite3_open(".ltags.sqlite", &db);
-  if( rc ){
-    fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
-    sqlite3_close(db);
-    exit(1);
-  }
+	rc = sqlite3_open(".ltags.sqlite", &db);
+	if(rc) {
+		fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
+		sqlite3_close(db);
+		exit(1);
+	}
 
 	//run("CREATE VIRTUAL TABLE regions USING rtree(id, start, end)");
+
 	run("CREATE TABLE IF NOT EXISTS spans("
 		"name   VARCHAR(100), "
 		"path   VARCHAR(256), "
@@ -459,11 +433,13 @@ void update() {
 	debug("Deleting old entries...");
 	run("DELETE FROM spans WHERE status=1");
 
-
-  sqlite3_close(db);
+	
+	sqlite3_close(db);
 }
 
-const char *dbPath = ".ltags.sqlite";
+#define PROGNAME "ltags"
+
+const char *dbPath = "." PROGNAME ".sqlite";
 
 int main(int argc, char **argv){
 	int r;
@@ -486,28 +462,24 @@ int main(int argc, char **argv){
 			update();
 		
 		r = sqlite3_open(dbPath, &db);
-		if( r ){
+		if(r) {
 			fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
 			sqlite3_close(db);
 			exit(1);
 		}
 
-		r = sqlite3_prepare_v2(db, 
+		ASSERTSQL(sqlite3_prepare_v2(db, 
 			"SELECT name, path, start, end " 
 			"FROM spans " 
 			"WHERE name = ? "
 			, 
-			-1, &stm, 0);
-		if(r != SQLITE_OK) {
-			fprintf(stderr, "No prepare: %d\n", r);
-			exit(1);
-		}
+				-1, &stm, 0));
 
-		r = sqlite3_bind_text(stm, 1, argv[optind], -1, SQLITE_STATIC);
-		if(r != SQLITE_OK) {
+		ASSERTSQL(sqlite3_bind_text(stm, 1, argv[optind], -1, SQLITE_STATIC));
+		/*if(r != SQLITE_OK) {
 			fprintf(stderr, "No bind: %d\n", r);
 			exit(1);
-		}
+			}*/
 
 		while(r = sqlite3_step(stm), r == SQLITE_ROW) {
 			const char *path, *name;
