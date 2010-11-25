@@ -1,12 +1,17 @@
 #include <stdio.h>
+#include <stdarg.h>
 #include <sys/stat.h>
 
 #include "ext/sqlite/sqlite3.h"
 #include "ext/dirent.h"
 #include "ext/getopt/getopt.h"
 
-void debug(const char *fmt) {
-	fprintf(stderr, "%s\n", fmt);
+void debug(const char *fmt, ...) {
+	va_list args;
+	va_start(args, fmt);
+	vfprintf(stderr, fmt, args);
+	va_end(args);
+	fprintf(stderr, "\n");
 }
 
 sqlite3 *db;
@@ -214,7 +219,7 @@ void parseJava(const char *path) {
 	
 	r = stat(path, &st);
 	if(r < 0) {
-		debug("Can't stat");
+		debug("Can't stat %s", path);
 		return;
 	}
 
@@ -234,8 +239,7 @@ void parseJava(const char *path) {
 	}
 	
 	if(storedTime == st.st_mtime) {
-		debug("Skipping:");
-		debug(path);
+		debug("Skipping: %s", path);
 		return;
 	}
 
@@ -254,8 +258,7 @@ void parseJava(const char *path) {
 		goto end;
 	}
 
-	debug("Loading:");
-	debug(path);
+	debug("Loading: %s", path);
 
 	fread(file.contents, 1, st.st_size, fp);
 	file.contentsEnd = file.contents + st.st_size;
@@ -373,17 +376,22 @@ void parseJava(const char *path) {
 
 
 void updateDir(char *path) {
-	char *end= strrchr(path, 0), *suffix;
-	DIR *d = opendir(path);
+	char *end = strrchr(path, 0), *suffix;
+	DIR *d;
 	struct dirent *entry;
 
+	if(*path) {
+		d = opendir(path);
+		*end++ = UP;
+	} else {
+		d = opendir(".");
+	}
+
 	if(!d) {
-		debug("Can't opendir:");
-		debug(path);
+		debug("Can't opendir: %s", path);
 		return;
 	}
 	
-	*end++ = UP;
 	while(entry = readdir(d)) {
 		if('.' == entry->d_name[0])
 			continue;
@@ -426,7 +434,7 @@ void update() {
 	debug("Invalidating old entries...");
 	run("UPDATE spans SET status=1"); // 1 means "questionable"
 	run("BEGIN");
-	strcpy(curPath, ".");
+	strcpy(curPath, "");
 	updateDir(curPath);
 	debug("Commit...");
 	run("COMMIT");
