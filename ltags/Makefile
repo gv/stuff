@@ -1,21 +1,46 @@
-B := build/
+# For GNU make
+
+B = build/
 
 $(shell mkdir $(B))
 
-CFLAGS := /Zi
+ifeq ($(OS), Windows_NT)
+	CC = cl /c
+	CFLAGS += /Zi
+	O = /Fo
+	OB = /Fo$(B)
+	X = .exe
+	F = /
+else 
+	CC = gcc -c
+	CFLAGS += -g
+	O = -o 
+	OB = -o $(B)
+	F = -
+endif
 
-ltags.exe: $(B)ltags.o $(B)sqlite3.o $(B)getopt.o $(B)getopt1.o
-	link /DEBUG $(B)ltags.o $(B)sqlite3.o $(B)getopt.o $(B)getopt1.o
+#   Rules go here
+
+all: ltags$X
 
 $(B)ltags.o: ltags.c
-	cl /c $(CFLAGS) ltags.c /Fo$(B)ltags.o 
+	$(CC) $(CFLAGS) ltags.c $O $@
 
 $(B)sqlite3.o: ext/sqlite/sqlite3.c
-	cl /c $(CFLAGS) /DSQLITE_ENABLE_RTREE=1 ext/sqlite/sqlite3.c /Fo$(B)sqlite3.o 
+	$(CC) $(CFLAGS) $FDSQLITE_OMIT_LOAD_EXTENSION=1 ext/sqlite/sqlite3.c $O $@
 
-$(B)getopt.o: ext/getopt/getopt.c 	
+
+ifeq ($(OS), Windows_NT)
+ltags$X: $(B)ltags.o $(B)sqlite3.o $(B)getopt.o $(B)getopt1.o
+	link /DEBUG $^
+
+$Bgetopt.o: ext/getopt/getopt.c 	
 	cl /c $(CFLAGS) ext/getopt/getopt.c /Fo$(B)getopt.o 
 
-$(B)getopt1.o: ext/getopt/getopt1.c 	
+$Bgetopt1.o: ext/getopt/getopt1.c 	
 	cl /c $(CFLAGS) ext/getopt/getopt1.c /Fo$(B)getopt1.o 
+else 
+ltags$X: $(B)ltags.o $(B)sqlite3.o
+	gcc -lm -lpthread $^ -o $@
+endif
 

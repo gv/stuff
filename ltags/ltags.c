@@ -1,11 +1,25 @@
-#include <stdio.h>
 #include <stdarg.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
 #include <sys/stat.h>
 
 #include "ext/sqlite/sqlite3.h"
-#include "ext/dirent.h"
-#include "ext/getopt/getopt.h"
 
+#ifdef WIN32
+# include "ext/dirent.h"
+# include "ext/getopt/getopt.h"
+#else
+# include <getopt.h>
+# include <dirent.h>
+# include <strings.h>
+# define stricmp strcasecmp
+#endif
+
+#ifndef MAX_PATH
+# define MAX_PATH 1000
+#endif
+ 
 void debug(const char *fmt, ...) {
 	va_list args;
 	va_start(args, fmt);
@@ -179,7 +193,7 @@ struct JavaParserState {
 #define THIS ((struct JavaParserState*)(pFile->langParserState))
 
 static void startParsingJavaSrc(struct File *pFile) {
-	THIS = calloc(sizeof *THIS, 1);
+	pFile->langParserState = calloc(sizeof (struct JavaParserState), 1);
 }
 
 #define NEW 1
@@ -410,6 +424,7 @@ void updateDir(char *path) {
 	}
 	
 	while(entry = readdir(d)) {
+		printf("e: %s, t: %x\n", entry->d_name, entry->d_type);
 		if('.' == entry->d_name[0])
 			continue;
 		
@@ -496,8 +511,7 @@ int main(int argc, char **argv){
 		ASSERTSQL(sqlite3_prepare_v2(db, 
 			"SELECT name, path, start, end " 
 			"FROM spans " 
-			"WHERE name = ? "
-			, 
+			"WHERE name = ? ", 
 				-1, &stm, 0));
 
 		ASSERTSQL(sqlite3_bind_text(stm, 1, argv[optind], -1, SQLITE_STATIC));
