@@ -23,15 +23,20 @@ endif
 
 all: ltags$X
 
-$(B)ltags.o: ltags.c
+$Bltags.o: ltags.c
 	$(CC) $(CFLAGS) ltags.c $O$@
 
-$(B)sqlite3.o: ext/sqlite/sqlite3.c
-	$(CC) $(CFLAGS) $FDSQLITE_OMIT_LOAD_EXTENSION=1 ext/sqlite/sqlite3.c $O$@
+$Bjava.o: java.c java_res.h
+	$(CC) $(CFLAGS) java.c $O$@
+
+$Bsqlite3.o: ext/sqlite/sqlite3.c
+	$(CC) $(CFLAGS) $FDSQLITE_OMIT_LOAD_EXTENSION=1 \
+	$FDSQLITE_ENABLE_FTS3 \
+	ext/sqlite/sqlite3.c $O$@
 
 
 ifeq ($(OS), Windows_NT)
-ltags$X: $(B)ltags.o $(B)sqlite3.o $(B)getopt.o $(B)getopt1.o
+ltags$X: $Bltags.o $Bjava.o $Bsqlite3.o $Bgetopt.o $Bgetopt1.o
 	link /DEBUG $^
 
 $Bgetopt.o: ext/getopt/getopt.c 	
@@ -40,7 +45,7 @@ $Bgetopt.o: ext/getopt/getopt.c
 $Bgetopt1.o: ext/getopt/getopt1.c 	
 	cl /c $(CFLAGS) ext/getopt/getopt1.c /Fo$(B)getopt1.o 
 else 
-ltags$X: $(B)ltags.o $(B)sqlite3.o
+ltags$X: $Bltags.o $Bjava.o $Bsqlite3.o
 	gcc -lm -lpthread $^ -o $@
 endif
 

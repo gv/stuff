@@ -84,12 +84,19 @@ void run(char *stmt) {
   }
 }
 
+struct Word {
+	const char *start, *end;
+};
+
+#define MAX_TAG_CNT 256
+
 struct Span {
 	const char *name, *nameEnd;
+	struct Word tags[256], *tagsEnd;
 	int start, end;
 	int mtime;
 	const char *path;
-	char *options;
+
 	struct Span *parent;
 	void *particular;
 };
@@ -144,10 +151,29 @@ void saveSpan(const struct Span *pSpan) {
 	int r;
 	sqlite3_stmt *stm;
 	static const char *update = "UPDATE spans SET status=0 WHERE " 
-		"name=? AND path=? AND start=? AND end=?",
-		*insert = "INSERT INTO spans (name, path, start, end, mtime, status) "
-		"VALUES (?, ?, ?, ?, ?, 0)";
+		"name=? AND path=? AND start=? AND end=? AND tags=?",
+		*insert = "INSERT INTO spans (name, path, start, end, tags, mtime, status) "
+		"VALUES (?, ?, ?, ?, ?, ?, 0)";
 	const char *op = update;
+
+	char text[MAX_TAG_CNT * 32], *tail =  text, *nextTail = text;
+	struct Word *w = pSpan->tags;
+
+	while(w < pSpan->tagsEnd) {
+		nextTail = tail + (w->end - w->start) + 1;
+		if(nextTail > text + sizeof text) {
+			debug("SPAN TEXT OVERFLOW");
+			break;
+		}
+
+		memcpy(tail, w->start, w->end - w->start);
+		tail = nextTail;
+		tail[-1] = ' ';
+		w++;
+	}
+	tail[-1] = 0;
+	debug("Saving span: %s", text);
+	
 	
 	while(1) {
 		r = sqlite3_prepare_v2(db, op, -1, &stm, 0);
@@ -161,9 +187,11 @@ void saveSpan(const struct Span *pSpan) {
 		ASSERTSQL(sqlite3_bind_text(stm, 2, pSpan->path, -1, SQLITE_STATIC));
 		ASSERTSQL(sqlite3_bind_int(stm, 3, pSpan->start));
 		ASSERTSQL(sqlite3_bind_int(stm, 4, pSpan->end));
-		
+		ASSERTSQL(sqlite3_bind_int(stm, 4, pSpan->end));
+		ASSERTSQL(sqlite3_bind_text(stm, 5, text, -1, SQLITE_STATIC));
+
 		if(insert == op) {
-			ASSERTSQL(sqlite3_bind_int(stm, 5, pSpan->mtime));
+			ASSERTSQL(sqlite3_bind_int(stm, 6, pSpan->mtime));
 		}
 
 		// TODO LOCK
@@ -188,6 +216,9 @@ void saveSpan(const struct Span *pSpan) {
 
 struct JavaParserState {
 	char *probableName, *probableNameEnd;
+};
+
+struct JavaSpanState {
 	int braceCnt;
 };
 
@@ -198,6 +229,14 @@ static void startParsingJavaSrc(struct File *pFile) {
 }
 
 
+struct Span *addTagToCurrentSpan(struct File *pf, 
+	const char *start, const char *end) {
+	pf->currentSpan->tagsEnd->start = start;
+	pf->currentSpan->tagsEnd->end = end;
+	pf->currentSpan->tagsEnd++;
+	return pf->currentSpan;
+}
+
 struct Span *startSpan(struct File *pf, const char *name, const char *nameEnd,
 	const char *start) {
 	struct Span *s = malloc(sizeof (struct Span));
@@ -206,10 +245,12 @@ struct Span *startSpan(struct File *pf, const char *name, const char *nameEnd,
 	s->path = pf->path;
 	s->mtime = pf->mtime;
 	s->start = start - pf->contents;
+	s->tagsEnd = s->tags;
 	s->end = 0;
 
 	s->parent = pf->currentSpan;
 	pf->currentSpan = s;
+	addTagToCurrentSpan(pf, name, nameEnd);
 	return s;
 }
 
@@ -222,20 +263,24 @@ struct Span *finishLastSpan(struct File *pf, const char *end) {
 	return pf->currentSpan;
 }
 
-static void parseJavaWord(struct File *pf) {
-	char bf[121], *p = bf, *start = pf->token;
-	/*while(start < pf->tokenEnd)
-		*p++ = *start++;
-	*p = 0;
-	puts(bf);*/
+	
 
-	startSpan(pf, pf->token, pf->tokenEnd, pf->token);
-	finishLastSpan(pf, pf->tokenEnd);
+static void parseJavaWord(struct File *pf) {
+	int rw = getJavaReservedWordIndex(pf->token, pf->tokenEnd - pf->token);
+	
+	if(!pf->currentSpan)
+		startSpan(pf, pf->token, pf->tokenEnd, pf->token);
+	else 
+		addTagToCurrentSpan(pf, pf->token, pf->tokenEnd);
 }
 
-static void parseJavaPunctuation(struct File *pFile, const char *p) {
+static void parseJavaPunctuation(struct File *pf, const char *p) {
 	struct Span *newSpan;
-	if('{' == *p) {
+	switch(*p) {
+	case ';':
+	case ')':
+		if(pf->currentSpan)
+			finishLastSpan(pf, p);
 	}
 }
 
@@ -286,6 +331,7 @@ void parseJava(const char *path) {
 
 	file.path = path;
 	file.mtime = st.st_mtime;
+	file.currentSpan = NULL;
 
 	debug("Loading: %s", path);
 	file.contents = loadWhole(path, &file.contentsEnd);
@@ -436,12 +482,22 @@ void updateDir(char *path) {
 	}	
 }
 
+#define PROGNAME "ltags"
+
+const char *dbPath = "." PROGNAME ".sqlite";
+
 void update() {
-	int rc;
+	int r;
 	char curPath[MAX_PATH];
+	sqlite3_stmt *stm;
+	struct stat st;
+	int justCreated = 0;
 	
-	rc = sqlite3_open(".ltags.sqlite", &db);
-	if(rc) {
+	if(stat(dbPath, &st) < 0)
+		justCreated = 1;
+
+	r = sqlite3_open(dbPath, &db);
+	if(r) {
 		fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
 		sqlite3_close(db);
 		exit(1);
@@ -449,13 +505,33 @@ void update() {
 
 	//run("CREATE VIRTUAL TABLE regions USING rtree(id, start, end)");
 
-	run("CREATE TABLE IF NOT EXISTS spans("
+	if(justCreated) {
+		ASSERTSQL(sqlite3_prepare_v2(db, 
+				"CREATE VIRTUAL TABLE spans USING fts3("
+				"name   VARCHAR(100), "
+				"path   VARCHAR(256), "
+				"mtime  INTEGER, "
+				"start  INTEGER, "
+				"end    INTEGER, "
+				"status INTEGER, "
+				"tags   TEXT)",
+				-1, &stm, 0));
+
+		while(SQLITE_DONE != sqlite3_step(stm));
+		ASSERTSQL(sqlite3_finalize(stm));
+	
+	/*run("CREATE TABLE IF NOT EXISTS spans("
 		"name   VARCHAR(100), "
 		"path   VARCHAR(256), "
 		"mtime  INTEGER, "
 		"start  INTEGER, "
 		"end    INTEGER, "
 		"status INTEGER)");
+	
+	/*run("CREATE TABLE IF NOT EXISTS tags("
+		"name   VARCHAR(100), "
+		"sid    INTEGER)");*/
+	}
 	
 	debug("Invalidating old entries...");
 	run("UPDATE spans SET status=1"); // 1 means "questionable"
@@ -471,9 +547,6 @@ void update() {
 	sqlite3_close(db);
 }
 
-#define PROGNAME "ltags"
-
-const char *dbPath = "." PROGNAME ".sqlite";
 
 int main(int argc, char **argv){
 	int r;
@@ -505,7 +578,7 @@ int main(int argc, char **argv){
 		ASSERTSQL(sqlite3_prepare_v2(db, 
 			"SELECT name, path, start, end " 
 			"FROM spans " 
-			"WHERE name = ? ", 
+			"WHERE tags MATCH ? ", 
 				-1, &stm, 0));
 
 		ASSERTSQL(sqlite3_bind_text(stm, 1, argv[optind], -1, SQLITE_STATIC));
