@@ -565,6 +565,8 @@ int main(int argc, char **argv){
 	};
 
 	int c, optInd = 0;
+
+	const char *prefix;
 	
 	//for(c = 0; c < argc; c++)
 	//	debug("\narg %d: '%s'", c, argv[c]);
@@ -623,15 +625,12 @@ int main(int argc, char **argv){
 		}
 			
 		if(COMPLETE == mode) {
+			prefix = argv[argc-1];
 			query[strlen(query) - 1] = '*';
 		}
 
 		//debug(query);
 		ASSERTSQL(sqlite3_bind_text(stm, 1, query, -1, SQLITE_STATIC));
-		/*if(r != SQLITE_OK) {
-			fprintf(stderr, "No bind: %d\n", r);
-			exit(1);
-			}*/
 
 		while(r = sqlite3_step(stm), r == SQLITE_ROW) {
 			const char *path, *name;
@@ -674,9 +673,19 @@ int main(int argc, char **argv){
 				printf("%s:%d:", path, lineNumber);
 				fwrite(line, 1, nextLine - line, stdout); 
 			} else {
-				const char *tags = sqlite3_column_text(stm, 4);
-				puts(tags);
-				return 0;
+				const char *tags = sqlite3_column_text(stm, 4), *next = tags;
+				while(*tags) {
+					next = strchr(tags, ' ');
+					if(!next)
+						next = strchr(tags, 0);
+					if(!strncmp(prefix, tags, strlen(prefix))) {
+							fwrite(tags, 1, next - tags, stdout);
+							fputs(" ", stdout);
+					}
+					if(*next)
+						next++;
+					tags = next;
+				}					
 			}
 		}
 
