@@ -157,7 +157,7 @@ void saveSpan(const struct Span *pSpan) {
 	const char *op = update;
 
 	char text[MAX_TAG_CNT * 32], *tail =  text, *nextTail = text;
-	struct Word *w = pSpan->tags;
+	const struct Word *w = pSpan->tags;
 
 	while(w < pSpan->tagsEnd) {
 		nextTail = tail + (w->end - w->start) + 1;
@@ -464,11 +464,11 @@ void updateDir(char *path) {
 	}
 	
 	while(entry = readdir(d)) {
-		//printf("e: %s, t: %x\n", entry->d_name, entry->d_type);
 		if('.' == entry->d_name[0])
 			continue;
 		
-		if(S_ISDIR(entry->d_type)) {
+		//if(S_ISDIR(entry->d_type)) {
+		if(DT_DIR & entry->d_type) {
 			strncpy(end, entry->d_name, MAX_PATH - (end - path));
 			updateDir(path);
 			continue;
@@ -517,7 +517,10 @@ void update() {
 				"tags   TEXT)",
 				-1, &stm, 0));
 
-		while(SQLITE_DONE != sqlite3_step(stm));
+		r = sqlite3_step(stm);
+		if(r != SQLITE_DONE) {
+			debug("Table creation step: %d", r);
+		}
 		ASSERTSQL(sqlite3_finalize(stm));
 	
 	/*run("CREATE TABLE IF NOT EXISTS spans("
@@ -547,26 +550,55 @@ void update() {
 	sqlite3_close(db);
 }
 
+#define SEARCH 1
+#define COMPLETE 2
+#define UPDATE 3
 
 int main(int argc, char **argv){
 	int r;
 	sqlite3_stmt *stm;
+	int mode = UPDATE;
 
 	static struct option longOpts[] = {
+		{"complete", no_argument, 0, 'C'},
 		{0, 0, 0, 0}
 	};
 
 	int c, optInd = 0;
-	while(c = getopt_long(argc, argv, "", longOpts, &optInd), c != -1) {
+	
+	//for(c = 0; c < argc; c++)
+	//	debug("\narg %d: '%s'", c, argv[c]);
 
+	while(c = getopt_long(argc, argv, "", longOpts, &optInd), c != -1) {
+		switch(c) {
+		case 'C':
+			mode = COMPLETE;
+		}
 	}
 
-	if(optind == argc) {
+	if(optind < argc) {
+		if(UPDATE == mode)
+			mode = SEARCH;
+	}
+
+
+	if(UPDATE == mode) {
 		update();
 	} else {
+		char query[1024];
+		// --complete really should be as time-sensitive as we can get,
+		// because I get really annoyed when I press TAB and bash goes
+		// god knows where
 		struct stat st;
-		if(0 > stat(dbPath, &st))
-			update();
+		if(0 > stat(dbPath, &st)) {
+			if(SEARCH == mode) {
+				update();
+			} else {
+				// I think it's a good thing we can send messages in completions.
+				printf("--create-index-because-it-s-not-found\n");
+				return;
+			}
+		}
 		
 		r = sqlite3_open(dbPath, &db);
 		if(r) {
@@ -576,12 +608,26 @@ int main(int argc, char **argv){
 		}
 
 		ASSERTSQL(sqlite3_prepare_v2(db, 
-			"SELECT name, path, start, end " 
+			"SELECT name, path, start, end, tags " 
 			"FROM spans " 
 			"WHERE tags MATCH ? ", 
 				-1, &stm, 0));
 
-		ASSERTSQL(sqlite3_bind_text(stm, 1, argv[optind], -1, SQLITE_STATIC));
+		*query = 0;
+		if(COMPLETE == mode)
+			optind++; // program name comes first
+
+		while(optind < argc) {
+			strncat(query, argv[optind++], sizeof query);
+			strncat(query, " ", sizeof query);
+		}
+			
+		if(COMPLETE == mode) {
+			query[strlen(query) - 1] = '*';
+		}
+
+		//debug(query);
+		ASSERTSQL(sqlite3_bind_text(stm, 1, query, -1, SQLITE_STATIC));
 		/*if(r != SQLITE_OK) {
 			fprintf(stderr, "No bind: %d\n", r);
 			exit(1);
@@ -600,32 +646,38 @@ int main(int argc, char **argv){
 			end = sqlite3_column_int(stm, 3);
 
 			// Count lines to make output grep-like
-
-			contents = loadWhole(path, &contentsEnd);
-			if(!contents) {
-				fprintf(stderr, "Can't load %s\n", path);
-				continue;
-			}
-
-			lineNumber = 1;
-			target = contents + start;
-			line = contents;
-			do {
-				nextLine = memchr(line, '\n', contentsEnd - line);
-				nextLine++;
-				if(!nextLine) {
-					nextLine = contentsEnd;
-					break;
+			
+			if(SEARCH == mode) {
+				contents = loadWhole(path, &contentsEnd);
+				if(!contents) {
+					fprintf(stderr, "Can't load %s\n", path);
+					continue;
 				}
-				if(nextLine > target)
-					break;
-				lineNumber++;
-				line = nextLine;
-			} while(1);
+				
+				lineNumber = 1;
+				target = contents + start;
+				line = contents;
+				do {
+					nextLine = memchr(line, '\n', contentsEnd - line);
+					nextLine++;
+					if(!nextLine) {
+						nextLine = contentsEnd;
+						break;
+					}
+					if(nextLine > target)
+						break;
+					lineNumber++;
+					line = nextLine;
+				} while(1);
+				
 			
-			
-			printf("%s:%d:", path, lineNumber);
-			fwrite(line, 1, nextLine - line, stdout); 
+				printf("%s:%d:", path, lineNumber);
+				fwrite(line, 1, nextLine - line, stdout); 
+			} else {
+				const char *tags = sqlite3_column_text(stm, 4);
+				puts(tags);
+				return 0;
+			}
 		}
 
 		if(r != SQLITE_DONE) {
