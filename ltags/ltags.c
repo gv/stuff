@@ -6,7 +6,7 @@
 
 #include "ext/sqlite/sqlite3.h"
 
-#ifdef WIN32
+#ifdef _WIN32
 # include "ext/dirent.h"
 # include "ext/getopt/getopt.h"
 #else
@@ -85,10 +85,10 @@ void run(char *stmt) {
 }
 
 struct Span {
-	char *name, *nameEnd;
+	const char *name, *nameEnd;
 	int start, end;
 	int mtime;
-	char *path;
+	const char *path;
 	char *options;
 	struct Span *parent;
 	void *particular;
@@ -96,7 +96,7 @@ struct Span {
 
 // parser state		
 struct File {
-	char *path;
+	const char *path;
 	int mtime;
 
 	char *contents;
@@ -188,6 +188,7 @@ void saveSpan(const struct Span *pSpan) {
 
 struct JavaParserState {
 	char *probableName, *probableNameEnd;
+	int braceCnt;
 };
 
 #define THIS ((struct JavaParserState*)(pFile->langParserState))
@@ -196,13 +197,6 @@ static void startParsingJavaSrc(struct File *pFile) {
 	pFile->langParserState = calloc(sizeof (struct JavaParserState), 1);
 }
 
-#define NEW 1
-
-static int getJavaReservedWordIndex(char *word, char *end) {
-	if(!strncmp(word, "new", end - word))
-		return NEW;
-	return 0;
-}
 
 struct Span *startSpan(struct File *pf, const char *name, const char *nameEnd,
 	const char *start) {
@@ -424,7 +418,7 @@ void updateDir(char *path) {
 	}
 	
 	while(entry = readdir(d)) {
-		printf("e: %s, t: %x\n", entry->d_name, entry->d_type);
+		//printf("e: %s, t: %x\n", entry->d_name, entry->d_type);
 		if('.' == entry->d_name[0])
 			continue;
 		
@@ -522,12 +516,43 @@ int main(int argc, char **argv){
 
 		while(r = sqlite3_step(stm), r == SQLITE_ROW) {
 			const char *path, *name;
+			const char *contents, *contentsEnd;
+			const char *line, *target, *nextLine;
 			int start, end;
+			int lineNumber;
+
 			name = sqlite3_column_text(stm, 0);
 			path = sqlite3_column_text(stm, 1);
 			start = sqlite3_column_int(stm, 2);
 			end = sqlite3_column_int(stm, 3);
-			printf("%s %s %d %d\n", name, path, start, end);
+
+			// Count lines to make output grep-like
+
+			contents = loadWhole(path, &contentsEnd);
+			if(!contents) {
+				fprintf(stderr, "Can't load %s\n", path);
+				continue;
+			}
+
+			lineNumber = 1;
+			target = contents + start;
+			line = contents;
+			do {
+				nextLine = memchr(line, '\n', contentsEnd - line);
+				nextLine++;
+				if(!nextLine) {
+					nextLine = contentsEnd;
+					break;
+				}
+				if(nextLine > target)
+					break;
+				lineNumber++;
+				line = nextLine;
+			} while(1);
+			
+			
+			printf("%s:%d:", path, lineNumber);
+			fwrite(line, 1, nextLine - line, stdout); 
 		}
 
 		if(r != SQLITE_DONE) {

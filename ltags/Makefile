@@ -24,10 +24,10 @@ endif
 all: ltags$X
 
 $(B)ltags.o: ltags.c
-	$(CC) $(CFLAGS) ltags.c $O $@
+	$(CC) $(CFLAGS) ltags.c $O$@
 
 $(B)sqlite3.o: ext/sqlite/sqlite3.c
-	$(CC) $(CFLAGS) $FDSQLITE_OMIT_LOAD_EXTENSION=1 ext/sqlite/sqlite3.c $O $@
+	$(CC) $(CFLAGS) $FDSQLITE_OMIT_LOAD_EXTENSION=1 ext/sqlite/sqlite3.c $O$@
 
 
 ifeq ($(OS), Windows_NT)
