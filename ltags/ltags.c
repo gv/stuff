@@ -467,7 +467,6 @@ void updateDir(char *path) {
 		if('.' == entry->d_name[0])
 			continue;
 		
-		//if(S_ISDIR(entry->d_type)) {
 		if(DT_DIR & entry->d_type) {
 			strncpy(end, entry->d_name, MAX_PATH - (end - path));
 			updateDir(path);
@@ -484,8 +483,10 @@ void updateDir(char *path) {
 
 #define PROGNAME "ltags"
 
-const char *dbPath = "." PROGNAME ".sqlite";
+const char *dbName = "." PROGNAME ".sqlite";
 char wdPath[MAX_PATH];
+char dbPath[MAX_PATH];
+char dbDirPath[MAX_PATH];
 
 void update() {
 	int r;
@@ -540,16 +541,73 @@ void update() {
 	debug("Invalidating old entries...");
 	run("UPDATE spans SET status=1"); // 1 means "questionable"
 	run("BEGIN");
-	strcpy(curPath, "");
+	strcpy(curPath, dbDirPath);
 	updateDir(curPath);
 	debug("Commit...");
 	run("COMMIT");
 	debug("Deleting old entries...");
 	run("DELETE FROM spans WHERE status=1");
 
-	
 	sqlite3_close(db);
 }
+
+char *getPathFrom(char *d, const char *path, const char *base) {
+	// Both arguments are absolute paths 
+	// Base is a path to a directory with no trailing slashes
+	const char *slash;
+	
+	*d = 0;
+	while(*path && *base && *path == *base) {
+		if('/' == *path)
+			slash = path;
+		path++, base++;
+	}
+		
+	base -= (slash - path);
+	while(*base) {
+		if('/' == *base)
+			strcat(d, "../");
+		base++;
+	}
+	
+	strcat(d, slash + 1);
+	return d;
+}
+
+int findDb() {
+	char *end, *minEnd = 0;
+	struct stat st;
+
+	strcpy(dbDirPath, wdPath);
+	end = strchr(dbDirPath, 0);
+	strcat(dbDirPath, "/");
+	do {
+		strcpy(end + 1, dbName);
+		
+		if(stat(dbDirPath, &st) >= 0 ) {
+			minEnd = end;
+		}
+
+		//end = memrchr(dbDirPath, '/', end - dbDirPath);
+		*end = 0;
+		end = strrchr(dbDirPath, '/');
+	} while(end > dbDirPath + 2);
+
+	if(!minEnd)
+		return 0;
+	
+	strcpy(dbDirPath, wdPath);
+	*minEnd = 0;
+	
+	strcpy(dbPath, dbDirPath);
+	strcat(dbPath, "/");
+	strcat(dbPath, dbName);
+	return 1;
+}
+		
+	
+	
+	
 
 #define SEARCH 1
 #define COMPLETE 2
@@ -569,16 +627,21 @@ int main(int argc, char **argv){
 
 	const char *prefix = "";
 	int completionTargetIndex = 0;
+
+	char *p;
 	
 	/*for(c = 0; c < argc; c++)
 		debug("\narg %d: '%s'", c, argv[c]);
 	//*/
 
-	if(!getcwd(wdPath, sizeof wdPath)) {
+	if(!getcwd(wdPath, sizeof dbPath - sizeof dbName - 2)) {
 		fprintf(stderr, "Can't getcwd");
 		exit(1);
 	}
 
+	for(p = wdPath; *p; p++) 
+		if('\\' == *p) *p = '/';
+	
 	while(c = getopt_long(argc, argv, "", longOpts, &optInd), c != -1) {
 		switch(c) {
 		case 'C':
@@ -594,20 +657,26 @@ int main(int argc, char **argv){
 
 
 	if(UPDATE == mode) {
+		if(!findDb()) {
+			strcpy(dbPath, wdPath);
+			strcat(dbPath, "/");
+			strcat(dbPath, dbName);
+		}
 		update();
 	} else {
 		char query[1024];
 		// --complete really should be as time-sensitive as we can get,
 		// because I get really annoyed when I press TAB and bash goes
 		// god knows where
-		struct stat st;
-		if(0 > stat(dbPath, &st)) {
+		if(!findDb()) {
 			if(SEARCH == mode) {
-				update();
+				fprintf(stderr, "No database found!\n");
+				return 1;
 			} else {
-				// I think it's a good thing we can send messages in completions.
+				// Autocompletion is notoriously noninteractive process, so I think
+				// we have to take every chance to send out a message we can get
 				puts("--create-index-because-it-s-not-found");
-				return;
+				return 0;
 			}
 		}
 		
@@ -644,6 +713,7 @@ int main(int argc, char **argv){
 		ASSERTSQL(sqlite3_bind_text(stm, 1, query, -1, SQLITE_STATIC));
 
 		while(r = sqlite3_step(stm), r == SQLITE_ROW) {
+			char pathFromWd[MAX_PATH];
 			const char *path, *name;
 			const char *contents, *contentsEnd;
 			const char *line, *target, *nextLine;
@@ -658,9 +728,10 @@ int main(int argc, char **argv){
 			// Count lines to make output grep-like
 			
 			if(SEARCH == mode) {
-				contents = loadWhole(path, &contentsEnd);
+				getPathFrom(pathFromWd, path, wdPath);
+				contents = loadWhole(pathFromWd, &contentsEnd);
 				if(!contents) {
-					fprintf(stderr, "Can't load %s\n", path);
+					fprintf(stderr, "Can't load %s\n", pathFromWd);
 					continue;
 				}
 				
@@ -682,7 +753,7 @@ int main(int argc, char **argv){
 				} while(1);
 				
 			
-				printf("%s:%d:", path, lineNumber);
+				printf("%s:%d:", pathFromWd, lineNumber);
 				fwrite(line, 1, nextLine - line, stdout); 
 			} else {
 				const char *tags = sqlite3_column_text(stm, 4), *next = tags;
