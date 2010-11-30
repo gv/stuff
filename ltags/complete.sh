@@ -1,5 +1,5 @@
 _qn() {
-	COMPREPLY=( $(qn --complete ${COMP_WORDS[*]}) )
+	COMPREPLY=( $(qn --complete $COMP_CWORD ${COMP_WORDS[*]}) )
 }
 
 complete -F _qn qn

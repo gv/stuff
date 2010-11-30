@@ -560,21 +560,24 @@ int main(int argc, char **argv){
 	int mode = UPDATE;
 
 	static struct option longOpts[] = {
-		{"complete", no_argument, 0, 'C'},
+		{"complete", required_argument, 0, 'C'},
 		{0, 0, 0, 0}
 	};
 
 	int c, optInd = 0;
 
 	const char *prefix;
+	int completionTargetIndex = 0;
 	
-	//for(c = 0; c < argc; c++)
-	//	debug("\narg %d: '%s'", c, argv[c]);
+	/*for(c = 0; c < argc; c++)
+		debug("\narg %d: '%s'", c, argv[c]);
+	//*/
 
 	while(c = getopt_long(argc, argv, "", longOpts, &optInd), c != -1) {
 		switch(c) {
 		case 'C':
 			mode = COMPLETE;
+			completionTargetIndex = atoi(optarg);
 		}
 	}
 
@@ -597,7 +600,7 @@ int main(int argc, char **argv){
 				update();
 			} else {
 				// I think it's a good thing we can send messages in completions.
-				printf("--create-index-because-it-s-not-found\n");
+				puts("--create-index-because-it-s-not-found");
 				return;
 			}
 		}
@@ -616,19 +619,21 @@ int main(int argc, char **argv){
 				-1, &stm, 0));
 
 		*query = 0;
-		if(COMPLETE == mode)
+		if(COMPLETE == mode) {
+			completionTargetIndex += optind;
 			optind++; // program name comes first
+		}
 
 		while(optind < argc) {
-			strncat(query, argv[optind++], sizeof query);
+			strncat(query, argv[optind], sizeof query);
+			if(completionTargetIndex == optind) {
+				prefix = argv[optind];
+				strncat(query, "*", sizeof query);
+			}
 			strncat(query, " ", sizeof query);
+			optind++;
 		}
 			
-		if(COMPLETE == mode) {
-			prefix = argv[argc-1];
-			query[strlen(query) - 1] = '*';
-		}
-
 		//debug(query);
 		ASSERTSQL(sqlite3_bind_text(stm, 1, query, -1, SQLITE_STATIC));
 
@@ -658,11 +663,12 @@ int main(int argc, char **argv){
 				line = contents;
 				do {
 					nextLine = memchr(line, '\n', contentsEnd - line);
-					nextLine++;
 					if(!nextLine) {
 						nextLine = contentsEnd;
 						break;
-					}
+					} else 
+						nextLine++;
+
 					if(nextLine > target)
 						break;
 					lineNumber++;
