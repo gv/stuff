@@ -566,7 +566,7 @@ int main(int argc, char **argv){
 
 	int c, optInd = 0;
 
-	const char *prefix;
+	const char *prefix = "";
 	int completionTargetIndex = 0;
 	
 	/*for(c = 0; c < argc; c++)
