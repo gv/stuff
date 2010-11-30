@@ -485,6 +485,7 @@ void updateDir(char *path) {
 #define PROGNAME "ltags"
 
 const char *dbPath = "." PROGNAME ".sqlite";
+char wdPath[MAX_PATH];
 
 void update() {
 	int r;
@@ -572,6 +573,11 @@ int main(int argc, char **argv){
 	/*for(c = 0; c < argc; c++)
 		debug("\narg %d: '%s'", c, argv[c]);
 	//*/
+
+	if(!getcwd(wdPath, sizeof wdPath)) {
+		fprintf(stderr, "Can't getcwd");
+		exit(1);
+	}
 
 	while(c = getopt_long(argc, argv, "", longOpts, &optInd), c != -1) {
 		switch(c) {
