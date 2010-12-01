@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <sys/stat.h>
+#include <assert.h>
 
 #include "ext/sqlite/sqlite3.h"
 
@@ -551,26 +552,38 @@ void update() {
 	sqlite3_close(db);
 }
 
-char *getPathFrom(char *d, const char *path, const char *base) {
+const char *getPathFrom(char *d, const char *path, const char *base) {
 	// Both arguments are absolute paths 
-	// Base is a path to a directory with no trailing slashes
-	const char *slash;
+	// base is a path to a directory
+	const char *slash = NULL;
 	
 	*d = 0;
-	while(*path && *base && *path == *base) {
-		if('/' == *path)
-			slash = path;
+#ifdef _WIN32
+	while(*path && tolower(*path) == tolower(*base)) {
+#else
+	while(*path && *path == *base) {
+#endif
+		if('/' == *base) {
+			slash = base;
+		}
 		path++, base++;
 	}
-		
-	base -= (slash - path);
+
+	if(!slash) // different Windows drive letters
+		return path;
+	
+	if(*base) { // go back
+		path -= (base - slash);
+		base = slash;
+	}
+
 	while(*base) {
 		if('/' == *base)
 			strcat(d, "../");
 		base++;
 	}
 	
-	strcat(d, slash + 1);
+	strcat(d, path + 1);
 	return d;
 }
 
@@ -714,24 +727,29 @@ int main(int argc, char **argv){
 
 		while(r = sqlite3_step(stm), r == SQLITE_ROW) {
 			char pathFromWd[MAX_PATH];
-			const char *path, *name;
+			const char *path, *name, *absPath;
 			const char *contents, *contentsEnd;
 			const char *line, *target, *nextLine;
 			int start, end;
 			int lineNumber;
 
 			name = sqlite3_column_text(stm, 0);
-			path = sqlite3_column_text(stm, 1);
+			absPath = sqlite3_column_text(stm, 1);
 			start = sqlite3_column_int(stm, 2);
 			end = sqlite3_column_int(stm, 3);
 
 			// Count lines to make output grep-like
 			
 			if(SEARCH == mode) {
-				getPathFrom(pathFromWd, path, wdPath);
-				contents = loadWhole(pathFromWd, &contentsEnd);
+				path = getPathFrom(pathFromWd, absPath, wdPath);
+				
+				// print the shortest path
+				if(strlen(absPath) <= strlen(path))
+					path = absPath;
+
+				contents = loadWhole(path, &contentsEnd);
 				if(!contents) {
-					fprintf(stderr, "Can't load %s\n", pathFromWd);
+					fprintf(stderr, "Can't load %s\n", path);
 					continue;
 				}
 				
@@ -753,7 +771,7 @@ int main(int argc, char **argv){
 				} while(1);
 				
 			
-				printf("%s:%d:", pathFromWd, lineNumber);
+				printf("%s:%d:", path, lineNumber);
 				fwrite(line, 1, nextLine - line, stdout); 
 			} else {
 				const char *tags = sqlite3_column_text(stm, 4), *next = tags;
