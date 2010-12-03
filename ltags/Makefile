@@ -7,6 +7,7 @@ $(shell mkdir $(B))
 ifeq ($(OS), Windows_NT)
 	CC = cl /c
 	CFLAGS += /Zi
+	CFLAGS += /Iext/pthread
 	O = /Fo
 	OB = /Fo$(B)
 	X = .exe
@@ -23,20 +24,30 @@ endif
 
 all: ltags$X
 
-$Bltags.o: ltags.c
+$Bltags.o: ltags.c queue.h
 	$(CC) $(CFLAGS) ltags.c $O$@
 
 $Bjava.o: java.c java_res.h
 	$(CC) $(CFLAGS) java.c $O$@
 
 $Bsqlite3.o: ext/sqlite/sqlite3.c
-	$(CC) $(CFLAGS) $FDSQLITE_OMIT_LOAD_EXTENSION=1 \
+	$(CC) $(CFLAGS) \
+	$FDSQLITE_OMIT_LOAD_EXTENSION=1 \
+	$FDSQLITE_OMIT_DEPRECATED=1 \
+	$FDSQLITE_OMIT_UTF16=1 \
+	$FDSQLITE_OMIT_EXPLAIN=1 \
+	$FDSQLITE_OMIT_MEMORYDB=1 \
+	$FDSQLITE_OMIT_AUTOVACUUM=1 \
+	$FDSQLITE_OMIT_INCRBLOB=1 \
+	$FDSQLITE_THREADSAFE=1 \
 	$FDSQLITE_ENABLE_FTS3 \
 	ext/sqlite/sqlite3.c $O$@
 
 
 ifeq ($(OS), Windows_NT)
-ltags$X: $Bltags.o $Bjava.o $Bsqlite3.o $Bgetopt.o $Bgetopt1.o
+ltags$X: $Bltags.o $Bjava.o $Bsqlite3.o $Bgetopt.o $Bgetopt1.o \
+	prebuilt/pthreadVC2.lib
+	cmd /c copy prebuilt\pthreadVC2.dll .
 	link /DEBUG $^
 
 $Bgetopt.o: ext/getopt/getopt.c 	

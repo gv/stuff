@@ -5,9 +5,9 @@
 #include <sys/stat.h>
 #include <assert.h>
 
-#include "queue.h"
-
 #include "ext/sqlite/sqlite3.h"
+
+#include "queue.h"
 
 #ifdef _WIN32
 # include "ext/dirent.h"
@@ -506,6 +506,7 @@ void *parserThread(void *unused) {
 		free(pf->path);
 		free(pf);
 	}
+	return 0;
 }
 
 /*
