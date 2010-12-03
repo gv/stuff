@@ -31,9 +31,7 @@ void debug(const char *fmt, ...) {
 	fprintf(stderr, "\n");
 }
 
-sqlite3 *db;
-
-char *loadWhole(const char *path, char **end) {
+char *loadWhole(const char *path, const char **end) {
 	char *r = 0;
 	struct stat st;
 		
@@ -67,6 +65,80 @@ char *loadWhole(const char *path, char **end) {
 	return r;
 }
 
+const char *getPathFrom(char *d, const char *path, const char *base) {
+	// Both arguments are absolute paths 
+	// base is a path to a directory
+	const char *slash = NULL;
+	
+	*d = 0;
+#ifdef _WIN32
+	while(*path && tolower(*path) == tolower(*base)) {
+#else
+	while(*path && *path == *base) {
+#endif
+		if('/' == *base) {
+			slash = base;
+		}
+		path++, base++;
+	}
+
+	if(!slash) // different Windows drive letters
+		return path;
+	
+	if(*base) { // go back
+		path -= (base - slash);
+		base = slash;
+	}
+
+	while(*base) {
+		if('/' == *base)
+			strcat(d, "../");
+		base++;
+	}
+	
+	strcat(d, path + 1);
+	return d;
+}
+
+#define PROGNAME "ltags"
+
+const char *dbName = "." PROGNAME ".sqlite";
+char wdPath[MAX_PATH];
+char dbPath[MAX_PATH];
+char dbDirPath[MAX_PATH];
+
+int findDb() {
+	char *end, *minEnd = 0;
+	struct stat st;
+
+	strcpy(dbDirPath, wdPath);
+	end = strchr(dbDirPath, 0);
+	strcat(dbDirPath, "/");
+	do {
+		strcpy(end + 1, dbName);
+		
+		if(stat(dbDirPath, &st) >= 0 ) {
+			minEnd = end;
+		}
+
+		*end = 0;
+		end = strrchr(dbDirPath, '/');
+	} while(end > dbDirPath + 2);
+
+	if(!minEnd)
+		return 0;
+	
+	strcpy(dbDirPath, wdPath);
+	*minEnd = 0;
+	
+	strcpy(dbPath, dbDirPath);
+	strcat(dbPath, "/");
+	strcat(dbPath, dbName);
+	return 1;
+}
+		
+	
+	
 static int callback(void *NotUsed, int argc, char **argv, char **azColName){
   int i;
   for(i=0; i<argc; i++){
@@ -75,6 +147,9 @@ static int callback(void *NotUsed, int argc, char **argv, char **azColName){
   printf("\n");
   return 0;
 }
+
+
+sqlite3 *db;
 
 void run(char *stmt) {
 	int rc;
@@ -94,7 +169,6 @@ struct Word {
 #define MAX_TAG_CNT 256
 
 struct Span {
-	const char *name, *nameEnd;
 	struct Word tags[256], *tagsEnd;
 	int start, end;
 	int mtime;
@@ -106,7 +180,7 @@ struct Span {
 
 // parser state		
 struct File {
-	const char *path;
+	char *path;
 	int mtime;
 
 	char *contents;
@@ -140,6 +214,13 @@ const int charFlags[/*256*/128] = {
 
 #define countof(something_M) (sizeof(something_M)/sizeof(something_M[0]))
 
+ unsigned classifyChar(int c) {
+	 if(c >= countof(charFlags))
+		 return CHAR_TOKENSTART | CHAR_TOKENMIDDLE;
+	 else 
+		 return charFlags[c];
+ }
+			
 int loadSpan(struct Span *pSpan) {
 	return 1;
 }
@@ -154,9 +235,9 @@ void saveSpan(const struct Span *pSpan) {
 	int r;
 	sqlite3_stmt *stm;
 	static const char *update = "UPDATE spans SET status=0 WHERE " 
-		"name=? AND path=? AND start=? AND end=? AND tags=?",
-		*insert = "INSERT INTO spans (name, path, start, end, tags, mtime, status) "
-		"VALUES (?, ?, ?, ?, ?, ?, 0)";
+		"path=? AND start=? AND end=? AND tags=?",
+		*insert = "INSERT INTO spans (path, start, end, tags, mtime, status) "
+		"VALUES (?, ?, ?, ?, ?, 0)";
 	const char *op = update;
 
 	char text[MAX_TAG_CNT * 32], *tail =  text, *nextTail = text;
@@ -185,16 +266,13 @@ void saveSpan(const struct Span *pSpan) {
 			exit(1);
 		}
 
-		ASSERTSQL(sqlite3_bind_text(stm, 1, pSpan->name, pSpan->nameEnd - pSpan->name, 
-				SQLITE_STATIC));
-		ASSERTSQL(sqlite3_bind_text(stm, 2, pSpan->path, -1, SQLITE_STATIC));
-		ASSERTSQL(sqlite3_bind_int(stm, 3, pSpan->start));
-		ASSERTSQL(sqlite3_bind_int(stm, 4, pSpan->end));
-		ASSERTSQL(sqlite3_bind_int(stm, 4, pSpan->end));
-		ASSERTSQL(sqlite3_bind_text(stm, 5, text, -1, SQLITE_STATIC));
+		ASSERTSQL(sqlite3_bind_text(stm, 1, pSpan->path, -1, SQLITE_STATIC));
+		ASSERTSQL(sqlite3_bind_int(stm, 2, pSpan->start));
+		ASSERTSQL(sqlite3_bind_int(stm, 3, pSpan->end));
+		ASSERTSQL(sqlite3_bind_text(stm, 4, text, -1, SQLITE_STATIC));
 
 		if(insert == op) {
-			ASSERTSQL(sqlite3_bind_int(stm, 6, pSpan->mtime));
+			ASSERTSQL(sqlite3_bind_int(stm, 5, pSpan->mtime));
 		}
 
 		// TODO LOCK
@@ -224,7 +302,7 @@ struct JavaParserState {
 struct JavaSpanState {
 	int braceCnt;
 };
-
+ 
 #define THIS ((struct JavaParserState*)(pFile->langParserState))
 
 static void startParsingJavaSrc(struct File *pFile) {
@@ -240,11 +318,8 @@ struct Span *addTagToCurrentSpan(struct File *pf,
 	return pf->currentSpan;
 }
 
-struct Span *startSpan(struct File *pf, const char *name, const char *nameEnd,
-	const char *start) {
+struct Span *startSpan(struct File *pf, const char *start) {
 	struct Span *s = malloc(sizeof (struct Span));
-	s->name = name;
-	s->nameEnd = nameEnd;
 	s->path = pf->path;
 	s->mtime = pf->mtime;
 	s->start = start - pf->contents;
@@ -253,11 +328,10 @@ struct Span *startSpan(struct File *pf, const char *name, const char *nameEnd,
 
 	s->parent = pf->currentSpan;
 	pf->currentSpan = s;
-	addTagToCurrentSpan(pf, name, nameEnd);
 	return s;
 }
 
-struct Span *finishLastSpan(struct File *pf, const char *end) {
+ struct Span *finishLastSpan(struct File *pf, const char *end) {
 	struct Span *s = pf->currentSpan;
 	s->end = end - pf->contents;
 	saveSpan(s);
@@ -266,23 +340,34 @@ struct Span *finishLastSpan(struct File *pf, const char *end) {
 	return pf->currentSpan;
 }
 
-	
+ int spanHasTag(const struct Span *ps, const char *start) {
+	 const struct Word *w = ps->tagsEnd;
+	 while(--w >= ps->tags) {
+		 if(start == w->start)
+			 return 1;
+	 }
+	 
+	 return 0;
+ }
+	 
+	 
+	 
+ const char F_FEATURE[] = "f";
 
-static void parseJavaWord(struct File *pf) {
+ static void parseJavaWord(struct File *pf) {
 	int rw = getJavaReservedWordIndex(pf->token, pf->tokenEnd - pf->token);
 	
-	if(!pf->currentSpan)
-		startSpan(pf, pf->token, pf->tokenEnd, pf->token);
-	else 
-		addTagToCurrentSpan(pf, pf->token, pf->tokenEnd);
-}
+	if(spanHasTag(pf->currentSpan, F_FEATURE))
+		startSpan(pf, pf->token);
+	addTagToCurrentSpan(pf, pf->token, pf->tokenEnd);
+ }
 
 static void parseJavaPunctuation(struct File *pf, const char *p) {
 	struct Span *newSpan;
 	switch(*p) {
 	case ';':
 	case ')':
-		if(pf->currentSpan)
+		if(!spanHasTag(pf->currentSpan, F_FEATURE))
 			finishLastSpan(pf, p);
 	}
 }
@@ -383,10 +468,7 @@ void parseJava(struct File *pf) {
 				break;
 			}
 			
-			if(*p >= countof(charFlags))
-				flags = CHAR_TOKENSTART | CHAR_TOKENMIDDLE;
-			else 
-				flags = charFlags[*p];
+			flags = classifyChar(*p);
 			
 			if(CHAR_TOKENSTART & flags) {
 				pf->token = p;
@@ -402,15 +484,15 @@ void parseJava(struct File *pf) {
 			
 		} // switch(mode)
 	} // for(;;p++)
-		
+	
 		
 	
  end:;
 }
-
-
-pthread_t parserThreads[4];
-void *files[5];
+ 
+ 
+ pthread_t parserThreads[4];
+ void *files[5];
 queue_t fileQueue = QUEUE_INITIALIZER(files);
 
 void updateFile(const char *path) {
@@ -427,7 +509,7 @@ void updateFile(const char *path) {
 		return;
 	}
 
-	name = strrchr(path, UP);
+	/*name = strrchr(path, UP);
 	nameEnd = strchr(name, '.');
 	ASSERTSQL(sqlite3_prepare_v2(db, "SELECT mtime FROM spans WHERE name = ?", -1,
 			&stm, 0));
@@ -441,17 +523,17 @@ void updateFile(const char *path) {
 		fprintf(stderr, "step: %d\n", r);
 		return;
 	}
-	
+	*/
+
 	if(storedTime == st.st_mtime) {
 		debug("Skipping: %s", path);
 		return;
 	}
+
 	pf = malloc(sizeof(*pf));
-			
 	pf->path = strdup(path);
 	pf->mtime = st.st_mtime;
 	pf->currentSpan = NULL;
-
 
 	debug("Loading: %s", path);
 	pf->contents = loadWhole(path, &pf->contentsEnd);
@@ -460,7 +542,7 @@ void updateFile(const char *path) {
 	queue_enqueue(&fileQueue, pf);
 }
 
-void updateDir(char *path) {
+ void updateDir(char *path) {
 	char *end = strrchr(path, 0), *suffix;
 	DIR *d;
 	struct dirent *entry;
@@ -495,14 +577,37 @@ void updateDir(char *path) {
 	}	
 }
 
+
 void *parserThread(void *unused) {
 	struct File *pf = 0;
+	const char *ws, *we;
 
 	while(1) {
 		pf = queue_dequeue(&fileQueue);
 		if(!pf)
 			break;
+		
+		startSpan(pf, pf->contents);
+		addTagToCurrentSpan(pf, F_FEATURE, F_FEATURE + 1);
+
+		assert(strchr(pf->path, '/'));
+		ws = we = strrchr(pf->path, 0);
+		while(--ws) {
+			if(!(CHAR_TOKENMIDDLE & classifyChar(*ws))) {
+				
+				if(we - ws > 1)
+					addTagToCurrentSpan(pf, ws+1, we);
+				if('/' == *ws)
+					break;
+				we = ws;
+			}
+		}
+			
+
 		parseJava(pf);
+
+		while(pf->currentSpan)
+			finishLastSpan(pf, pf->contentsEnd);
 		free(pf->path);
 		free(pf);
 	}
@@ -534,12 +639,6 @@ void *parserThread(void *unused) {
 */
 
 
-#define PROGNAME "ltags"
-
-const char *dbName = "." PROGNAME ".sqlite";
-char wdPath[MAX_PATH];
-char dbPath[MAX_PATH];
-char dbDirPath[MAX_PATH];
 
 void update() {
 	int r;
@@ -565,7 +664,6 @@ void update() {
 	if(justCreated) {
 		ASSERTSQL(sqlite3_prepare_v2(db, 
 				"CREATE VIRTUAL TABLE spans USING fts3("
-				"name   VARCHAR(100), "
 				"path   VARCHAR(256), "
 				"mtime  INTEGER, "
 				"start  INTEGER, "
@@ -603,7 +701,7 @@ void update() {
 	strcpy(curPath, dbDirPath);
 	updateDir(curPath);
 
-
+	// parser thread stops when it receives NULL
 	for(i = 0; i < countof(parserThreads); i++) {
 		queue_enqueue(&fileQueue, NULL);
 	}
@@ -615,78 +713,11 @@ void update() {
 	run("COMMIT");
 	debug("Deleting old entries...");
 	run("DELETE FROM spans WHERE status=1");
-
+	
 	sqlite3_close(db);
 }
 
-const char *getPathFrom(char *d, const char *path, const char *base) {
-	// Both arguments are absolute paths 
-	// base is a path to a directory
-	const char *slash = NULL;
-	
-	*d = 0;
-#ifdef _WIN32
-	while(*path && tolower(*path) == tolower(*base)) {
-#else
-	while(*path && *path == *base) {
-#endif
-		if('/' == *base) {
-			slash = base;
-		}
-		path++, base++;
-	}
 
-	if(!slash) // different Windows drive letters
-		return path;
-	
-	if(*base) { // go back
-		path -= (base - slash);
-		base = slash;
-	}
-
-	while(*base) {
-		if('/' == *base)
-			strcat(d, "../");
-		base++;
-	}
-	
-	strcat(d, path + 1);
-	return d;
-}
-
-int findDb() {
-	char *end, *minEnd = 0;
-	struct stat st;
-
-	strcpy(dbDirPath, wdPath);
-	end = strchr(dbDirPath, 0);
-	strcat(dbDirPath, "/");
-	do {
-		strcpy(end + 1, dbName);
-		
-		if(stat(dbDirPath, &st) >= 0 ) {
-			minEnd = end;
-		}
-
-		*end = 0;
-		end = strrchr(dbDirPath, '/');
-	} while(end > dbDirPath + 2);
-
-	if(!minEnd)
-		return 0;
-	
-	strcpy(dbDirPath, wdPath);
-	*minEnd = 0;
-	
-	strcpy(dbPath, dbDirPath);
-	strcat(dbPath, "/");
-	strcat(dbPath, dbName);
-	return 1;
-}
-		
-	
-	
-	
 
 #define SEARCH 1
 #define COMPLETE 2
@@ -785,12 +816,12 @@ int main(int argc, char **argv){
 		//debug(query);
 		if(COMPLETE == mode && !*query) {
 		ASSERTSQL(sqlite3_prepare_v2(db, 
-				"SELECT name, path, start, end, tags " 
+				"SELECT path, start, end, tags " 
 				"FROM spans ",
 				-1, &stm, 0));
 		} else {
 			ASSERTSQL(sqlite3_prepare_v2(db, 
-					"SELECT name, path, start, end, tags " 
+					"SELECT path, start, end, tags " 
 					"FROM spans " 
 					"WHERE tags MATCH ? ", 
 					-1, &stm, 0));
@@ -800,16 +831,15 @@ int main(int argc, char **argv){
 
 		while(r = sqlite3_step(stm), r == SQLITE_ROW) {
 			char pathFromWd[MAX_PATH];
-			const char *path, *name, *absPath;
+			const char *path, *absPath;
 			const char *contents, *contentsEnd;
 			const char *line, *target, *nextLine;
 			int start, end;
 			int lineNumber;
 
-			name = sqlite3_column_text(stm, 0);
-			absPath = sqlite3_column_text(stm, 1);
-			start = sqlite3_column_int(stm, 2);
-			end = sqlite3_column_int(stm, 3);
+			absPath = sqlite3_column_text(stm, 0);
+			start = sqlite3_column_int(stm, 1);
+			end = sqlite3_column_int(stm, 2);
 
 			// Count lines to make output grep-like
 			
@@ -847,7 +877,7 @@ int main(int argc, char **argv){
 				printf("%s:%d:", path, lineNumber);
 				fwrite(line, 1, nextLine - line, stdout); 
 			} else {
-				const char *tags = sqlite3_column_text(stm, 4), *next = tags;
+				const char *tags = sqlite3_column_text(stm, 3), *next = tags;
 				while(*tags) {
 					next = strchr(tags, ' ');
 					if(!next)
