@@ -5,6 +5,8 @@
 #include <sys/stat.h>
 #include <assert.h>
 
+#include "queue.h"
+
 #include "ext/sqlite/sqlite3.h"
 
 #ifdef _WIN32
@@ -293,52 +295,12 @@ static void parseJavaPunctuation(struct File *pf, const char *p) {
 #define COMMENT_LINE  '\n'
 #define COMMENT_LINES '*'
 
-void parseJava(const char *path) {
-	struct File file;
-	struct stat st;
+void parseJava(struct File *pf) {
 	int r;
-	char bf[2 * MAX_PATH], *name, *nameEnd;
-	sqlite3_stmt *stm;
-	int storedTime = 0;
-
 	char *p;
 	int mode, flags;
 	
-	r = stat(path, &st);
-	if(r < 0) {
-		debug("Can't stat %s", path);
-		return;
-	}
-
-	name = strrchr(path, UP);
-	nameEnd = strchr(name, '.');
-	ASSERTSQL(sqlite3_prepare_v2(db, "SELECT mtime FROM spans WHERE name = ?", -1,
-			&stm, 0));
-
-	ASSERTSQL(sqlite3_bind_text(stm, 1, name, nameEnd - name, SQLITE_STATIC));
-
-	r = sqlite3_step(stm);
-	if(SQLITE_ROW == r) {
-		storedTime = sqlite3_column_int(stm, 0);
-	} else if(r != SQLITE_DONE) {
-		fprintf(stderr, "step: %d\n", r);
-		return;
-	}
-	
-	if(storedTime == st.st_mtime) {
-		debug("Skipping: %s", path);
-		return;
-	}
-
-	file.path = path;
-	file.mtime = st.st_mtime;
-	file.currentSpan = NULL;
-
-	debug("Loading: %s", path);
-	file.contents = loadWhole(path, &file.contentsEnd);
-	*file.contentsEnd = '\n'; //padding
-
-	file.token = p = file.contents;
+	pf->token = p = pf->contents;
 	mode = SPACE;
 	flags = 0;
 	for(;;p++) {
@@ -350,14 +312,14 @@ void parseJava(const char *path) {
 			if(mode == *p) {
 				if('\\' != p[-1]) 
 					mode = SPACE;
-			}	else if(file.contentsEnd == p)
+			}	else if(pf->contentsEnd == p)
 				goto end;
 			break;
 					
 			
 		case COMMENT_LINE:
 			if('\n' == *p) {
-				if(file.contentsEnd == p)
+				if(pf->contentsEnd == p)
 					goto end;
 				mode = SPACE;
 			}
@@ -368,7 +330,7 @@ void parseJava(const char *path) {
 				// p[1] is valid here, bc last valid byte is padded '\n'
 				if('/' == p[1])
 					mode = SPACE;
-			} else if (file.contentsEnd == p) 
+			} else if (pf->contentsEnd == p) 
 				goto end;
 			break;
 
@@ -395,8 +357,8 @@ void parseJava(const char *path) {
 				break;
 			else {
 				// token just completed!
-				file.tokenEnd = p;
-				parseJavaWord(&file);
+				pf->tokenEnd = p;
+				parseJavaWord(pf);
 				mode = SPACE;
 				// no break
 			}
@@ -427,16 +389,16 @@ void parseJava(const char *path) {
 				flags = charFlags[*p];
 			
 			if(CHAR_TOKENSTART & flags) {
-				file.token = p;
+				pf->token = p;
 				mode = TOKEN;
 			} else if(CHAR_TOKENMIDDLE & flags) {
 				mode = NUMBER;
 			} else if(CHAR_SPACE & flags) {
-				if(file.contentsEnd == p)
+				if(pf->contentsEnd == p)
 					goto end;
 				break;
 			} else 
-				parseJavaPunctuation(&file, p);
+				parseJavaPunctuation(pf, p);
 			
 		} // switch(mode)
 	} // for(;;p++)
@@ -446,6 +408,57 @@ void parseJava(const char *path) {
  end:;
 }
 
+
+pthread_t parserThreads[4];
+void *files[5];
+queue_t fileQueue = QUEUE_INITIALIZER(files);
+
+void updateFile(const char *path) {
+	char bf[2 * MAX_PATH], *name, *nameEnd;
+	struct File *pf;
+	struct stat st;
+	int r;
+	int storedTime = 0;
+	sqlite3_stmt *stm;
+	
+	r = stat(path, &st);
+	if(r < 0) {
+		debug("Can't stat %s", path);
+		return;
+	}
+
+	name = strrchr(path, UP);
+	nameEnd = strchr(name, '.');
+	ASSERTSQL(sqlite3_prepare_v2(db, "SELECT mtime FROM spans WHERE name = ?", -1,
+			&stm, 0));
+
+	ASSERTSQL(sqlite3_bind_text(stm, 1, name, nameEnd - name, SQLITE_STATIC));
+
+	r = sqlite3_step(stm);
+	if(SQLITE_ROW == r) {
+		storedTime = sqlite3_column_int(stm, 0);
+	} else if(r != SQLITE_DONE) {
+		fprintf(stderr, "step: %d\n", r);
+		return;
+	}
+	
+	if(storedTime == st.st_mtime) {
+		debug("Skipping: %s", path);
+		return;
+	}
+	pf = malloc(sizeof(*pf));
+			
+	pf->path = strdup(path);
+	pf->mtime = st.st_mtime;
+	pf->currentSpan = NULL;
+
+
+	debug("Loading: %s", path);
+	pf->contents = loadWhole(path, &pf->contentsEnd);
+	*pf->contentsEnd = '\n'; //padding
+
+	queue_enqueue(&fileQueue, pf);
+}
 
 void updateDir(char *path) {
 	char *end = strrchr(path, 0), *suffix;
@@ -477,10 +490,48 @@ void updateDir(char *path) {
 		strncpy(end, entry->d_name, MAX_PATH - (end - path));
 		suffix = strrchr(end, 0) - 5;
 		if(suffix > path && !stricmp(suffix, ".java")) {
-			parseJava(path);
+			updateFile(path);
 		}
 	}	
 }
+
+void *parserThread(void *unused) {
+	struct File *pf = 0;
+
+	while(1) {
+		pf = queue_dequeue(&fileQueue);
+		if(!pf)
+			break;
+		parseJava(pf);
+		free(pf->path);
+		free(pf);
+	}
+}
+
+/*
+	Tested on android/packages/apps/Gallery/
+	
+	vg@nostromo:~/src/android/packages/apps/Gallery$ find -iname *.java|xargs du -ch	
+	...
+	520K    total
+
+	Single threaded, THREADSAFE=1
+	real    2m43.952s
+	user    2m35.610s
+	sys     0m0.676s
+
+	
+	Single threaded, THREADSAFE=0
+	real    2m35.707s
+	user    2m25.605s
+	sys     0m1.528s
+
+	Queue of 5, 4 parser threads
+	real    2m49.338s
+	user    2m33.246s
+	sys     0m6.472s
+*/
+
 
 #define PROGNAME "ltags"
 
@@ -496,6 +547,8 @@ void update() {
 	struct stat st;
 	int justCreated = 0;
 	
+	int i;
+
 	if(stat(dbPath, &st) < 0)
 		justCreated = 1;
 
@@ -538,12 +591,25 @@ void update() {
 		"name   VARCHAR(100), "
 		"sid    INTEGER)");*/
 	}
+
+	for(i = 0; i < countof(parserThreads); i++) {
+		pthread_create(&parserThreads[i], NULL, parserThread, NULL);
+	}
 	
 	debug("Invalidating old entries...");
 	run("UPDATE spans SET status=1"); // 1 means "questionable"
 	run("BEGIN");
 	strcpy(curPath, dbDirPath);
 	updateDir(curPath);
+
+
+	for(i = 0; i < countof(parserThreads); i++) {
+		queue_enqueue(&fileQueue, NULL);
+	}
+	for(i = 0; i < countof(parserThreads); i++) {
+		pthread_join(parserThreads[i], NULL);
+	}
+
 	debug("Commit...");
 	run("COMMIT");
 	debug("Deleting old entries...");
@@ -601,7 +667,6 @@ int findDb() {
 			minEnd = end;
 		}
 
-		//end = memrchr(dbDirPath, '/', end - dbDirPath);
 		*end = 0;
 		end = strrchr(dbDirPath, '/');
 	} while(end > dbDirPath + 2);
@@ -700,12 +765,6 @@ int main(int argc, char **argv){
 			exit(1);
 		}
 
-		ASSERTSQL(sqlite3_prepare_v2(db, 
-			"SELECT name, path, start, end, tags " 
-			"FROM spans " 
-			"WHERE tags MATCH ? ", 
-				-1, &stm, 0));
-
 		*query = 0;
 		if(COMPLETE == mode) {
 			completionTargetIndex += optind;
@@ -723,7 +782,20 @@ int main(int argc, char **argv){
 		}
 			
 		//debug(query);
-		ASSERTSQL(sqlite3_bind_text(stm, 1, query, -1, SQLITE_STATIC));
+		if(COMPLETE == mode && !*query) {
+		ASSERTSQL(sqlite3_prepare_v2(db, 
+				"SELECT name, path, start, end, tags " 
+				"FROM spans ",
+				-1, &stm, 0));
+		} else {
+			ASSERTSQL(sqlite3_prepare_v2(db, 
+					"SELECT name, path, start, end, tags " 
+					"FROM spans " 
+					"WHERE tags MATCH ? ", 
+					-1, &stm, 0));
+		
+			ASSERTSQL(sqlite3_bind_text(stm, 1, query, -1, SQLITE_STATIC));
+		}
 
 		while(r = sqlite3_step(stm), r == SQLITE_ROW) {
 			char pathFromWd[MAX_PATH];
