@@ -25,13 +25,13 @@ endif
 all: ltags$X
 
 $Bltags.o: ltags.c queue.h
-	$(CC) $(CFLAGS) ltags.c $O$@
+	$(CC) $(CFLAGS) $FO5 ltags.c $O$@
 
 $Bjava.o: java.c java_res.h
-	$(CC) $(CFLAGS) java.c $O$@
+	$(CC) $(CFLAGS) $FO5 java.c $O$@
 
 $Bsqlite3.o: ext/sqlite/sqlite3.c
-	$(CC) $(CFLAGS) \
+	$(CC) $(CFLAGS) $FO4 \
 	$FDSQLITE_OMIT_LOAD_EXTENSION=1 \
 	$FDSQLITE_OMIT_DEPRECATED=1 \
 	$FDSQLITE_OMIT_UTF16=1 \
