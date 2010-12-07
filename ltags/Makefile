@@ -27,8 +27,14 @@ all: ltags$X
 $Bltags.o: ltags.c queue.h
 	$(CC) $(CFLAGS) $FO5 ltags.c $O$@
 
-$Bjava.o: java.c java_res.h
+$Bjava.o: java.c java_res.h tokenizer.c storage.h
 	$(CC) $(CFLAGS) $FO5 java.c $O$@
+
+$Btokenizer.o: tokenizer.c tokenizer.h storage.h
+	$(CC) $(CFLAGS) $FO5 tokenizer.c $O$@
+
+$Bstorage.o: storage.c storage.h
+	$(CC) $(CFLAGS) $FO5 storage.c $O$@
 
 $Bsqlite3.o: ext/sqlite/sqlite3.c
 	$(CC) $(CFLAGS) $FO4 \
@@ -56,7 +62,7 @@ $Bgetopt.o: ext/getopt/getopt.c
 $Bgetopt1.o: ext/getopt/getopt1.c 	
 	cl /c $(CFLAGS) ext/getopt/getopt1.c /Fo$(B)getopt1.o 
 else 
-ltags$X: $Bltags.o $Bjava.o $Bsqlite3.o
+ltags$X: $Bltags.o $Bjava.o $Bsqlite3.o $Bstorage.o $Btokenizer.o
 	gcc -lm -lpthread $^ -o $@
 endif
 

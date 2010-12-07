@@ -5,10 +5,6 @@
 #include <sys/stat.h>
 #include <assert.h>
 
-#include "ext/sqlite/sqlite3.h"
-
-#include "queue.h"
-
 #ifdef _WIN32
 # include "ext/dirent.h"
 # include "ext/getopt/getopt.h"
@@ -18,6 +14,10 @@
 # include <strings.h>
 # define stricmp strcasecmp
 #endif
+
+#include "ext/sqlite/sqlite3.h"
+#include "queue.h"
+#include "tokenizer.h"
 
 #ifndef MAX_PATH
 # define MAX_PATH 1000
@@ -163,351 +163,15 @@ void run(char *stmt) {
   }
 }
 
-struct Word {
-	const char *start, *end;
-};
-
-#define MAX_TAG_CNT 256
-
-struct Span {
-	struct Word tags[256], *tagsEnd;
-	int start, end;
-	int mtime;
-	const char *path;
-	
-	struct Span *parent;
-	void *particular;
-};
- 
-
-struct File;
-struct Language {
-	int (*couldDoPath)(const char *path);
-	void (*processWord)(struct File*);
-	void (*processNonword)(struct File*, const char*);
-};
-
-// parser state		
-struct File {
-	char *path;
-	int mtime;
-
-	char *contents;
-	char *contentsEnd;
-	char *token;
-	char *tokenEnd;
-	struct Span *rootSpan;
-	struct Span *currentSpan;
-
-	struct Language *language;
-	void *langParserState;
-};
-
-
-// Let's be consistent with a metaphor of a tree
-#define UP '/' 
-
-// hyperoptimized
-
-#define CHAR_TOKENMIDDLE 1
-#define CHAR_TOKENSTART  2
-#define CHAR_SPACE       4
-
-const int charFlags[/*256*/128] = {
-	4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, // 00
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 10
-	4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 20
-	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, // 30
-	0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, // 40
-	3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0, 0, 0, 3, 3, // 50
-	0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, // 60
-	3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0, 0, 0, 0, 0, // 70
-};
-#define countof(something_M) (sizeof(something_M)/sizeof(something_M[0]))
-
-
-int loadSpan(struct Span *pSpan) {
-	return 1;
-}
- 
-unsigned classifyChar(int c) {
-	if(c >= countof(charFlags))
-		return CHAR_TOKENSTART | CHAR_TOKENMIDDLE;
-	else 
-		return charFlags[c];
-}
- 
-#define ASSERTSQL(expr_M) do{																						\
-		r = expr_M; if(r != SQLITE_OK) {																		\
-			fprintf(stderr, "SQLite assertion fail: '%s', code %d\n", #expr_M, r); \
-			exit(1);																													\
-		}}while(0)
- 
-
-#ifdef _WIN32
-# define __thread __declspec(thread)
-#endif
-
-__thread sqlite3_stmt *spanUpdateStm, *spanInsertStm;
-
-void saveSpan(const struct Span *pSpan) {
-	int r;
-	sqlite3_stmt *stm;
-	char text[MAX_TAG_CNT * 32], *tail =  text, *nextTail = text;
-	const struct Word *w = pSpan->tags;
-
-	while(w < pSpan->tagsEnd) {
-		nextTail = tail + (w->end - w->start) + 1;
-		if(nextTail > text + sizeof text) {
-			debug("SPAN TEXT OVERFLOW");
-			break;
-		}
-
-		memcpy(tail, w->start, w->end - w->start);
-		tail = nextTail;
-		tail[-1] = ' ';
-		w++;
-	}
-	tail[-1] = 0;
-	//debug("Saving span: %s", text);
-	
-	
-	stm = spanUpdateStm;
-	while(1) {
-		ASSERTSQL(sqlite3_reset(stm));
-		ASSERTSQL(sqlite3_bind_text(stm, 1, pSpan->path, -1, SQLITE_STATIC));
-		ASSERTSQL(sqlite3_bind_int(stm, 2, pSpan->start));
-		ASSERTSQL(sqlite3_bind_int(stm, 3, pSpan->end));
-		ASSERTSQL(sqlite3_bind_text(stm, 4, text, -1, SQLITE_STATIC));
-
-		if(spanInsertStm == stm) {
-			ASSERTSQL(sqlite3_bind_int(stm, 5, pSpan->mtime));
-		}
-
-		// TODO LOCK
-
-		r = sqlite3_step(stm);
-		if(r != SQLITE_DONE) {
-			fprintf(stderr, "step: %d\n", r);
-			exit(1);
-		}
-
-		r = sqlite3_changes(db);
-		
-		// TODO UNLOCK
-
-		if(r)
-			return;
-		
-		stm = spanInsertStm;
-	}
-}
-	
-
-struct JavaParserState {
-	char *probableName, *probableNameEnd;
-};
-
-struct JavaSpanState {
-	int braceCnt;
-};
- 
-#define THIS ((struct JavaParserState*)(pFile->langParserState))
-
-static void startParsingJavaSrc(struct File *pFile) {
-	pFile->langParserState = calloc(sizeof (struct JavaParserState), 1);
-}
-
-
-struct Span *addTagToCurrentSpan(struct File *pf, 
-	const char *start, const char *end) {
-	pf->currentSpan->tagsEnd->start = start;
-	pf->currentSpan->tagsEnd->end = end;
-	pf->currentSpan->tagsEnd++;
-	return pf->currentSpan;
-}
-
-struct Span *startSpan(struct File *pf, const char *start) {
-	struct Span *s = malloc(sizeof (struct Span));
-	s->path = pf->path;
-	s->mtime = pf->mtime;
-	s->start = start - pf->contents;
-	s->tagsEnd = s->tags;
-	s->end = 0;
-
-	s->parent = pf->currentSpan;
-	pf->currentSpan = s;
-	return s;
-}
-
-struct Span *finishLastSpan(struct File *pf, const char *end) {
-	struct Span *s = pf->currentSpan;
-	s->end = end - pf->contents;
-	saveSpan(s);
-	pf->currentSpan = s->parent;
-	free(s);
-	return pf->currentSpan;
-}
-
-int spanHasTag(const struct Span *ps, const char *start) {
-	const struct Word *w = ps->tagsEnd;
-	while(--w >= ps->tags) {
-		if(start == w->start)
-			return 1;
-	}
-	 
-	return 0;
-}
-	 
-	 
-	 
-const char F_FEATURE[] = "f"; // file
-const char D_FEATURE[] = "d"; // definition
-const char C_FEATURE[] = "c"; // class
-
-static void processJavaWord(struct File *pf) {
-	int rw = getJavaReservedWordIndex(pf->token, pf->tokenEnd - pf->token);
-	
-	if(spanHasTag(pf->currentSpan, F_FEATURE))
-		startSpan(pf, pf->token);
-	addTagToCurrentSpan(pf, pf->token, pf->tokenEnd);
-}
-
-static void processJavaNonword(struct File *pf, const char *p) {
-	struct Span *newSpan;
-	switch(*p) {
-	case ';':
-	case ')':
-		if(!spanHasTag(pf->currentSpan, F_FEATURE))
-			finishLastSpan(pf, p);
-	}
-}
 
 
 
-#define SPACE         0
-#define TOKEN         1
-#define NUMBER        2
-#define COMMENT_LINE  '\n'
-#define COMMENT_LINES '*'
 
-void parseJava(struct File *pf) {
-	int r;
-	char *p;
-	int mode, flags;
-	
-	pf->token = p = pf->contents;
-	mode = SPACE;
-	flags = 0;
-	for(;;p++) {
-		switch(mode) {
-		case '\'':
-		case '"':
-			// p[-1] is valid here, bc we must have entered this mode by
-			// reading some characters
-			if(mode == *p) {
-				if('\\' != p[-1]) 
-					mode = SPACE;
-			}	else if(pf->contentsEnd == p)
-				goto end;
-		break;
-					
-			
-		case COMMENT_LINE:
-			if('\n' == *p) {
-				if(pf->contentsEnd == p)
-					goto end;
-				mode = SPACE;
-			}
-			break;
 
-		case COMMENT_LINES:
-			if('*' == *p) {
-				// p[1] is valid here, bc last valid byte is padded '\n'
-				if('/' == p[1])
-					mode = SPACE;
-			} else if (pf->contentsEnd == p) 
-				goto end;
-			break;
 
-		case NUMBER:
-			if('.' == *p)
-				break;
-			if(*p >= countof(charFlags))
-				flags = CHAR_TOKENSTART | CHAR_TOKENMIDDLE;
-			else 
-				flags = charFlags[*p];
-			
-			if(flags & CHAR_TOKENMIDDLE) 
-				break;
-			
-			goto space;
-			
-		case TOKEN:
-			if(*p >= countof(charFlags))
-				flags = CHAR_TOKENSTART | CHAR_TOKENMIDDLE;
-			else 
-				flags = charFlags[*p];
-
-			if(flags & CHAR_TOKENMIDDLE) 
-				break;
-			else {
-				// token just completed!
-				pf->tokenEnd = p;
-				pf->language->processWord(pf);
-				mode = SPACE;
-				// no break
-			}
-			
-		case SPACE:
-		space:
-
-			if('/' == *p) {
-				// p[1] is a valid memory reference here because the last byte is 
-				// appended '\n'
-				if('*' == p[1]) {
-					mode = COMMENT_LINES;
-					break;
-				} else if('/' == p[1]) {
-					mode = COMMENT_LINE;
-					break;
-				}
-			}
-
-			if('"' == *p || '\'' == *p) {
-				mode = *p;
-				break;
-			}
-			
-			flags = classifyChar(*p);
-			
-			if(CHAR_TOKENSTART & flags) {
-				pf->token = p;
-				mode = TOKEN;
-			} else if(CHAR_TOKENMIDDLE & flags) {
-				mode = NUMBER;
-			} else if(CHAR_SPACE & flags) {
-				if(pf->contentsEnd == p)
-					goto end;
-				break;
-			} else 
-				pf->language->processNonword(pf, p);
-		} // switch(mode)
-	} // for(;;p++)
-	
-		
-	
- end:;
-}
-
- static int endsWithDotJava(const char *path) {
-	const char *suffix;
-	suffix = strrchr(path, 0) - 5;
-	return (suffix > path && !stricmp(suffix, ".java"));
-}
-
-const struct Language languages[] = {
-	{endsWithDotJava, processJavaWord, processJavaNonword}
+extern const struct Language javaLanguage;
+const struct Language *languages[] = {
+	&javaLanguage
 };
  
 pthread_t parserThreads[4];
@@ -521,7 +185,7 @@ void updateFile(const char *path) {
 	int r;
 	int storedTime = 0;
 	sqlite3_stmt *stm;
-	const struct Language *l;
+	const struct Language **l;
 	
 	r = stat(path, &st);
 	if(r < 0) {
@@ -552,7 +216,7 @@ void updateFile(const char *path) {
 
 	l = languages + countof(languages);
 	while(--l >= languages) {
-		if(l->couldDoPath(path)) {
+		if((*l)->couldDoPath(path)) {
 			break;
 		}
 	}
@@ -563,7 +227,7 @@ void updateFile(const char *path) {
 		
 	
 	pf = malloc(sizeof(*pf));
-	pf->language = l;
+	pf->language = *l;
 	pf->path = strdup(path);
 	pf->mtime = st.st_mtime;
 	pf->currentSpan = NULL;
@@ -582,7 +246,7 @@ void updateDir(char *path) {
 
 	if(*path) {
 		d = opendir(path);
-		*end++ = UP;
+		*end++ = '/';
 	} else {
 		d = opendir(".");
 	}
@@ -614,14 +278,7 @@ void *parserThread(void *unused) {
 	struct File *pf = 0;
 	const char *ws, *we;
 
-	ASSERTSQL(sqlite3_prepare_v2(db, 
-			"UPDATE spans SET status=0 WHERE " 
-			"path=? AND start=? AND end=? AND tags MATCH ?",
-			-1, &spanUpdateStm, 0));
-	ASSERTSQL(sqlite3_prepare_v2(db,
-			"INSERT INTO spans (path, start, end, tags, mtime, status) "
-			"VALUES (?, ?, ?, ?, ?, 0)",
-			-1, &spanInsertStm, 0));
+	initStorageThread();
 
 	while(1) {
 		pf = queue_dequeue(&fileQueue);
@@ -645,7 +302,7 @@ void *parserThread(void *unused) {
 		}
 			
 		debug("Parsing: %s", pf->path);
-		parseJava(pf);
+		parse(pf);
 
 		while(pf->currentSpan)
 			finishLastSpan(pf, pf->contentsEnd);
