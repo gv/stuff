@@ -22,7 +22,7 @@
 #ifndef MAX_PATH
 # define MAX_PATH 1000
 #endif
- 
+
 void debug(const char *fmt, ...) {
 	va_list args;
 	va_start(args, fmt);
@@ -179,6 +179,14 @@ struct Span {
 	void *particular;
 };
  
+
+struct File;
+struct Language {
+	int (*couldDoPath)(const char *path);
+	void (*processWord)(struct File*);
+	void (*processNonword)(struct File*, const char*);
+};
+
 // parser state		
 struct File {
 	char *path;
@@ -190,8 +198,11 @@ struct File {
 	char *tokenEnd;
 	struct Span *rootSpan;
 	struct Span *currentSpan;
+
+	struct Language *language;
 	void *langParserState;
 };
+
 
 // Let's be consistent with a metaphor of a tree
 #define UP '/' 
@@ -232,6 +243,10 @@ unsigned classifyChar(int c) {
 			exit(1);																													\
 		}}while(0)
  
+
+#ifdef _WIN32
+# define __thread __declspec(thread)
+#endif
 
 __thread sqlite3_stmt *spanUpdateStm, *spanInsertStm;
 
@@ -346,10 +361,11 @@ int spanHasTag(const struct Span *ps, const char *start) {
 	 
 	 
 	 
-const char F_FEATURE[] = "f";
-const char C_FEATURE[] = "c";
+const char F_FEATURE[] = "f"; // file
+const char D_FEATURE[] = "d"; // definition
+const char C_FEATURE[] = "c"; // class
 
-static void parseJavaWord(struct File *pf) {
+static void processJavaWord(struct File *pf) {
 	int rw = getJavaReservedWordIndex(pf->token, pf->tokenEnd - pf->token);
 	
 	if(spanHasTag(pf->currentSpan, F_FEATURE))
@@ -357,7 +373,7 @@ static void parseJavaWord(struct File *pf) {
 	addTagToCurrentSpan(pf, pf->token, pf->tokenEnd);
 }
 
-static void parseJavaPunctuation(struct File *pf, const char *p) {
+static void processJavaNonword(struct File *pf, const char *p) {
 	struct Span *newSpan;
 	switch(*p) {
 	case ';':
@@ -438,7 +454,7 @@ void parseJava(struct File *pf) {
 			else {
 				// token just completed!
 				pf->tokenEnd = p;
-				parseJavaWord(pf);
+				pf->language->processWord(pf);
 				mode = SPACE;
 				// no break
 			}
@@ -475,8 +491,7 @@ void parseJava(struct File *pf) {
 					goto end;
 				break;
 			} else 
-				parseJavaPunctuation(pf, p);
-			
+				pf->language->processNonword(pf, p);
 		} // switch(mode)
 	} // for(;;p++)
 	
@@ -484,7 +499,16 @@ void parseJava(struct File *pf) {
 	
  end:;
 }
- 
+
+ static int endsWithDotJava(const char *path) {
+	const char *suffix;
+	suffix = strrchr(path, 0) - 5;
+	return (suffix > path && !stricmp(suffix, ".java"));
+}
+
+const struct Language languages[] = {
+	{endsWithDotJava, processJavaWord, processJavaNonword}
+};
  
 pthread_t parserThreads[4];
 void *files[5];
@@ -497,6 +521,7 @@ void updateFile(const char *path) {
 	int r;
 	int storedTime = 0;
 	sqlite3_stmt *stm;
+	const struct Language *l;
 	
 	r = stat(path, &st);
 	if(r < 0) {
@@ -525,7 +550,20 @@ void updateFile(const char *path) {
 		return;
 	}
 
+	l = languages + countof(languages);
+	while(--l >= languages) {
+		if(l->couldDoPath(path)) {
+			break;
+		}
+	}
+	if(l < languages) {
+		debug("No language detected for for %s", path);
+		return;
+	}
+		
+	
 	pf = malloc(sizeof(*pf));
+	pf->language = l;
 	pf->path = strdup(path);
 	pf->mtime = st.st_mtime;
 	pf->currentSpan = NULL;
@@ -565,12 +603,10 @@ void updateDir(char *path) {
 		}
 
 		strncpy(end, entry->d_name, MAX_PATH - (end - path));
-		suffix = strrchr(end, 0) - 5;
-		if(suffix > path && !stricmp(suffix, ".java")) {
-			updateFile(path);
-		}
+		updateFile(path);
 	}	
 }
+
 
 
 void *parserThread(void *unused) {
@@ -613,6 +649,7 @@ void *parserThread(void *unused) {
 
 		while(pf->currentSpan)
 			finishLastSpan(pf, pf->contentsEnd);
+		free(pf->contents);
 		free(pf->path);
 		free(pf);
 	}
@@ -626,31 +663,6 @@ void *parserThread(void *unused) {
 	...
 	520K    total
 
-	Single threaded, THREADSAFE=1
-	real    2m43.952s
-	user    2m35.610s
-	sys     0m0.676s
-
-	
-	Single threaded, THREADSAFE=0
-	real    2m35.707s
-	user    2m25.605s
-	sys     0m1.528s
-
-	Queue of 5, 4 parser threads
-	real    2m49.338s
-	user    2m33.246s
-	sys     0m6.472s
-
-	Removed 'name' field, added file spans
-	real    2m51.768s
-	user    2m38.034s
-	sys     0m2.624s
-
-	Applied -O4 to sqlite3.c
-	real    1m47.158s
-	user    1m37.682s
-	sys     0m2.328s
 
 */
 
