@@ -164,11 +164,6 @@ void run(char *stmt) {
 }
 
 
-
-
-
-
-
 extern const struct Language javaLanguage;
 const struct Language *languages[] = {
 	&javaLanguage
@@ -461,7 +456,7 @@ int main(int argc, char **argv){
 		}
 		update();
 	} else {
-		char query[1024];
+		char ftsQuery[1024];
 		// --complete really should be as time-sensitive as we can get,
 		// because I get really annoyed when I press TAB and bash goes
 		// god knows where
@@ -484,24 +479,24 @@ int main(int argc, char **argv){
 			exit(1);
 		}
 
-		*query = 0;
+		*ftsQuery = 0;
 		if(COMPLETE == mode) {
 			completionTargetIndex += optind;
 			optind++; // program name comes first
 		}
 
 		while(optind < argc) {
-			strncat(query, argv[optind], sizeof query - 1);
+			strncat(ftsQuery, argv[optind], sizeof ftsQuery - 1);
 			if(completionTargetIndex == optind) {
 				prefix = argv[optind];
-				strncat(query, "*", sizeof query);
+				strncat(ftsQuery, "*", sizeof ftsQuery - 1);
 			}
-			strncat(query, " ", sizeof query - 1);
+			strncat(ftsQuery, " ", sizeof ftsQuery - 1);
 			optind++;
 		}
 			
-		//debug(query);
-		if(COMPLETE == mode && !*query) {
+		//debug(ftsQuery);
+		if(COMPLETE == mode && !*ftsQuery) {
 			ASSERTSQL(sqlite3_prepare_v2(db, 
 					"SELECT path, start, end, tags " 
 					"FROM spans ",
@@ -513,7 +508,7 @@ int main(int argc, char **argv){
 					"WHERE tags MATCH ? ", 
 					-1, &stm, 0));
 		
-			ASSERTSQL(sqlite3_bind_text(stm, 1, query, -1, SQLITE_STATIC));
+			ASSERTSQL(sqlite3_bind_text(stm, 1, ftsQuery, -1, SQLITE_STATIC));
 		}
 
 		while(r = sqlite3_step(stm), r == SQLITE_ROW) {

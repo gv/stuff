@@ -286,6 +286,7 @@
 
 (fset 'yes-or-no-p 'y-or-n-p)
 
+
 ;;
 (message "init.el by vg loaded OK.")
 

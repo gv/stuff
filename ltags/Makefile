@@ -24,7 +24,7 @@ endif
 
 all: ltags$X
 
-$Bltags.o: ltags.c queue.h
+$Bltags.o: ltags.c queue.h tokenizer.h storage.h
 	$(CC) $(CFLAGS) $FO5 ltags.c $O$@
 
 $Bjava.o: java.c java_res.h tokenizer.c storage.h
@@ -51,7 +51,8 @@ $Bsqlite3.o: ext/sqlite/sqlite3.c
 
 
 ifeq ($(OS), Windows_NT)
-ltags$X: $Bltags.o $Bjava.o $Bsqlite3.o $Bgetopt.o $Bgetopt1.o \
+ltags$X: $Bltags.o $Bjava.o $Bstorage.o $Btokenizer.o \
+	$Bsqlite3.o $Bgetopt.o $Bgetopt1.o \
 	prebuilt/pthreadVC2.lib
 	cmd /c copy prebuilt\pthreadVC2.dll .
 	link /DEBUG $^
