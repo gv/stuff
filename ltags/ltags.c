@@ -405,10 +405,18 @@ void update() {
 #define COMPLETE 2
 #define UPDATE 3
 
+#define TERM_SEQ 1
+
+struct Term {
+	char *word;
+	int flags;
+};
+
 int main(int argc, char **argv){
 	int r;
 	sqlite3_stmt *stm;
 	int mode = UPDATE;
+	struct Term terms[50], *termsEnd = terms;
 
 	static struct option longOpts[] = {
 		{"complete", required_argument, 0, 'C'},
@@ -484,6 +492,22 @@ int main(int argc, char **argv){
 			completionTargetIndex += optind;
 			optind++; // program name comes first
 		}
+
+
+		while(optind < argc) {
+			static const punctuation[] = ":;/,`~!()-=\\. ";
+			static const nonBreakable[] = " .";
+			char *e = argv[optind], *s = e; 
+			do {
+				s += strcspn(e, punctuation);
+				char *e = strpbrk(s, punctuation);
+				if(e) {
+				
+			termsEnd->word =
+			optind++;
+			termsEnd++;
+		}
+
 
 		while(optind < argc) {
 			strncat(ftsQuery, argv[optind], sizeof ftsQuery - 1);
