@@ -496,7 +496,9 @@ int main(int argc, char **argv){
 		}
 			
 		//debug(ftsQuery);
+
 		if(COMPLETE == mode && !*ftsQuery) {
+			// Actually we shoudn't try to complete empty query, but we do now
 			ASSERTSQL(sqlite3_prepare_v2(db, 
 					"SELECT path, start, end, tags " 
 					"FROM spans ",
