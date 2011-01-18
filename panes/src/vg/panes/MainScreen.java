@@ -9,6 +9,7 @@ import android.util.Log;
 public class MainScreen extends Activity
 {
 	private static final String TAG = "panes";
+	private static final int PICK_REQUEST = 1;
 	
 	/** Called when the activity is first created. */
 	@Override
@@ -19,10 +20,17 @@ public class MainScreen extends Activity
 
 		Intent what = new Intent(Intent.ACTION_PICK, 
 			MediaStore.Images.Media.INTERNAL_CONTENT_URI);
-		startActivityForResult(what, 1);
+		startActivityForResult(what, PICK_REQUEST);
 	}
 
 	public void onActivityResult(int requestCode, int resultCode, Intent data) {
-		Log.d(TAG, data.getData().toString());
+		switch(requestCode) {
+		case PICK_REQUEST:
+			String path = data.getData().toString();
+			Log.d(TAG, path);
+			Intent viewIntent = new Intent(this, ViewImage.class);
+			viewIntent.setData(data.getData());
+			startActivity(viewIntent);
+		}
 	}
 }

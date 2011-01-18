@@ -3,13 +3,16 @@
       package="vg.panes"
       android:versionCode="1"
       android:versionName="1.0">
-    <application android:label="@string/app_name" android:icon="@drawable/icon">
+    <application android:label="Panes" android:icon="@drawable/icon">
         <activity android:name="MainScreen"
-                  android:label="@string/app_name">
+                  android:label="Panes">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+        </activity>
+        <activity android:name="ViewImage"
+                android:label="eye">
         </activity>
     </application>
 </manifest> 
