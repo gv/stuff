@@ -12,8 +12,10 @@ WScript.Echo("Adding an admin user with non blank password...");
 
 sh.Run("net user root q /add");
 
+// TODO GRANT ADMIN
+
 var cp = "HKCR\\exefile\\shell\\runasroot\\";
-var cmd = "runas /user:root %1";
+var cmd = "runas /user:root \"%1\"";
 sh.RegWrite(cp, cmd, "REG_SZ");
 sh.RegWrite(cp + "command\\", cmd, "REG_SZ"); 
 
@@ -68,3 +70,7 @@ print("Enabling remote desktop access...");
 
 sh.RegWrite("HKLM\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server\\" + 
 	"fDenyTSConnections", 0, "REG_DWORD");
+
+print("Enabling quick edit in console...");
+
+sh.Run("REG.EXE add HKCU\Console /v QuickEdit /t REG_DWORD /d 1 /f");
