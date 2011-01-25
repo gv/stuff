@@ -242,8 +242,7 @@ function run() {
 			var subPath = path.replace(vidExtPattern, '.srt');
 			if(fs.FileExists(subPath)) {
 				// mencoder takes a comma separated path list for a -sub parameter.
-				fileOpts += ' -sub "' + 
-					subPath.replace(new RegExp(',', 'g'), "\\,") +
+				fileOpts += ' -sub "' + subPath.replace(new RegExp(',', 'g'), "\\,") + 
 					'" -subcp windows-1251';
 			}
 			fileOpts +=	' "' + path + '"';
