@@ -26,7 +26,12 @@ import android.util.AttributeSet;
 import android.view.KeyEvent;
 import android.widget.ImageView;
 
+import android.graphics.Rect;
+import java.util.ArrayList;
+import android.util.Log;
+
 abstract class ImageViewTouchBase extends ImageView {
+	ArrayList<Rect> mPanes;
 
     @SuppressWarnings("unused")
     private static final String TAG = "ImageViewTouchBase";
@@ -166,6 +171,7 @@ abstract class ImageViewTouchBase extends ImageView {
         if (bitmap.getBitmap() != null) {
             getProperBaseMatrix(bitmap, mBaseMatrix);
             setImageBitmap(bitmap.getBitmap(), bitmap.getRotation());
+						findPanes();
         } else {
             mBaseMatrix.reset();
             setImageBitmap(null);
@@ -404,4 +410,79 @@ abstract class ImageViewTouchBase extends ImageView {
         postTranslate(dx, dy);
         setImageMatrix(getImageViewMatrix());
     }
+
+	private void findPanes() {
+		Bitmap b = mBitmapDisplayed.getBitmap();
+		mPanes  = new ArrayList<Rect>();
+		int w = b.getWidth();
+		int h = b.getHeight();
+		
+		int[] energy = new int[w*h];
+		//int[] row = new int[w];
+		b.getPixels(energy, 0, b.getWidth(), 0, 0, w, h);
+		for(int i = energy.length - 1; i >= w; i--) {
+			energy[i] = Math.abs(energy[i] - energy[i-1]) + 
+				Math.abs(energy[i] - energy[i-w]);
+		}
+
+		findPanes(energy, w, new Rect(0, 0, w, h));
+		
+		for(Rect r: mPanes) {
+			Log.d(TAG, String.format("pane: %d, %d, %d, %d", 
+					r.left, r.top, r.right, r.bottom));
+		}
+	}
+
+	private void findPanes(int[] energy, int w, Rect r) {
+		Log.d(TAG, String.format("searching: %d, %d, %d, %d", 
+				r.left, r.top, r.right, r.bottom));
+		int horizProj[] = new int[r.right - r.left];
+		int horizProjMin = 99999, horizProjMinRight = 0, horizProjMinLeft;
+		for(int x = horizProj.length - 1; x >= 0; x--) {
+			for(int y = r.top; y < r.bottom; y++) {
+				horizProj[x] = Math.max(horizProj[x], energy[y*w+x+r.left]);
+			}
+			// favor right
+			if(horizProj[x] < horizProjMin) {
+				horizProjMinRight = x;
+				horizProjMin = horizProj[horizProjMinRight];
+			}
+		}
+
+		horizProjMinLeft = horizProjMinRight; 
+		while(horizProjMinLeft > 0) { 
+			horizProjMinLeft--;
+			if(horizProj[horizProjMinLeft] - horizProjMin > 1)
+				break;
+		}
+
+		// TODO go right
+
+		Log.d(TAG, String.format("sep: %d, %d", 
+				horizProjMinLeft + r.left, horizProjMinRight + r.left));
+
+		final int MIN_SEP_DIM = 3;
+
+		if(horizProjMinRight - horizProjMinLeft < MIN_SEP_DIM) {
+			// whole
+			mPanes.add(r);
+			return;
+		}
+
+		final int MIN_PANE_DIM = 2;
+
+		if(horizProjMinLeft >= MIN_PANE_DIM) {
+			Rect leftPartLoc = new Rect(r.left, r.top, 
+				r.left + horizProjMinLeft, r.bottom);
+			Log.d(TAG, "going left");
+			findPanes(energy, w, leftPartLoc);
+		}
+		
+		if(horizProj.length - 1 - horizProjMinRight >= MIN_PANE_DIM) {
+			Rect rightPartLoc = new Rect(r.left + horizProjMinRight, r.top, 
+				r.right, r.bottom);
+			Log.d(TAG, "going right");
+			findPanes(energy, w, rightPartLoc);
+		}
+	}
 }
