@@ -11,6 +11,7 @@ var hostname = "gv";
 WScript.Echo("Adding an admin user with non blank password...");
 
 sh.Run("net user root q /add");
+sh.Run("net localgroup Администраторы root /add");
 
 // TODO GRANT ADMIN
 
@@ -29,7 +30,6 @@ sh.RegWrite(p + "AutoShareWks", 0, "REG_DWORD");
 sh.Run("net share c$ /delete");
 sh.Run("net share d$ /delete");
 sh.Run("net share admin$ /delete");
-
 
 print("Cleaning up PATH...");
 
@@ -55,7 +55,6 @@ for(var i in p) {
 //print(newPath);
 sh.RegWrite(pathPath, newPath+";;", "REG_EXPAND_SZ");
 	
-
 print("Installing scripts...");
 
 var fs = new ActiveXObject("Scripting.FileSystemObject");
@@ -73,4 +72,4 @@ sh.RegWrite("HKLM\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server\\" +
 
 print("Enabling quick edit in console...");
 
-sh.Run("REG.EXE add HKCU\Console /v QuickEdit /t REG_DWORD /d 1 /f");
+sh.Run("REG.EXE add HKCU\\Console /v QuickEdit /t REG_DWORD /d 1 /f");
