@@ -142,6 +142,9 @@ public class RotateBitmap {
 	}
 	
 	public static final int MAX_ENERGY = 6*255;
+	final int MIN_SEP_DIM = 3;
+	final int MIN_PANE_DIM = 20;
+
 	
 	private void findPanes(int[] energy, int w, Rect r) {
 		Log.d(TAG, String.format("searching: %d, %d, %d, %d", 
@@ -151,20 +154,14 @@ public class RotateBitmap {
 
 		int horizProj[] = new int[r.right - r.left];
 
-		//int horizProjMin = Integer.MAX_VALUE;
-		//int horizProjMinRight = 0, horizProjMinLeft;
-
 		int sepRight = 0, sepLeft = 0;
 		int probableSepRight = 0;
 
 		for(int x = horizProj.length - 1; x >= 0; x--) {
 			for(int y = r.top; y < r.bottom; y++) {
 				horizProj[x] = Math.max(horizProj[x], energy[y*w+x+r.left]);
-				//horizProj[x] += energy[y*w+x+r.left];
 			}
-			if(horizProj[x] < 0)
-				Log.d(TAG, String.format("sum: %d", horizProj[x]));
-			
+		
 			if(horizProj[x] < maxSepEnergy) {
 				if(probableSepRight == 0) {
 					probableSepRight = x;
@@ -174,61 +171,30 @@ public class RotateBitmap {
 					if(probableSepRight - x > sepRight - sepLeft) {
 						sepLeft = x;
 						sepRight = probableSepRight;
+						Log.d(TAG, String.format("ps: %d, %d, %d, %d", 
+								probableSepRight, x, sepRight, sepLeft));
 					}
 					probableSepRight = 0;
 				}
 			}
-
-			if(probableSepRight > sepRight - sepLeft) {
-				sepRight = probableSepRight;
-				sepLeft = 0;
-			}
-				
-			/*
-			// favor right
-			if(horizProj[x] < horizProjMin) {
-				horizProjMinRight = x;
-				horizProjMin = horizProj[horizProjMinRight];
-			}
-			*/
 		}
 
+		if(probableSepRight > sepRight - sepLeft) {
+			sepRight = probableSepRight;
+			sepLeft = 0;
+		}
+				
 		if(mFirstHorizProj == null) 
 			mFirstHorizProj = horizProj;
 
-		/*
-		if(horizProjMin > maxSepEnergy) {
-			// whole
-			mPanes.add(r);
-			return;
-		}
-
-		horizProjMinLeft = horizProjMinRight; 
-		while(horizProjMinLeft > 0) { 
-			horizProjMinLeft--;
-			//if(horizProj[horizProjMinLeft] - horizProjMin > 1)
-			//	break;
-			if(horizProj[horizProjMinLeft] > maxSepEnergy)
-				break;
-		}
-
-		// TODO go right
-	  */
-
-		
-
 		Log.d(TAG, String.format("Horizontal separator found: %d, %d", 
 				sepLeft + r.left, sepRight + r.left));
-
-		final int MIN_SEP_DIM = 3;
 
 		if(sepRight - sepLeft < MIN_SEP_DIM) {
 			// whole
 			mPanes.add(r);
 			return;
 		}
-
-		final int MIN_PANE_DIM = 20;
 
 		if(sepLeft >= MIN_PANE_DIM) {
 			Rect leftPartLoc = new Rect(r.left, r.top, 
