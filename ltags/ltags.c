@@ -416,7 +416,7 @@ int main(int argc, char **argv){
 	int r;
 	sqlite3_stmt *stm;
 	int mode = UPDATE;
-	struct Term terms[50], *termsEnd = terms;
+	struct Term terms[50], *termsEnd = terms ,*incompleteTerm = 0;
 
 	static struct option longOpts[] = {
 		{"complete", required_argument, 0, 'C'},
@@ -464,7 +464,7 @@ int main(int argc, char **argv){
 		}
 		update();
 	} else {
-		char ftsQuery[1024];
+		char *ftsQuery;
 		// --complete really should be as time-sensitive as we can get,
 		// because I get really annoyed when I press TAB and bash goes
 		// god knows where
@@ -487,7 +487,6 @@ int main(int argc, char **argv){
 			exit(1);
 		}
 
-		*ftsQuery = 0;
 		if(COMPLETE == mode) {
 			completionTargetIndex += optind;
 			optind++; // program name comes first
@@ -495,31 +494,45 @@ int main(int argc, char **argv){
 
 
 		while(optind < argc) {
-			static const punctuation[] = ":;/,`~!()-=\\. ";
-			static const nonBreakable[] = " .";
-			char *e = argv[optind], *s = e; 
+			static const char punctuation[] = ":;/,`~!()-=\\.| ";
+			//static const char nonBreakable[] = " .";
+			char *e = argv[optind], *s; 
 			do {
-				s += strcspn(e, punctuation);
-				char *e = strpbrk(s, punctuation);
-				if(e) {
-				
-			termsEnd->word =
-			optind++;
-			termsEnd++;
-		}
+				s = e + strspn(e, punctuation);
+				e = strpbrk(s, punctuation);
+				if(!e) 
+					e = strchr(s, 0);
+				if(e - s) {
+					termsEnd->word = malloc(e - s) + 1;
+					memcpy(termsEnd->word, s, e - s);
+					termsEnd->word[e - s] = 0;
+					termsEnd->flags = 0;
+					termsEnd++;
+				}
+			} while(e - s);
 
-
-		while(optind < argc) {
-			strncat(ftsQuery, argv[optind], sizeof ftsQuery - 1);
 			if(completionTargetIndex == optind) {
-				prefix = argv[optind];
-				strncat(ftsQuery, "*", sizeof ftsQuery - 1);
+				incompleteTerm = termsEnd - 1;
 			}
-			strncat(ftsQuery, " ", sizeof ftsQuery - 1);
 			optind++;
 		}
+
+		if(termsEnd == terms) {
+			fputs("No query", stderr);
+			exit(1);
+		}
+
+		if(incompleteTerm) {
+			ftsQuery = malloc(strlen(incompleteTerm->word) + 2);
+			strcpy(ftsQuery, incompleteTerm->word);
+			strcat(ftsQuery, "*");
+		} else {
+			// XXX longest word maybe?
+			ftsQuery = malloc(strlen(terms[0].word) + 1);
+			strcpy(ftsQuery, terms[0].word);
+		}			
 			
-		//debug(ftsQuery);
+		debug(ftsQuery);
 
 		if(COMPLETE == mode && !*ftsQuery) {
 			// Actually we shoudn't try to complete empty query, but we do now

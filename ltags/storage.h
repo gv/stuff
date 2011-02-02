@@ -26,3 +26,5 @@ initStorageThread();
 void 
 saveSpan(const struct Span*);
 
+void 
+loadSpan(struct Span *ps, sqlite3_stmt *stm);

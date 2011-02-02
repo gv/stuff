@@ -40,60 +40,60 @@
 #define IS_RESERVED_SHARP(a)	((a) >= START_SHARP && (a) < START_YACC)
 #define IS_RESERVED_YACC(a)	((a) >= START_YACC)
 
-#define ABSTRACT	2001
-#define BOOLEAN	2002
-#define BREAK	2003
-#define BYTE	2004
-#define CASE	2005
-#define CATCH	2006
-#define CHAR	2007
-#define CLASS	2008
-#define CONST	2009
-#define CONTINUE	2010
-#define DEFAULT	2011
-#define DO	2012
-#define DOUBLE	2013
-#define ELSE	2014
-#define ENUM	2015
-#define EXTENDS	2016
-#define FALSE	2017
-#define FINAL	2018
-#define FINALLY	2019
-#define FLOAT	2020
-#define FOR	2021
-#define GOTO	2022
-#define IF	2023
-#define IMPLEMENTS	2024
-#define IMPORT	2025
-#define INSTANCEOF	2026
-#define INT	2027
-#define INTERFACE	2028
-#define LONG	2029
-#define NATIVE	2030
-#define NEW	2031
-#define NULL	2032
-#define PACKAGE	2033
-#define PRIVATE	2034
-#define PROTECTED	2035
-#define PUBLIC	2036
-#define RETURN	2037
-#define SHORT	2038
-#define STATIC	2039
-#define STRICTFP	2040
-#define SUPER	2041
-#define SWITCH	2042
-#define SYNCHRONIZED	2043
-#define THIS	2044
-#define THROW	2045
-#define THROWS	2046
-#define UNION	2047
-#define TRANSIENT	2048
-#define TRUE	2049
-#define TRY	2050
-#define VOID	2051
-#define VOLATILE	2052
-#define WHILE	2053
-#define WIDEFP	2054
+#define ABSTRACT_	2001
+#define BOOLEAN_	2002
+#define BREAK_	2003
+#define BYTE_	2004
+#define CASE_	2005
+#define CATCH_	2006
+#define CHAR_	2007
+#define CLASS_	2008
+#define CONST_	2009
+#define CONTINUE_	2010
+#define DEFAULT_	2011
+#define DO_	2012
+#define DOUBLE_	2013
+#define ELSE_	2014
+#define ENUM_	2015
+#define EXTENDS_	2016
+#define FALSE_	2017
+#define FINAL_	2018
+#define FINALLY_	2019
+#define FLOAT_	2020
+#define FOR_	2021
+#define GOTO_	2022
+#define IF_	2023
+#define IMPLEMENTS_	2024
+#define IMPORT_	2025
+#define INSTANCEOF_	2026
+#define INT_	2027
+#define INTERFACE_	2028
+#define LONG_	2029
+#define NATIVE_	2030
+#define NEW_	2031
+#define NULL_	2032
+#define PACKAGE_	2033
+#define PRIVATE_	2034
+#define PROTECTED_	2035
+#define PUBLIC_	2036
+#define RETURN_	2037
+#define SHORT_	2038
+#define STATIC_ 2039
+#define STRICTFP_	2040
+#define SUPER_	2041
+#define SWITCH_	2042
+#define SYNCHRONIZED_	2043
+#define THIS_	2044
+#define THROW_	2045
+#define THROWS_	2046
+#define UNION_	2047
+#define TRANSIENT_	2048
+#define TRUE_	2049
+#define TRY_	2050
+#define VOID_	2051
+#define VOLATILE_	2052
+#define WHILE_	2053
+#define WIDEFP_	2054
 struct keyword { char *name; int token; };
 
 #define TOTAL_KEYWORDS 54
@@ -157,74 +157,74 @@ java_lookup (register const char *str, register unsigned int len)
   static struct keyword wordlist[] =
     {
       {""}, {""}, {""}, {""},
-      {"this", THIS},
-      {"throw", THROW},
-      {"throws", THROWS},
+      {"this", THIS_},
+      {"throw", THROW_},
+      {"throws", THROWS_},
       {""},
-      {"try", TRY},
-      {"true", TRUE},
-      {"short", SHORT},
-      {"static", STATIC},
+      {"try", TRY_},
+      {"true", TRUE_},
+      {"short", SHORT_},
+      {"static", STATIC_},
       {""},
-      {"strictfp", STRICTFP},
-      {"transient", TRANSIENT},
-      {"super", SUPER},
+      {"strictfp", STRICTFP_},
+      {"transient", TRANSIENT_},
+      {"super", SUPER_},
       {""}, {""}, {""},
-      {"null", NULL},
-      {"union", UNION},
-      {"public", PUBLIC},
-      {"private", PRIVATE},
-      {"int", INT},
-      {"protected", PROTECTED},
-      {"break", BREAK},
+      {"null", NULL_},
+      {"union", UNION_},
+      {"public", PUBLIC_},
+      {"private", PRIVATE_},
+      {"int", INT_},
+      {"protected", PROTECTED_},
+      {"break", BREAK_},
       {""},
-      {"boolean", BOOLEAN},
-      {"for", FOR},
-      {"interface", INTERFACE},
-      {"instanceof", INSTANCEOF},
+      {"boolean", BOOLEAN_},
+      {"for", FOR_},
+      {"interface", INTERFACE_},
+      {"instanceof", INSTANCEOF_},
       {""},
-      {"if", IF},
+      {"if", IF_},
       {""},
-      {"char", CHAR},
-      {"final", FINAL},
-      {"return", RETURN},
-      {"finally", FINALLY},
-      {"new", NEW},
-      {"enum", ENUM},
-      {"const", CONST},
-      {"native", NATIVE},
-      {"package", PACKAGE},
-      {"continue", CONTINUE},
-      {"goto", GOTO},
-      {"while", WHILE},
+      {"char", CHAR_},
+      {"final", FINAL_},
+      {"return", RETURN_},
+      {"finally", FINALLY_},
+      {"new", NEW_},
+      {"enum", ENUM_},
+      {"const", CONST_},
+      {"native", NATIVE_},
+      {"package", PACKAGE_},
+      {"continue", CONTINUE_},
+      {"goto", GOTO_},
+      {"while", WHILE_},
       {""},
-      {"extends", EXTENDS},
-      {"abstract", ABSTRACT},
-      {"long", LONG},
-      {"false", FALSE},
-      {"switch", SWITCH},
-      {"synchronized", SYNCHRONIZED},
+      {"extends", EXTENDS_},
+      {"abstract", ABSTRACT_},
+      {"long", LONG_},
+      {"false", FALSE_},
+      {"switch", SWITCH_},
+      {"synchronized", SYNCHRONIZED_},
       {""},
-      {"byte", BYTE},
+      {"byte", BYTE_},
       {""},
-      {"widefp", WIDEFP},
-      {"do", DO},
+      {"widefp", WIDEFP_},
+      {"do", DO_},
       {""},
-      {"case", CASE},
-      {"catch", CATCH},
-      {"double", DOUBLE},
+      {"case", CASE_},
+      {"catch", CATCH_},
+      {"double", DOUBLE_},
       {""}, {""},
-      {"void", VOID},
-      {"float", FLOAT},
-      {"import", IMPORT},
+      {"void", VOID_},
+      {"float", FLOAT_},
+      {"import", IMPORT_},
       {""},
-      {"volatile", VOLATILE},
-      {"else", ELSE},
-      {"implements", IMPLEMENTS},
+      {"volatile", VOLATILE_},
+      {"else", ELSE_},
+      {"implements", IMPLEMENTS_},
       {""}, {""}, {""}, {""},
-      {"class", CLASS},
+      {"class", CLASS_},
       {""}, {""}, {""}, {""}, {""}, {""},
-      {"default", DEFAULT}
+      {"default", DEFAULT_}
     };
 
   if (len <= MAX_WORD_LENGTH && len >= MIN_WORD_LENGTH)
