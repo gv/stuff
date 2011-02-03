@@ -16,3 +16,9 @@
 (local-set-key [M-\\] 'question-eponimous)
 (global-set-key [M-right] 'question-eponimous)
 (local-set-key [M-right] 'question-eponimous)
+
+(defun question-here () (interactive)
+;;  (message (format "%s:%d" (buffer-file-name) (point)))
+  (compilation-start (format "qn %s:%d" (buffer-file-name) (point))
+					 'grep-mode)
+)

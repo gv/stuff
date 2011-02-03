@@ -135,6 +135,7 @@ int findDb() {
 	strcpy(dbPath, dbDirPath);
 	strcat(dbPath, "/");
 	strcat(dbPath, dbName);
+	debug(dbPath);
 	return 1;
 }
 		
@@ -406,17 +407,60 @@ void update() {
 #define UPDATE 3
 
 #define TERM_SEQ 1
+#define TERM_POS 2
+#define TERM_INCOMPLETE 4
 
 struct Term {
-	char *word;
 	int flags;
+	union {
+		char *word;
+		struct {
+			unsigned pos;
+			char *path;
+		};
+	};
 };
+
+void startSearch(struct Term *t, sqlite3_stmt **stm) {
+	int r;
+	if(TERM_POS & t->flags) {
+		ASSERTSQL(sqlite3_prepare_v2(db, 
+				"SELECT path, start, end, tags " 
+				"FROM spans " 
+				"WHERE path = ? "
+				"AND start <= ? "
+				"AND end >= ? "
+				"ORDER BY start DESC",
+				-1, stm, 0));
+		
+		ASSERTSQL(sqlite3_bind_text(*stm, 1, t->path, -1, SQLITE_STATIC));
+		ASSERTSQL(sqlite3_bind_int(*stm, 2, t->pos));
+		ASSERTSQL(sqlite3_bind_int(*stm, 3, t->pos));
+	} else {
+		char *ftsQuery;
+		ftsQuery = malloc(strlen(t->word) + 2);
+		strcpy(ftsQuery, t->word);
+		if(TERM_INCOMPLETE & t->flags) {
+			strcat(ftsQuery, "*"); 
+		}
+		
+		debug(ftsQuery);
+
+		ASSERTSQL(sqlite3_prepare_v2(db, 
+				"SELECT path, start, end, tags " 
+				"FROM spans " 
+				"WHERE tags MATCH ? ", 
+				-1, stm, 0));
+		
+		ASSERTSQL(sqlite3_bind_text(*stm, 1, ftsQuery, -1, SQLITE_STATIC));
+	}
+}	
 
 int main(int argc, char **argv){
 	int r;
 	sqlite3_stmt *stm;
 	int mode = UPDATE;
-	struct Term terms[50], *termsEnd = terms ,*incompleteTerm = 0;
+	struct Term terms[50], *termsEnd = terms, *indexTerm = 0;
 
 	static struct option longOpts[] = {
 		{"complete", required_argument, 0, 'C'},
@@ -494,7 +538,7 @@ int main(int argc, char **argv){
 
 
 		while(optind < argc) {
-			static const char punctuation[] = ":;/,`~!()-=\\.| ";
+			static const char punctuation[] = ":;,`~!()-=\\| ";
 			//static const char nonBreakable[] = " .";
 			char *e = argv[optind], *s; 
 			do {
@@ -503,16 +547,27 @@ int main(int argc, char **argv){
 				if(!e) 
 					e = strchr(s, 0);
 				if(e - s) {
-					termsEnd->word = malloc(e - s) + 1;
-					memcpy(termsEnd->word, s, e - s);
-					termsEnd->word[e - s] = 0;
-					termsEnd->flags = 0;
+					debug(e);
+					if(':' == *e) {
+						char *numEnd;
+						termsEnd->pos = strtol(e + 1, &numEnd, 10);
+						termsEnd->path = malloc(e - s + 1);
+						memcpy(termsEnd->path, s, e - s);
+						termsEnd->path[e - s] = 0;
+						termsEnd->flags = TERM_POS;
+						e = numEnd;
+					} else {
+						termsEnd->word = malloc(e - s + 1);
+						memcpy(termsEnd->word, s, e - s);
+						termsEnd->word[e - s] = 0;
+						termsEnd->flags = 0;
+					}
 					termsEnd++;
 				}
 			} while(e - s);
 
 			if(completionTargetIndex == optind) {
-				incompleteTerm = termsEnd - 1;
+				termsEnd[-1].flags |= TERM_INCOMPLETE;
 			}
 			optind++;
 		}
@@ -522,33 +577,8 @@ int main(int argc, char **argv){
 			exit(1);
 		}
 
-		if(incompleteTerm) {
-			ftsQuery = malloc(strlen(incompleteTerm->word) + 2);
-			strcpy(ftsQuery, incompleteTerm->word);
-			strcat(ftsQuery, "*");
-		} else {
-			// XXX longest word maybe?
-			ftsQuery = malloc(strlen(terms[0].word) + 1);
-			strcpy(ftsQuery, terms[0].word);
-		}			
-			
-		debug(ftsQuery);
-
-		if(COMPLETE == mode && !*ftsQuery) {
-			// Actually we shoudn't try to complete empty query, but we do now
-			ASSERTSQL(sqlite3_prepare_v2(db, 
-					"SELECT path, start, end, tags " 
-					"FROM spans ",
-					-1, &stm, 0));
-		} else {
-			ASSERTSQL(sqlite3_prepare_v2(db, 
-					"SELECT path, start, end, tags " 
-					"FROM spans " 
-					"WHERE tags MATCH ? ", 
-					-1, &stm, 0));
-		
-			ASSERTSQL(sqlite3_bind_text(stm, 1, ftsQuery, -1, SQLITE_STATIC));
-		}
+		indexTerm = &terms[0];
+		startSearch(indexTerm, &stm);
 
 		while(r = sqlite3_step(stm), r == SQLITE_ROW) {
 			char pathFromWd[MAX_PATH];

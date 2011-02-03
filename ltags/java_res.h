@@ -235,7 +235,7 @@ java_lookup (register const char *str, register unsigned int len)
         {
           register const char *s = wordlist[key].name;
 
-          if (*str == *s && !strcmp (str + 1, s + 1))
+          if (*str == *s && !strncmp (str + 1, s + 1, len - 1))
             return &wordlist[key];
         }
     }

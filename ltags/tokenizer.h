@@ -32,6 +32,9 @@ struct File {
 #define CHAR_SPACE       4
 
 extern const char F_FEATURE[];
+extern const char C_FEATURE[];
+extern const char D_FEATURE[];
+extern const char B_FEATURE[];
 
 void 
 parse(struct File*);
@@ -44,11 +47,15 @@ addTagToCurrentSpan(struct File *pf,
 	const char *start, const char *end);
 
 struct Span *
-startSpan(struct File *pf, const char *start);
+startGenericSpan(struct File *pf, const char *start);
 
 struct Span *
 finishLastSpan(struct File *pf, const char *end);
 
 int 
-spanHasTag(const struct Span *ps, const char *start);
+spanHasFeature(const struct Span *ps, const char *start);
+
+struct Span *
+findSpanWithFeature(struct Span *ps, const char *feature);
+
 

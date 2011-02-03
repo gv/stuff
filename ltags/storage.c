@@ -1,9 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "storage.h"
 
+#include "storage.h"
 #include "ext/sqlite/sqlite3.h"
+
 extern sqlite3 *db;
 
 int loadSpan(struct Span *pSpan) {

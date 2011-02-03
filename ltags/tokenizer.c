@@ -31,6 +31,8 @@ void parse(struct File *pf) {
 	int r;
 	char *p;
 	int mode, flags;
+
+	pf->language->startParsing(pf);
 	
 	pf->token = p = pf->contents;
 	mode = SPACE;
@@ -133,7 +135,8 @@ void parse(struct File *pf) {
 	
 		
 	
- end:;
+ end:
+	pf->language->finishParsing(pf);
 }
 
 struct Span *addTagToCurrentSpan(struct File *pf, 
@@ -144,13 +147,14 @@ struct Span *addTagToCurrentSpan(struct File *pf,
 	return pf->currentSpan;
 }
 
-struct Span *startSpan(struct File *pf, const char *start) {
+struct Span *startGenericSpan(struct File *pf, const char *start) {
 	struct Span *s = malloc(sizeof (struct Span));
 	s->path = pf->path;
 	s->mtime = pf->mtime;
 	s->start = start - pf->contents;
 	s->tagsEnd = s->tags;
 	s->end = 0;
+	s->particular = NULL;
 
 	s->parent = pf->currentSpan;
 	pf->currentSpan = s;
@@ -162,11 +166,12 @@ struct Span *finishLastSpan(struct File *pf, const char *end) {
 	s->end = end - pf->contents;
 	saveSpan(s);
 	pf->currentSpan = s->parent;
+	free(s->particular);
 	free(s);
 	return pf->currentSpan;
 }
 
-int spanHasTag(const struct Span *ps, const char *start) {
+int spanHasFeature(const struct Span *ps, const char *start) {
 	const struct Word *w = ps->tagsEnd;
 	while(--w >= ps->tags) {
 		if(start == w->start)
@@ -175,9 +180,18 @@ int spanHasTag(const struct Span *ps, const char *start) {
 	 
 	return 0;
 }
+
+struct Span *findSpanWithFeature(struct Span *ps, const char *feature) {
+	if(!ps)
+		return NULL;
+	if(spanHasFeature(ps, feature))
+		return ps;
+	return findSpanWithFeature(ps->parent, feature);
+}
 	 
 	 
 	 
 const char F_FEATURE[] = "f"; // file
 const char D_FEATURE[] = "d"; // definition
 const char C_FEATURE[] = "c"; // class
+const char B_FEATURE[] = "b"; // body
