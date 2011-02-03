@@ -29,6 +29,7 @@ static void finish(struct File *pf) {
 #define JCOMMON(pfile) ((struct JavaParserState*)pfile->langParserState)
 
 #define LIST_EXPECTED 1
+#define ANNOTATION    2
 
 struct Span *startSpan(struct File *pf, const char *start) {
 	struct Span *s = startGenericSpan(pf, start);
@@ -37,7 +38,15 @@ struct Span *startSpan(struct File *pf, const char *start) {
 }
 
 static void processJavaWord(struct File *pf) {
-	int rw = getJavaReservedWordIndex(pf->token, pf->tokenEnd - pf->token);
+	int rw; 
+
+	if('@' == *pf->token) {
+		JPART(pf->currentSpan)->flags |= ANNOTATION;
+		return;
+	}
+	JPART(pf->currentSpan)->flags &= ~ANNOTATION;
+	
+	rw = getJavaReservedWordIndex(pf->token, pf->tokenEnd - pf->token);
 	//debug("%d", rw);
 
 	if(spanHasFeature(pf->currentSpan, F_FEATURE)) // file
@@ -63,6 +72,13 @@ static void processJavaWord(struct File *pf) {
 
 static void processJavaNonword(struct File *pf, const char *p) {
 	struct Span *newSpan, *body;
+
+	if(JPART(pf->currentSpan)->flags & ANNOTATION) {
+		if(')' == *p)
+			JPART(pf->currentSpan)->flags &= ~ANNOTATION;
+		return;
+	}
+		
 	switch(*p) {
 	case ';':
 		if(!spanHasFeature(pf->currentSpan, F_FEATURE))
