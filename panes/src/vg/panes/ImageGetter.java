@@ -209,10 +209,13 @@ class ImageGetter {
                     RotateBitmap rb = new RotateBitmap(b,
                             image.getDegreesRotated());
 
+										rb.findPanes();
+
                     Runnable cb = callback(mCurrentPosition, offset,
                             false, rb, mCurrentSerial);
                     mHandler.postGetterCallback(cb);
                 }
+
             }
 
             mHandler.postGetterCallback(completedCallback(mCurrentSerial));

@@ -60,6 +60,13 @@ import android.util.AttributeSet;
 import android.view.View;
 import android.view.ViewGroup;
 
+import android.widget.ImageView;
+import android.graphics.ColorFilter;
+import android.graphics.PixelFormat;
+
+
+import android.graphics.Rect;
+
 //
 
 // This activity can display a whole picture and navigate them in a specific
@@ -500,6 +507,10 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
             IImage image = mAllImages.getImageAt(pos);
             mImageView.setImageRotateBitmapResetBase(
                     new RotateBitmap(b, image.getDegreesRotated()), true);
+						
+						//mGraphicInfoView.setImageDrawable(
+						//	new DrawableImageInfo(bitmap));
+
             updateZoomButtonsEnabled();
         }
 
@@ -548,6 +559,11 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
                     // reset the supp matrix for then thumb bitmap, and keep
                     // the supp matrix when the full bitmap is loaded.
                     mImageView.setImageRotateBitmapResetBase(bitmap, isThumb);
+										if(bitmap.mPanes != null) {
+											mGraphicInfoView.setImageDrawable(
+												new DrawableImageInfo(bitmap));
+										}
+
                     updateZoomButtonsEnabled();
                 }
             }
@@ -561,6 +577,56 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
         if (showControls) showOnScreenControls();
         scheduleDismissOnScreenControls();
     }
+
+	ImageView mGraphicInfoView;
+	
+	class DrawableImageInfo extends android.graphics.drawable.Drawable {
+		RotateBitmap mBmp;
+		DrawableImageInfo(RotateBitmap b) {
+			mBmp = b;
+		}
+		
+		int getEnergyHeight(int e) {
+			return e * mBmp.getBitmap().getHeight() 
+					/ RotateBitmap.MAX_ENERGY;
+		}
+
+		public void draw(Canvas c) {
+			Paint p = new Paint();
+			p.setColor(0x77FF0000);
+			p.setStyle(Paint.Style.STROKE);
+
+			for(Rect r: mBmp.mPanes) {
+				RectF displayedRect = new RectF(r);
+				mImageView.getImageViewMatrix().mapRect(displayedRect);
+				c.drawRoundRect(displayedRect, 2, 2, p);
+			}
+
+			Paint gp = new Paint();
+			gp.setColor(0x77FF00FF);
+
+			for(int i = 0; i < mBmp.mFirstHorizProj.length; i++) {
+				RectF bar  = new RectF(i, 0, i + 1, 
+					getEnergyHeight(mBmp.mFirstHorizProj[i])); 
+				mImageView.getImageViewMatrix().mapRect(bar);
+				c.drawRect(bar, gp);
+			}
+			Log.d(TAG, "draw");
+		}
+
+		public void setColorFilter(ColorFilter cf) {
+
+		}
+
+		public int getOpacity() {
+			return PixelFormat.TRANSLUCENT;
+		}
+
+		public void setAlpha(int a) {
+		}
+	}
+
+	
 
     @Override
     public void onCreate(Bundle instanceState) {
@@ -582,6 +648,8 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
         mImageView.setEnableTrackballScroll(true);
         mCache = new BitmapCache(3);
         mImageView.setRecycler(mCache);
+
+				mGraphicInfoView = (ImageView) findViewById(R.id.over);
 
         makeGetter();
 

@@ -18,6 +18,9 @@ package vg.panes;
 
 import android.graphics.Bitmap;
 import android.graphics.Matrix;
+import android.graphics.Rect;
+import java.util.ArrayList;
+import android.util.Log;
 
 public class RotateBitmap {
     public static final String TAG = "RotateBitmap";
@@ -92,5 +95,121 @@ public class RotateBitmap {
             mBitmap = null;
         }
     }
+
+
+	
+	public ArrayList<Rect> mPanes;
+	public int[] mFirstHorizProj;
+
+	public void findPanes() {
+		Bitmap b = mBitmap;
+		mPanes  = new ArrayList<Rect>();
+		int w = b.getWidth();
+		int h = b.getHeight(), i;
+		
+		int[] energy = new int[w*h];
+		b.getPixels(energy, 0, b.getWidth(), 0, 0, w, h);
+		for(i = energy.length - 1; i >= w; i--) {
+			int e = energy[i], u = energy[i-w], l = energy[i-1];
+			energy[i] = 
+				Math.abs(e & 0xFF - u & 0xFF) + 
+				Math.abs((e >> 8) & 0xFF - (u >> 8) & 0xFF) + 
+				Math.abs((e >> 16) & 0xFF - (u >> 16) & 0xFF) + 
+				Math.abs(e & 0xFF - l & 0xFF) + 
+				Math.abs((e >> 8) & 0xFF - (l >> 8) & 0xFF) + 
+				Math.abs((e >> 16) & 0xFF - (l >> 16) & 0xFF);
+		}
+		
+		for(; i > 0; i--) {
+			int e = energy[i], l = energy[i-1];
+			energy[i] = 
+				Math.abs(e & 0xFF - l & 0xFF) + 
+				Math.abs((e >> 8) & 0xFF - (l >> 8) & 0xFF) + 
+				Math.abs((e >> 16) & 0xFF - (l >> 16) & 0xFF);
+		}
+
+		energy[0] = 0;
+			
+
+		//b.setPixels(energy, 0, b.getWidth(), 0, 0, w, h);
+		mFirstHorizProj = null;
+		findPanes(energy, w, new Rect(0, 0, w, h));
+		
+		for(Rect r: mPanes) {
+			Log.d(TAG, String.format("pane: %d, %d, %d, %d", 
+					r.left, r.top, r.right, r.bottom));
+		}
+	}
+	
+	public static final int MAX_ENERGY = 6*255;
+	final int MIN_SEP_DIM = 3;
+	final int MIN_PANE_DIM = 20;
+
+	
+	private void findPanes(int[] energy, int w, Rect r) {
+		Log.d(TAG, String.format("searching: %d, %d, %d, %d", 
+				r.left, r.top, r.right, r.bottom));
+
+		int maxSepEnergy = MAX_ENERGY / 6;
+
+		int horizProj[] = new int[r.right - r.left];
+
+		int sepRight = 0, sepLeft = 0;
+		int probableSepRight = 0;
+
+		for(int x = horizProj.length - 1; x >= 0; x--) {
+			for(int y = r.top; y < r.bottom; y++) {
+				horizProj[x] = Math.max(horizProj[x], energy[y*w+x+r.left]);
+			}
+		
+			if(horizProj[x] < maxSepEnergy) {
+				if(probableSepRight == 0) {
+					probableSepRight = x;
+				}
+			} else {
+				if(probableSepRight > 0) {
+					if(probableSepRight - x > sepRight - sepLeft) {
+						sepLeft = x;
+						sepRight = probableSepRight;
+						Log.d(TAG, String.format("ps: %d, %d, %d, %d", 
+								probableSepRight, x, sepRight, sepLeft));
+					}
+					probableSepRight = 0;
+				}
+			}
+		}
+
+		if(probableSepRight > sepRight - sepLeft) {
+			sepRight = probableSepRight;
+			sepLeft = 0;
+		}
+				
+		if(mFirstHorizProj == null) 
+			mFirstHorizProj = horizProj;
+
+		Log.d(TAG, String.format("Horizontal separator found: %d, %d", 
+				sepLeft + r.left, sepRight + r.left));
+
+		if(sepRight - sepLeft < MIN_SEP_DIM) {
+			// whole
+			mPanes.add(r);
+			return;
+		}
+
+		if(sepLeft >= MIN_PANE_DIM) {
+			Rect leftPartLoc = new Rect(r.left, r.top, 
+				r.left + sepLeft, r.bottom);
+			Log.d(TAG, "going left");
+			findPanes(energy, w, leftPartLoc);
+		}
+		
+		if(horizProj.length - 1 - sepRight >= MIN_PANE_DIM) {
+			Rect rightPartLoc = new Rect(r.left + sepRight, r.top, 
+				r.right, r.bottom);
+			Log.d(TAG, "going right");
+			findPanes(energy, w, rightPartLoc);
+		}
+	}
+
 }
 

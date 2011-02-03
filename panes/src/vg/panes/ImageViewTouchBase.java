@@ -26,8 +26,9 @@ import android.util.AttributeSet;
 import android.view.KeyEvent;
 import android.widget.ImageView;
 
-abstract class ImageViewTouchBase extends ImageView {
+import android.graphics.Rect;
 
+abstract class ImageViewTouchBase extends ImageView {
     @SuppressWarnings("unused")
     private static final String TAG = "ImageViewTouchBase";
 
@@ -404,4 +405,8 @@ abstract class ImageViewTouchBase extends ImageView {
         postTranslate(dx, dy);
         setImageMatrix(getImageViewMatrix());
     }
+
+	private void showRect(Rect r) {
+		
+	}
 }
