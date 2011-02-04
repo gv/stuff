@@ -77,45 +77,10 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content">
         <vg.panes.ActionMenuButton
-                android:id="@+id/setas"
-                android:visibility="gone"
-                android:drawableTop="@drawable/ic_menu_set_as"
-                android:text="@string/camera_set"
-                style="@style/OnscreenActionIcon"
-        />
-        <vg.panes.ActionMenuButton
-                android:id="@+id/play"
-                android:visibility="gone"
-                android:drawableTop="@drawable/ic_menu_camera_play"
-                android:text="@string/camera_play"
-                style="@style/OnscreenActionIcon"
-        />
-        <vg.panes.ActionMenuButton
-                android:id="@+id/share"
+                android:id="@+id/nextPane"
                 android:visibility="gone"
                 android:drawableTop="@drawable/ic_menu_share"
                 android:text="@string/camera_share"
-                style="@style/OnscreenActionIcon"
-        />
-        <vg.panes.ActionMenuButton
-                android:id="@+id/discard"
-                android:visibility="gone"
-                android:drawableTop="@drawable/ic_menu_delete"
-                android:text="@string/camera_toss"
-                style="@style/OnscreenActionIcon"
-        />
-        <vg.panes.ActionMenuButton
-                android:id="@+id/attach"
-                android:visibility="gone"
-                android:drawableTop="@drawable/ic_menu_attach"
-                android:text="@string/camera_attach"
-                style="@style/OnscreenActionIcon"
-        />
-        <vg.panes.ActionMenuButton
-                android:id="@+id/cancel"
-                android:visibility="gone"
-                android:drawableTop="@drawable/ic_menu_cancel"
-                android:text="@string/camera_cancel"
                 style="@style/OnscreenActionIcon"
         />
     </vg.panes.EvenlySpacedLayout>

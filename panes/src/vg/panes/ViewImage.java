@@ -699,21 +699,18 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 						}*/
 
         if (mShowActionIcons) {
-            int[] pickIds = {R.id.attach, R.id.cancel};
-            int[] normalIds = {R.id.setas, R.id.play, R.id.share, R.id.discard};
-            int[] connectIds = isPickIntent() ? pickIds : normalIds;
-            for (int id : connectIds) {
-                View view = mActionIconPanel.findViewById(id);
-                view.setVisibility(View.VISIBLE);
-                view.setOnClickListener(this);
-            }
+					View view = mActionIconPanel.findViewById(R.id.nextPane);
+					view.setVisibility(View.VISIBLE);
+					view.setOnClickListener(this);
         }
 
+				/*
         // Don't show the "delete" icon for SingleImageList.
         if (ImageManager.isSingleImageMode(mSavedUri.toString())) {
             mActionIconPanel.findViewById(R.id.discard)
                     .setVisibility(View.GONE);
         }
+				*/
 
         if (slideshow) {
             setMode(MODE_SLIDESHOW);
@@ -735,13 +732,10 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 
         IImage image = mAllImages.getImageAt(mCurrentPosition);
         View panel = mActionIconPanel;
-        /*if (image instanceof VideoObject) {
-            panel.findViewById(R.id.setas).setVisibility(View.GONE);
-            panel.findViewById(R.id.play).setVisibility(View.VISIBLE);
-						} else {*/
-            panel.findViewById(R.id.setas).setVisibility(View.VISIBLE);
-            panel.findViewById(R.id.play).setVisibility(View.GONE);
-						//}
+				/*
+				panel.findViewById(R.id.setas).setVisibility(View.VISIBLE);
+				panel.findViewById(R.id.play).setVisibility(View.GONE);
+				*/
     }
 
     private Animation makeInAnimation(int id) {
@@ -1090,6 +1084,7 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 
     public void onClick(View v) {
         switch (v.getId()) {
+					/*
             case R.id.discard:
 							//MenuHelper.deletePhoto(this, mDeletePhotoRunnable);
                 break;
@@ -1100,9 +1095,9 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
                 }
                 startShareMediaActivity(image);
                 break;
-								}*/
+								}
             case R.id.setas: {
-							/*IImage image = mAllImages.getImageAt(mCurrentPosition);
+							IImage image = mAllImages.getImageAt(mCurrentPosition);
                 Intent intent = Util.createSetAsIntent(image);
                 try {
                     startActivity(Intent.createChooser(
@@ -1110,9 +1105,10 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
                 } catch (android.content.ActivityNotFoundException ex) {
                     Toast.makeText(this, R.string.no_way_to_share_video,
                             Toast.LENGTH_SHORT).show();
-														}*/
+														}
                 break;
-            }
+								}
+					*/
             case R.id.next_image:
                 moveNextOrPrevious(1);
                 break;

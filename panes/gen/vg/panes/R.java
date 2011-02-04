@@ -147,20 +147,15 @@ or to a theme attribute in the form "<code>?[<i>package</i>:][<i>type</i>:]<i>na
     public static final class id {
         public static final int abs=0x7f050006;
         public static final int action_icon_panel=0x7f05000b;
-        public static final int attach=0x7f050010;
-        public static final int cancel=0x7f050011;
-        public static final int discard=0x7f05000f;
         public static final int horizontal=0x7f050000;
         public static final int image=0x7f050007;
         public static final int image1_slideShow=0x7f050004;
         public static final int image2_slideShow=0x7f050005;
+        public static final int nextPane=0x7f05000c;
         public static final int next_image=0x7f05000a;
         public static final int over=0x7f050008;
-        public static final int play=0x7f05000d;
         public static final int prev_image=0x7f050009;
         public static final int rootLayout=0x7f050002;
-        public static final int setas=0x7f05000c;
-        public static final int share=0x7f05000e;
         public static final int slideShowContainer=0x7f050003;
         public static final int vertical=0x7f050001;
     }
