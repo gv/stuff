@@ -11,10 +11,11 @@
 #X obj 145 576 *~;
 #X obj -89 356 *~;
 #X obj -91 317 osc~;
-#X floatatom 1 312 5 1 99999 0 - - -;
+#X floatatom 1 313 5 1 99999 0 - - -;
 #X floatatom -50 246 5 1 40 0 - - -;
 #X obj -111 251 *~;
 #X obj 116 139 sig~;
+#X obj 283 286 +~;
 #X connect 0 0 3 0;
 #X connect 0 0 8 0;
 #X connect 0 1 2 0;
