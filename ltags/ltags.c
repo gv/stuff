@@ -31,6 +31,14 @@ void debug(const char *fmt, ...) {
 	fprintf(stderr, "\n");
 }
 
+void normalizePath(char *path) {
+	char *p;
+	if(':' == path[1])
+		path[0] = tolower(path[0]);
+	for(p = path; *p; p++) 
+		if('\\' == *p) *p = '/';
+}
+
 char *loadWhole(const char *path, char **end) {
 	char *r = 0;
 	struct stat st;
@@ -39,7 +47,7 @@ char *loadWhole(const char *path, char **end) {
 		r = malloc(st.st_size + 1);
 		
 		if(r) {
-			FILE *fp = fopen(path, "r");
+			FILE *fp = fopen(path, "rb");
 			if(fp) {
 				int size = fread(r, 1, st.st_size, fp);
 				if(end)
@@ -460,7 +468,7 @@ int main(int argc, char **argv){
 	int r;
 	sqlite3_stmt *stm;
 	int mode = UPDATE;
-	struct Term terms[50], *termsEnd = terms, *indexTerm = 0;
+	struct Term terms[50], *lastTerm = terms, *indexTerm = 0;
 
 	static struct option longOpts[] = {
 		{"complete", required_argument, 0, 'C'},
@@ -483,9 +491,8 @@ int main(int argc, char **argv){
 		exit(1);
 	}
 
-	for(p = wdPath; *p; p++) 
-		if('\\' == *p) *p = '/';
-	
+	normalizePath(wdPath);
+
 	while(c = getopt_long(argc, argv, "", longOpts, &optInd), c != -1) {
 		switch(c) {
 		case 'C':
@@ -537,10 +544,26 @@ int main(int argc, char **argv){
 		}
 
 
-		while(optind < argc) {
+		for(; optind < argc; optind++) {
 			static const char punctuation[] = ":;,`~!()-=\\| ";
 			//static const char nonBreakable[] = " .";
 			char *e = argv[optind], *s; 
+			
+			// path/name:1234 is a character number which must be inside resulting span 
+			if(s = strrchr(e, ':')) {
+				char *numEnd;
+				lastTerm->pos = strtol(s + 1, &numEnd, 10);
+				if(0 == *numEnd) {
+					lastTerm->path = malloc(s - e + 1);
+					memcpy(lastTerm->path, e, s - e);
+					lastTerm->path[s - e] = 0;
+					debug(lastTerm->path);
+					lastTerm->flags = TERM_POS;
+					lastTerm++;
+					continue;
+				}
+			} 
+			
 			do {
 				s = e + strspn(e, punctuation);
 				e = strpbrk(s, punctuation);
@@ -548,31 +571,20 @@ int main(int argc, char **argv){
 					e = strchr(s, 0);
 				if(e - s) {
 					debug(e);
-					if(':' == *e) {
-						char *numEnd;
-						termsEnd->pos = strtol(e + 1, &numEnd, 10);
-						termsEnd->path = malloc(e - s + 1);
-						memcpy(termsEnd->path, s, e - s);
-						termsEnd->path[e - s] = 0;
-						termsEnd->flags = TERM_POS;
-						e = numEnd;
-					} else {
-						termsEnd->word = malloc(e - s + 1);
-						memcpy(termsEnd->word, s, e - s);
-						termsEnd->word[e - s] = 0;
-						termsEnd->flags = 0;
-					}
-					termsEnd++;
+					lastTerm->word = malloc(e - s + 1);
+					memcpy(lastTerm->word, s, e - s);
+					lastTerm->word[e - s] = 0;
+					lastTerm->flags = 0;
+					lastTerm++;
 				}
 			} while(e - s);
 
 			if(completionTargetIndex == optind) {
-				termsEnd[-1].flags |= TERM_INCOMPLETE;
+				lastTerm[-1].flags |= TERM_INCOMPLETE;
 			}
-			optind++;
 		}
 
-		if(termsEnd == terms) {
+		if(lastTerm == terms) {
 			fputs("No query", stderr);
 			exit(1);
 		}
