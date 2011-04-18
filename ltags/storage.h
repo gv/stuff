@@ -18,6 +18,8 @@ struct Span {
 	
 	struct Span *parent;
 	void *particular;
+
+	char *tagsText;
 };
 
 void 
