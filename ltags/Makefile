@@ -36,6 +36,7 @@ $Btokenizer.o: tokenizer.c tokenizer.h storage.h
 $Bstorage.o: storage.c storage.h
 	$(CC) $(CFLAGS) $FO5 storage.c $O$@
 
+# no shared cache, we're using one connection only
 $Bsqlite3.o: ext/sqlite/sqlite3.c
 	$(CC) $(CFLAGS) $FO4 \
 	$FDSQLITE_OMIT_LOAD_EXTENSION=1 \
@@ -45,6 +46,8 @@ $Bsqlite3.o: ext/sqlite/sqlite3.c
 	$FDSQLITE_OMIT_MEMORYDB=1 \
 	$FDSQLITE_OMIT_AUTOVACUUM=1 \
 	$FDSQLITE_OMIT_INCRBLOB=1 \
+	$FDSQLITE_OMIT_SHARED_CACHE=1 \
+	$FDSQLITE_OMIT_PROGRESS_CALLBACK=1 \
 	$FDSQLITE_THREADSAFE=1 \
 	$FDSQLITE_ENABLE_FTS3 \
 	ext/sqlite/sqlite3.c $O$@

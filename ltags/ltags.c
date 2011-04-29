@@ -710,7 +710,7 @@ int main(int argc, char **argv){
 			
 				printf("%s:%d:", path, lineNumber);
 				fwrite(line, 1, nextLine - line, stdout); 
-			} else { // complete
+			} else { // we need to complete prefix
 				const char *tags = span.tagsText, *next = tags;
 				while(*tags) {
 					next = strchr(tags, ' ');
