@@ -31,6 +31,14 @@ void debug(const char *fmt, ...) {
 	fprintf(stderr, "\n");
 }
 
+void normalizePath(char *path) {
+	char *p;
+	if(':' == path[1])
+		path[0] = tolower(path[0]);
+	for(p = path; *p; p++) 
+		if('\\' == *p) *p = '/';
+}
+
 char *loadWhole(const char *path, char **end) {
 	char *r = 0;
 	struct stat st;
@@ -39,7 +47,7 @@ char *loadWhole(const char *path, char **end) {
 		r = malloc(st.st_size + 1);
 		
 		if(r) {
-			FILE *fp = fopen(path, "r");
+			FILE *fp = fopen(path, "rb");
 			if(fp) {
 				int size = fread(r, 1, st.st_size, fp);
 				if(end)
@@ -421,6 +429,59 @@ struct Term {
 	};
 };
 
+int readSpan(struct Span *s, sqlite3_stmt *stm) {
+	int r;
+	char *tags, *next;
+
+	r = sqlite3_step(stm);
+	if(r != SQLITE_ROW)	
+		return 0;
+	s->path = sqlite3_column_text(stm, 0);
+	s->start = sqlite3_column_int(stm, 1);
+	s->end = sqlite3_column_int(stm, 2);
+	s->tagsText = sqlite3_column_text(stm, 3);
+	//debug(s->tagsText);
+
+	tags = s->tagsText;
+	s->tagsEnd = &s->tags[0];
+	while(*tags) {
+		next = strchr(tags, ' ');
+		if(!next)
+			next = strchr(tags, 0);
+		s->tagsEnd->start = tags;
+		s->tagsEnd->end = next;
+		s->tagsEnd++;
+		if(!*next)
+			break;
+		tags = next + 1;
+	}					
+	return 1;
+}
+
+
+
+int checkTerm(struct Term *t, struct Span *s) {
+	if(TERM_POS & t->flags) {
+		if(t->pos >= s->start)
+			if(t->pos <= s->end)
+				if(!strcmp(t->path, s->path))
+					return 1;
+	} else {
+		struct Word *tag = &s->tags[0];
+		for(; tag < s->tagsEnd; tag++) {
+			if(TERM_INCOMPLETE & t->flags) {
+				if(!strncmp(t->word, tag->start, strlen(t->word)))
+					return 1;
+			} else {
+				if(strlen(t->word) == tag->end - tag->start)
+					if(!strncmp(t->word, tag->start, tag->end - tag->start))
+						return 1;
+			}
+		}
+	}
+	return 0;
+}
+
 void startSearch(struct Term *t, sqlite3_stmt **stm) {
 	int r;
 	if(TERM_POS & t->flags) {
@@ -460,7 +521,7 @@ int main(int argc, char **argv){
 	int r;
 	sqlite3_stmt *stm;
 	int mode = UPDATE;
-	struct Term terms[50], *termsEnd = terms, *indexTerm = 0;
+	struct Term terms[50], *lastTerm = terms, *indexTerm = 0;
 
 	static struct option longOpts[] = {
 		{"complete", required_argument, 0, 'C'},
@@ -483,9 +544,8 @@ int main(int argc, char **argv){
 		exit(1);
 	}
 
-	for(p = wdPath; *p; p++) 
-		if('\\' == *p) *p = '/';
-	
+	normalizePath(wdPath);
+
 	while(c = getopt_long(argc, argv, "", longOpts, &optInd), c != -1) {
 		switch(c) {
 		case 'C':
@@ -508,7 +568,9 @@ int main(int argc, char **argv){
 		}
 		update();
 	} else {
+		struct Span span;
 		char *ftsQuery;
+
 		// --complete really should be as time-sensitive as we can get,
 		// because I get really annoyed when I press TAB and bash goes
 		// god knows where
@@ -537,10 +599,26 @@ int main(int argc, char **argv){
 		}
 
 
-		while(optind < argc) {
+		for(; optind < argc; optind++) {
 			static const char punctuation[] = ":;,`~!()-=\\| ";
 			//static const char nonBreakable[] = " .";
 			char *e = argv[optind], *s; 
+			
+			// path/name:1234 is a character number which must be inside resulting span 
+			if(s = strrchr(e, ':')) {
+				char *numEnd;
+				lastTerm->pos = strtol(s + 1, &numEnd, 10);
+				if(0 == *numEnd) {
+					lastTerm->path = malloc(s - e + 1);
+					memcpy(lastTerm->path, e, s - e);
+					lastTerm->path[s - e] = 0;
+					debug(lastTerm->path);
+					lastTerm->flags = TERM_POS;
+					lastTerm++;
+					continue;
+				}
+			} 
+			
 			do {
 				s = e + strspn(e, punctuation);
 				e = strpbrk(s, punctuation);
@@ -548,31 +626,26 @@ int main(int argc, char **argv){
 					e = strchr(s, 0);
 				if(e - s) {
 					debug(e);
-					if(':' == *e) {
-						char *numEnd;
-						termsEnd->pos = strtol(e + 1, &numEnd, 10);
-						termsEnd->path = malloc(e - s + 1);
-						memcpy(termsEnd->path, s, e - s);
-						termsEnd->path[e - s] = 0;
-						termsEnd->flags = TERM_POS;
-						e = numEnd;
-					} else {
-						termsEnd->word = malloc(e - s + 1);
-						memcpy(termsEnd->word, s, e - s);
-						termsEnd->word[e - s] = 0;
-						termsEnd->flags = 0;
+					lastTerm->flags = 0;
+					if('*' == e[-1]) {
+						e--;
+						lastTerm->flags |= TERM_INCOMPLETE;
 					}
-					termsEnd++;
+					lastTerm->word = malloc(e - s + 1);
+					memcpy(lastTerm->word, s, e - s);
+					lastTerm->word[e - s] = 0;
+					lastTerm++;
+					if('*' == *e) 
+						e++;
 				}
 			} while(e - s);
 
 			if(completionTargetIndex == optind) {
-				termsEnd[-1].flags |= TERM_INCOMPLETE;
+				lastTerm[-1].flags |= TERM_INCOMPLETE;
 			}
-			optind++;
 		}
 
-		if(termsEnd == terms) {
+		if(lastTerm == terms) {
 			fputs("No query", stderr);
 			exit(1);
 		}
@@ -580,27 +653,36 @@ int main(int argc, char **argv){
 		indexTerm = &terms[0];
 		startSearch(indexTerm, &stm);
 
-		while(r = sqlite3_step(stm), r == SQLITE_ROW) {
+		while(readSpan(&span, stm)) {
 			char pathFromWd[MAX_PATH];
-			const char *path, *absPath;
+			const char *path;
 			const char *contents;
 			char *contentsEnd;
 			const char *line, *target, *nextLine;
-			int start, end;
 			int lineNumber;
 
-			absPath = sqlite3_column_text(stm, 0);
-			start = sqlite3_column_int(stm, 1);
-			end = sqlite3_column_int(stm, 2);
+			//struct Span *parent
+			//do {
+			struct Term *term = terms;
+			int allTermsSatisfied = 1;
+			for(; term < lastTerm; term++) {
+				if(!checkTerm(term, &span)) {
+					allTermsSatisfied = 0;
+					break;
+				}
+			}
+				//} while(parent);
+			if(!allTermsSatisfied)
+				continue;
 
 			// Count lines to make output grep-like
 			
 			if(SEARCH == mode) {
-				path = getPathFrom(pathFromWd, absPath, wdPath);
+				path = getPathFrom(pathFromWd, span.path, wdPath);
 				
 				// print the shortest path
-				if(strlen(absPath) <= strlen(path))
-					path = absPath;
+				if(strlen(span.path) <= strlen(path))
+					path = span.path;
 
 				contents = loadWhole(path, &contentsEnd);
 				if(!contents) {
@@ -609,7 +691,7 @@ int main(int argc, char **argv){
 				}
 				
 				lineNumber = 1;
-				target = contents + start;
+				target = contents + span.start;
 				line = contents;
 				do {
 					nextLine = memchr(line, '\n', contentsEnd - line);
@@ -628,8 +710,8 @@ int main(int argc, char **argv){
 			
 				printf("%s:%d:", path, lineNumber);
 				fwrite(line, 1, nextLine - line, stdout); 
-			} else {
-				const char *tags = sqlite3_column_text(stm, 3), *next = tags;
+			} else { // we need to complete prefix
+				const char *tags = span.tagsText, *next = tags;
 				while(*tags) {
 					next = strchr(tags, ' ');
 					if(!next)
@@ -645,10 +727,6 @@ int main(int argc, char **argv){
 			}
 		}
 
-		if(r != SQLITE_DONE) {
-			fprintf(stderr, "No step: %d", r);
-			exit(1);
-		}
 	}
 
   return 0;
