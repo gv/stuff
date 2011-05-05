@@ -192,7 +192,7 @@
   )
 
   
-(require 'gtags)
+;;(require 'gtags)
 (defun gtags-find-tag-or-path (&optional other-win)
   "Input tag name and move to the definition."
   (interactive)
@@ -278,13 +278,11 @@
 
 (setq tramp-mode nil)
 
-(defun cock () (interactive)
-  (message "123")
-  (error "this used to" 1)
-  (message "234")
-)
-
 (fset 'yes-or-no-p 'y-or-n-p)
+
+
+(load "haskell-mode-2.8.0/haskell-site-file")
+(add-hook 'haskell-mode-hook 'turn-on-haskell-indentation)
 
 
 ;;
