@@ -7,8 +7,7 @@ timeUnit = 4
 frameTime name = (read $ '0':(filter (>= '0') (filter (<= '9') name))) ::Int
 
 tokens (a: b: restOfNames) = 
-  --["-set", 
-  ["-delay",  show (timeUnit * (frameTime b - frameTime a)), a] ++
+  "-delay":  show (timeUnit * (frameTime b - frameTime a)): a:
   tokens (b:restOfNames)
   
 tokens [last] = ["-delay", show (timeUnit*2), last]
