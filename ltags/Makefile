@@ -65,6 +65,14 @@ $Bgetopt.o: ext/getopt/getopt.c
 
 $Bgetopt1.o: ext/getopt/getopt1.c 	
 	cl /c $(CFLAGS) ext/getopt/getopt1.c /Fo$(B)getopt1.o 
+
+$Bsqlite3.dll:
+	link $Bsqlite3.o 
+
+search$X: stub.hs 
+	ghc -XScopedTypeVariables -XTypeSynonymInstances -XFlexibleInstances \
+-XUndecidableInstances -v $Bsqlite3.o stub.hs 
+
 else 
 ltags$X: $Bltags.o $Bjava.o $Bsqlite3.o $Bstorage.o $Btokenizer.o
 	gcc -lm -lpthread $^ -o $@
