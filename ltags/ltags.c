@@ -226,19 +226,21 @@ void updateFile(const char *path) {
 	}
 	if(l < languages) {
 		debug("No language detected for for %s", path);
-		return;
+		l = NULL;
 	}
 		
 	
 	pf = malloc(sizeof(*pf));
-	pf->language = *l;
+	pf->language = l ? *l : NULL;
 	pf->path = strdup(path);
 	pf->mtime = st.st_mtime;
 	pf->currentSpan = NULL;
 
-	debug("Loading: %s", path);
-	pf->contents = loadWhole(path, &pf->contentsEnd);
-	*pf->contentsEnd = '\n'; //padding
+	if(l) {
+		debug("Loading: %s", path);
+		pf->contents = loadWhole(path, &pf->contentsEnd);
+		*pf->contentsEnd = '\n'; //padding
+	}
 
 	queue_enqueue(&fileQueue, pf);
 }
@@ -305,8 +307,10 @@ void *parserThread(void *unused) {
 			}
 		}
 			
-		debug("Parsing: %s", pf->path);
-		parse(pf);
+		if(pf->language) {
+			debug("Parsing: %s", pf->path);
+			parse(pf);
+		}
 
 		while(pf->currentSpan)
 			finishLastSpan(pf, pf->contentsEnd);
