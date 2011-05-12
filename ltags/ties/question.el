@@ -1,5 +1,7 @@
 (defun question-complete (what check type) 
-  (let ((text (shell-command-to-string "ltags q"))
+  (let ((text (shell-command-to-string 
+			   (message (format "qn --complete %d 0 %s" (length (split-string what)) what))
+			   ))
 		(words))
 	(setq words (split-string text))
 	(cond ((eq type nil)
@@ -17,6 +19,7 @@
 
 (defun question-eponimous ()  (interactive)
   (let (query)
+	(define-key minibuffer-local-completion-map " " nil)
 	(setq query (completing-read "Question: " 'question-complete))
 	(compilation-start (concat "ltags " query)
 					   'grep-mode)
@@ -25,11 +28,9 @@
 
 (global-set-key [M-.] 'question-eponimous)
 (global-set-key [M-\\] 'question-eponimous)
-(local-set-key [M-.] 'question-eponimous)
-(local-set-key [M-p] 'find-tag)
-(global-set-key [M-p] 'werqwerqwerqwe)
-(local-set-key [M-\\] 'question-eponimous)
 (global-set-key [M-right] 'question-eponimous)
+(local-set-key [M-.] 'question-eponimous)
+(local-set-key [M-\\] 'question-eponimous)
 (local-set-key [M-right] 'question-eponimous)
 
 (defun question-here () (interactive)
@@ -38,4 +39,3 @@
 					 'grep-mode)
 )
 
-(current-local-map)
