@@ -166,6 +166,8 @@
 ;; for ViewSourceWith Firefox extension
 (add-to-list 'auto-mode-alist '("index.\\.*" . wikipedia-mode))
 
+(load "../ltags/ties/question")
+
 (defun vg-tune-c ()
   (setq c-basic-offset 2
 		tab-width 2
@@ -175,49 +177,14 @@
   (c-set-offset 'arglist-intro '+)
   (c-set-offset 'arglist-cont-nonempty '+)
   (c-set-offset 'arglist-close 0)
-  (gtags-mode 1)
   (setq js-indent-level 2)
+  (local-set-key [M-.] 'question-eponimous)
   )
 
 (add-hook 'c-mode-common-hook 'vg-tune-c)
 (add-hook 'js-mode-hook 'vg-tune-c)
 
-(defun etags () 
-  "Switch from global to etags, revert to go back | doesn't work"
-  (interactive)
-  (local-set-key (kbd "M-[") 'gtags-find-rtag)
-  (local-set-key (kbd "M-]") 'gtags-find-pattern)
-  (local-set-key [M-.] 'find-tag)
-  (local-set-key [M-left] 'pop-tag-mark)
-  )
-
-  
-;;(require 'gtags)
-(defun gtags-find-tag-or-path (&optional other-win)
-  "Input tag name and move to the definition."
-  (interactive)
-  (let (tagname prompt input)
-    (setq tagname (gtags-current-token))
-    (if tagname
-		(setq prompt (concat "[G] Find tag: (default " tagname ") "))
-	  (setq prompt "[G] Find tag: "))
-    (setq input (completing-read prompt 'gtags-completing-gtags
-								 nil nil nil gtags-history-list))
-    (if (not (equal "" input))
-		(setq tagname input))
-    (gtags-push-context)
-    (gtags-goto-tag tagname "" other-win)))
-
-(fset 'gtags-find-tag 'gtags-find-tag-or-path)
-(fset 'find-tag 'gtags-find-tag-or-path)
-
-(add-hook 'gtags-select-mode-hook
-		  '(lambda ()
-			 (local-set-key (kbd "M-[") 'gtags-find-rtag)
-			 (local-set-key (kbd "M-]") 'gtags-find-pattern)
-			 (local-set-key [M-.] 'gtags-find-tag-or-path)
-			 (local-set-key [M-left] 'gtags-pop-stack)
-			 ))
+(fset 'find-tag 'question-eponimous)
 
 (add-hook 'python-mode-hook 
 		  '(lambda ()
@@ -231,11 +198,8 @@
 	(global-set-key (kbd "M-[") 'gtags-find-rtag)
 )
 
-(global-set-key (kbd "M-]") 'gtags-find-symbol)
-(global-set-key (kbd "M-=") 'gtags-find-file)
-(global-set-key [M-.] 'gtags-find-tag)
-(global-set-key [M-left] 'gtags-pop-stack)
-(global-set-key (kbd "ESC <left>") 'gtags-pop-stack)
+;(global-set-key [M-left] 'gtags-pop-stack)
+;(global-set-key (kbd "ESC <left>") 'gtags-pop-stack)
 
 ; Set file types.
 (add-to-list 'auto-mode-alist '("\\.ks\\'" . java-mode))

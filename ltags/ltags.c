@@ -394,6 +394,7 @@ void update() {
 		run("UPDATE spans SET status=1"); // 1 means "questionable"
 		run("BEGIN");
 		strcpy(curPath, dbDirPath);
+		debug(curPath);
 		updateDir(curPath);
 
 		// parser thread stops when it receives NULL
@@ -431,6 +432,7 @@ struct Term {
 			char *path;
 		};
 	};
+	sqlite3_stmt *stm;
 };
 
 int readSpan(struct Span *s, sqlite3_stmt *stm) {
@@ -443,7 +445,7 @@ int readSpan(struct Span *s, sqlite3_stmt *stm) {
 	s->path = sqlite3_column_text(stm, 0);
 	s->start = sqlite3_column_int(stm, 1);
 	s->end = sqlite3_column_int(stm, 2);
-	s->tagsText = sqlite3_column_text(stm, 3);
+	s->tagsText = (char*)sqlite3_column_text(stm, 3); // not const 
 	//debug(s->tagsText);
 
 	tags = s->tagsText;
@@ -509,7 +511,7 @@ void startSearch(struct Term *t, sqlite3_stmt **stm) {
 			strcat(ftsQuery, "*"); 
 		}
 		
-		debug(ftsQuery);
+		//debug("searching indexed: %s", ftsQuery);
 
 		ASSERTSQL(sqlite3_prepare_v2(db, 
 				"SELECT path, start, end, tags " 
@@ -524,11 +526,13 @@ void startSearch(struct Term *t, sqlite3_stmt **stm) {
 int main(int argc, char **argv){
 	int r;
 	sqlite3_stmt *stm;
-	int mode = UPDATE;
+	int mode = SEARCH;
 	struct Term terms[50], *lastTerm = terms, *indexTerm = 0;
 
 	static struct option longOpts[] = {
 		{"complete", required_argument, 0, 'C'},
+		{"update", no_argument, 0, 'u'},
+		{"wheredb", no_argument, 0, 'W'},
 		{0, 0, 0, 0}
 	};
 
@@ -550,17 +554,24 @@ int main(int argc, char **argv){
 
 	normalizePath(wdPath);
 
-	while(c = getopt_long(argc, argv, "", longOpts, &optInd), c != -1) {
+	while(c = getopt_long(argc, argv, "u", longOpts, &optInd), c != -1) {
 		switch(c) {
 		case 'C':
 			mode = COMPLETE;
 			completionTargetIndex = atoi(optarg);
-		}
-	}
+			break;
 
-	if(optind < argc) {
-		if(UPDATE == mode)
-			mode = SEARCH;
+		case 'u':
+			mode = UPDATE;
+			break;
+
+		case 'W':
+			if(findDb())
+				printf("%s\n", dbPath);
+			exit(0);
+			break;
+			
+		}
 	}
 
 
@@ -572,7 +583,7 @@ int main(int argc, char **argv){
 		}
 		update();
 	} else {
-		struct Span span;
+		struct Span *span, *leaves = NULL;
 		char *ftsQuery;
 
 		// --complete really should be as time-sensitive as we can get,
@@ -629,7 +640,6 @@ int main(int argc, char **argv){
 				if(!e) 
 					e = strchr(s, 0);
 				if(e - s) {
-					debug(e);
 					lastTerm->flags = 0;
 					if('*' == e[-1]) {
 						e--;
@@ -654,10 +664,57 @@ int main(int argc, char **argv){
 			exit(1);
 		}
 
-		indexTerm = &terms[0];
-		startSearch(indexTerm, &stm);
+		for(indexTerm = &terms[0]; indexTerm < lastTerm; indexTerm++ ) {
+			struct Span *span, *betterLeaves = 0;
+			int count = 0;
+			startSearch(indexTerm, &indexTerm->stm);
 
-		while(readSpan(&span, stm)) {
+			while(readSpan(span = malloc(sizeof(*span)), indexTerm->stm)) {
+				span->tagsText = strdup(span->tagsText);
+				span->path = strdup(span->path);
+				span->parent = NULL;
+
+				if(&terms[0] == indexTerm) {
+					span->particular = betterLeaves;
+					betterLeaves = span;
+					count++;
+				} else {
+					struct Span *leaf = leaves;
+					while(leaf) {
+						int matched = 0;
+						if(!strcmp(span->path, leaf->path)) {
+							if(span->start < leaf->start && span->end > leaf->end) {
+								// span is outside
+								//debug("'%s' outside '%s'", span->tagsText, leaf->tagsText);
+								//span->parent = leaf;
+								span->particular = betterLeaves;
+								betterLeaves = span;
+								matched = 1;
+								count++;
+								break;
+							}	else if(span->start >= leaf->start && span->end <= leaf->end) {
+								// span is inside or at the same place
+								//debug("'%s' inside or eq '%s'", span->tagsText, leaf->tagsText);
+								span->parent = leaf;
+								span->particular = betterLeaves;
+								betterLeaves = span;
+								matched = 1;
+								count++;
+								break;
+							}
+						}
+						leaf = leaf->particular;
+					}
+				}
+			}
+
+			//debug("%s: %d", indexTerm->word, count);
+			//free()
+			leaves = betterLeaves;
+		}
+				
+		span = leaves;
+		while(span) {
 			char pathFromWd[MAX_PATH];
 			const char *path;
 			const char *contents;
@@ -665,9 +722,7 @@ int main(int argc, char **argv){
 			const char *line, *target, *nextLine;
 			int lineNumber;
 
-			//struct Span *parent
-			//do {
-			struct Term *term = terms;
+			/*struct Term *term = terms;
 			int allTermsSatisfied = 1;
 			for(; term < lastTerm; term++) {
 				if(!checkTerm(term, &span)) {
@@ -675,18 +730,17 @@ int main(int argc, char **argv){
 					break;
 				}
 			}
-				//} while(parent);
 			if(!allTermsSatisfied)
-				continue;
+			continue;*/
 
 			// Count lines to make output grep-like
 			
 			if(SEARCH == mode) {
-				path = getPathFrom(pathFromWd, span.path, wdPath);
+				path = getPathFrom(pathFromWd, span->path, wdPath);
 				
 				// print the shortest path
-				if(strlen(span.path) <= strlen(path))
-					path = span.path;
+				if(strlen(span->path) <= strlen(path))
+					path = span->path;
 
 				contents = loadWhole(path, &contentsEnd);
 				if(!contents) {
@@ -695,7 +749,7 @@ int main(int argc, char **argv){
 				}
 				
 				lineNumber = 1;
-				target = contents + span.start;
+				target = contents + span->start;
 				line = contents;
 				do {
 					nextLine = memchr(line, '\n', contentsEnd - line);
@@ -704,18 +758,17 @@ int main(int argc, char **argv){
 						break;
 					} else 
 						nextLine++;
-
+					
 					if(nextLine > target)
 						break;
 					lineNumber++;
 					line = nextLine;
 				} while(1);
-				
 			
 				printf("%s:%d:", path, lineNumber);
 				fwrite(line, 1, nextLine - line, stdout); 
 			} else { // we need to complete prefix
-				const char *tags = span.tagsText, *next = tags;
+				const char *tags = span->tagsText, *next = tags;
 				while(*tags) {
 					next = strchr(tags, ' ');
 					if(!next)
@@ -729,6 +782,7 @@ int main(int argc, char **argv){
 					tags = next;
 				}					
 			}
+			span = span->particular;
 		}
 
 	}
