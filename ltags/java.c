@@ -60,6 +60,7 @@ static void processJavaWord(struct File *pf) {
 		JPART(pf->currentSpan)->flags |= LIST_EXPECTED;
 		break;
 	case CLASS_:
+	case INTERFACE_:
 		//debug("class");
 		addTagToCurrentSpan(pf, C_FEATURE, C_FEATURE + 1);
 		addTagToCurrentSpan(pf, D_FEATURE, D_FEATURE + 1);

@@ -21,7 +21,7 @@
   (let (query)
 	(define-key minibuffer-local-completion-map " " nil)
 	(setq query (completing-read "Question: " 'question-complete))
-	(compilation-start (concat "ltags " query)
+	(compilation-start (concat "qn " query)
 					   'grep-mode)
 	)
   )
@@ -35,7 +35,7 @@
 
 (defun question-here () (interactive)
 ;;  (message (format "%s:%d" (buffer-file-name) (point)))
-  (compilation-start (format "qn %s:%d" (buffer-file-name) (point))
-					 'grep-mode)
+  (message (shell-command-to-string 
+			(format "qn -l %s %d" (buffer-file-name) (point))))
 )
 
