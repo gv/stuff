@@ -179,6 +179,7 @@
   (c-set-offset 'arglist-close 0)
   (setq js-indent-level 2)
   (local-set-key [M-.] 'question-eponimous)
+  (local-set-key [M-p] 'question-here)
   )
 
 (add-hook 'c-mode-common-hook 'vg-tune-c)

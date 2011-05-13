@@ -34,7 +34,6 @@
 (local-set-key [M-right] 'question-eponimous)
 
 (defun question-here () (interactive)
-;;  (message (format "%s:%d" (buffer-file-name) (point)))
   (message (shell-command-to-string 
 			(format "qn -l %s %d" (buffer-file-name) (point))))
 )

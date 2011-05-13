@@ -168,8 +168,16 @@ struct Span *startGenericSpan(struct File *pf, const char *start) {
 
 struct Span *finishLastSpan(struct File *pf, const char *end) {
 	struct Span *s = pf->currentSpan;
+	struct Word *w;
 	s->end = end - pf->contents;
-	saveSpan(s);
+
+	for(w = pf->currentSpan->tags; w < pf->currentSpan->tagsEnd; w++) {
+		if(w->start >= pf->contents)
+			if(w->end <= pf->contentsEnd) {
+				saveSpan(s);
+				break;
+			}
+	}
 	pf->currentSpan = s->parent;
 	free(s->particular);
 	free(s);
@@ -193,6 +201,19 @@ struct Span *findSpanWithFeature(struct Span *ps, const char *feature) {
 		return ps;
 	return findSpanWithFeature(ps->parent, feature);
 }
+
+struct Span *delTagFromCurrentSpan(struct File *pf, const char *start) {
+	struct Word *w = pf->currentSpan->tagsEnd;
+	while(--w >= pf->currentSpan->tags) {
+		if(w->start = start) {
+			*w = *pf->currentSpan->tagsEnd;
+			pf->currentSpan->tagsEnd--;
+			break;
+		}
+	}
+	return pf->currentSpan;
+}
+			
 	 
 	 
 const char F_FEATURE[] = "f"; // file

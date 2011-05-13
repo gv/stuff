@@ -19,6 +19,7 @@ struct JavaSpanState {
  
 static void startParsingJavaSrc(struct File *pFile) {
 	pFile->langParserState = calloc(sizeof (struct JavaParserState), 1);
+	pFile->currentSpan->particular = calloc(sizeof(struct JavaSpanState), 1);
 }
 
 static void finish(struct File *pf) {

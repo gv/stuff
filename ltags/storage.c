@@ -33,8 +33,9 @@ void saveSpan(const struct Span *pSpan) {
 	int r;
 	sqlite3_stmt *stm;
 	char text[MAX_TAG_CNT * 32], *tail =  text, *nextTail = text;
-	const struct Word *w = pSpan->tags;
-
+	const struct Word *w;
+	
+	w = pSpan->tags;
 	while(w < pSpan->tagsEnd) {
 		nextTail = tail + (w->end - w->start) + 1;
 		if(nextTail > text + sizeof text) {
@@ -49,7 +50,6 @@ void saveSpan(const struct Span *pSpan) {
 	}
 	tail[-1] = 0;
 	//debug("Saving span: %s", text);
-	
 	
 	stm = spanUpdateStm;
 	while(1) {

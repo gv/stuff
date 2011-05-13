@@ -2,8 +2,10 @@
 #include "tokenizer.h"
 
 extern const struct Language javaLanguage;
+extern const struct Language jsLanguage;
 static const struct Language *languages[] = {
-	&javaLanguage
+	&javaLanguage,
+	&jsLanguage
 };
  
 struct Language *chooseLanguage(struct File *pf) {

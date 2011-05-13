@@ -30,6 +30,9 @@ $Bltags.o: ltags.c queue.h tokenizer.h storage.h
 $Bjava.o: java.c java_res.h tokenizer.c storage.h
 	$(CC) $(CFLAGS) $FO5 java.c $O$@
 
+$Bjs.o: js.c tokenizer.h
+	$(CC) $(CFLAGS) $FO5 js.c $O$@
+
 $Btokenizer.o: tokenizer.c tokenizer.h storage.h
 	$(CC) $(CFLAGS) $FO5 tokenizer.c $O$@
 
@@ -60,8 +63,9 @@ $Bsqlite3.o: ext/sqlite/sqlite3.c
 
 
 ifeq ($(OS), Windows_NT)
-ltags$X: $Bltags.o $Bjava.o $Bstorage.o $Btokenizer.o $Bchooselang.o $Butil.o\
-	$Bsqlite3.o $Bgetopt.o $Bgetopt1.o \
+ltags$X: $Bltags.o $Bstorage.o $Btokenizer.o $Bchooselang.o $Butil.o\
+	$Bjava.o $Bjs.o\
+	$Bsqlite3.o $Bgetopt.o $Bgetopt1.o\
 	prebuilt/pthreadVC2.lib
 	cmd /c copy prebuilt\pthreadVC2.dll .
 	link /DEBUG $^
@@ -80,8 +84,8 @@ search$X: sqlite3.dll stub.hs
 	ghc -XScopedTypeVariables -XTypeSynonymInstances -XFlexibleInstances \
 -XUndecidableInstances sqlite3.dll stub.hs 
 
-testparse$X: tokenizer.c testparse.c util.c chooselang.c java.c
-	cl /Zi /DQUESTION_TESTPARSE testparse.c util.c chooselang.c java.c
+testparse$X: tokenizer.c testparse.c util.c chooselang.c java.c js.c
+	cl /Zi /DQUESTION_TESTPARSE testparse.c util.c chooselang.c java.c js.c
 else 
 ltags$X: $Bltags.o $Bjava.o $Bsqlite3.o $Bstorage.o $Btokenizer.o
 	gcc -lm -lpthread $^ -o $@
