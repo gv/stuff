@@ -9,6 +9,7 @@
 
 struct JavaParserState {
 	char *probableName, *probableNameEnd;
+	int flags;
 };
 
 struct JavaSpanState {
@@ -26,8 +27,6 @@ static void finish(struct File *pf) {
 
 #define JPART(span) ((struct JavaSpanState*)span->particular)
 
-#define JCOMMON(pfile) ((struct JavaParserState*)pfile->langParserState)
-
 #define LIST_EXPECTED 1
 #define ANNOTATION    2
 
@@ -37,14 +36,16 @@ static struct Span *startSpan(struct File *pf, const char *start) {
 	return s;
 }
 
+#define STATE ((struct JavaParserState*)pf->langParserState)
+
 static void processJavaWord(struct File *pf) {
-	int rw; 
+	int rw;
 
 	if('@' == *pf->token) {
-		JPART(pf->currentSpan)->flags |= ANNOTATION;
+		STATE->flags |= ANNOTATION;
 		return;
 	}
-	JPART(pf->currentSpan)->flags &= ~ANNOTATION;
+	STATE->flags &= ~ANNOTATION;
 	
 	rw = getJavaReservedWordIndex(pf->token, pf->tokenEnd - pf->token);
 	//debug("%d", rw);
@@ -74,9 +75,9 @@ static void processJavaWord(struct File *pf) {
 static void processJavaNonword(struct File *pf, const char *p) {
 	struct Span *newSpan, *body;
 
-	if(JPART(pf->currentSpan)->flags & ANNOTATION) {
+	if(STATE->flags & ANNOTATION) {
 		if(')' == *p)
-			JPART(pf->currentSpan)->flags &= ~ANNOTATION;
+			STATE->flags &= ~ANNOTATION;
 		return;
 	}
 		

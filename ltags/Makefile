@@ -36,6 +36,12 @@ $Btokenizer.o: tokenizer.c tokenizer.h storage.h
 $Bstorage.o: storage.c storage.h
 	$(CC) $(CFLAGS) $FO5 storage.c $O$@
 
+$Bchooselang.o: chooselang.c
+	$(CC) $(CFLAGS) $FO4 chooselang.c $O$@
+
+$Butil.o: util.c
+	$(CC) $(CFLAGS) $FO4 util.c $O$@
+
 # no shared cache, we're using one connection only
 $Bsqlite3.o: ext/sqlite/sqlite3.c
 	$(CC) $(CFLAGS) $FO4 \
@@ -54,7 +60,7 @@ $Bsqlite3.o: ext/sqlite/sqlite3.c
 
 
 ifeq ($(OS), Windows_NT)
-ltags$X: $Bltags.o $Bjava.o $Bstorage.o $Btokenizer.o \
+ltags$X: $Bltags.o $Bjava.o $Bstorage.o $Btokenizer.o $Bchooselang.o $Butil.o\
 	$Bsqlite3.o $Bgetopt.o $Bgetopt1.o \
 	prebuilt/pthreadVC2.lib
 	cmd /c copy prebuilt\pthreadVC2.dll .
@@ -74,6 +80,8 @@ search$X: sqlite3.dll stub.hs
 	ghc -XScopedTypeVariables -XTypeSynonymInstances -XFlexibleInstances \
 -XUndecidableInstances sqlite3.dll stub.hs 
 
+testparse$X: tokenizer.c testparse.c util.c chooselang.c java.c
+	cl /Zi /DQUESTION_TESTPARSE testparse.c util.c chooselang.c java.c
 else 
 ltags$X: $Bltags.o $Bjava.o $Bsqlite3.o $Bstorage.o $Btokenizer.o
 	gcc -lm -lpthread $^ -o $@

@@ -35,6 +35,7 @@ extern const char F_FEATURE[];
 extern const char C_FEATURE[];
 extern const char D_FEATURE[];
 extern const char B_FEATURE[];
+extern const char W_FEATURE[];
 
 void 
 parse(struct File*);
@@ -57,5 +58,9 @@ spanHasFeature(const struct Span *ps, const char *start);
 
 struct Span *
 findSpanWithFeature(struct Span *ps, const char *feature);
+
+struct Language *chooseLanguage(struct File *pf);
+
+char *loadWhole(const char *path, char **end);
 
 

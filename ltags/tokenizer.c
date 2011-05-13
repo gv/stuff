@@ -1,4 +1,6 @@
 #include <stdlib.h>
+#include <stdio.h>
+#include <sys/stat.h>
 #include "tokenizer.h"
 
 // hyperoptimized
@@ -38,6 +40,9 @@ void parse(struct File *pf) {
 	mode = SPACE;
 	flags = 0;
 	for(;;p++) {
+#ifdef QUESTION_TESTPARSE
+		fputc(*p, stdout);
+#endif 
 		switch(mode) {
 		case '\'':
 		case '"':
@@ -190,8 +195,8 @@ struct Span *findSpanWithFeature(struct Span *ps, const char *feature) {
 }
 	 
 	 
-	 
 const char F_FEATURE[] = "f"; // file
 const char D_FEATURE[] = "d"; // definition
 const char C_FEATURE[] = "c"; // class
 const char B_FEATURE[] = "b"; // body
+const char W_FEATURE[] = "w"; // write

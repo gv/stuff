@@ -23,54 +23,12 @@
 # define MAX_PATH 1000
 #endif
 
-void debug(const char *fmt, ...) {
-	va_list args;
-	va_start(args, fmt);
-	vfprintf(stderr, fmt, args);
-	va_end(args);
-	fprintf(stderr, "\n");
-}
-
 void normalizePath(char *path) {
 	char *p;
 	if(':' == path[1])
 		path[0] = tolower(path[0]);
 	for(p = path; *p; p++) 
 		if('\\' == *p) *p = '/';
-}
-
-char *loadWhole(const char *path, char **end) {
-	char *r = 0;
-	struct stat st;
-	
-	if(0 <= stat(path, &st)) {
-		r = malloc(st.st_size + 1);
-		
-		if(r) {
-			FILE *fp = fopen(path, "rb");
-			if(fp) {
-				int size = fread(r, 1, st.st_size, fp);
-				if(end)
-					*end = r + size;
-					
-				if(size < st.st_size) {
-					fprintf(stderr, "Can't read more than %d of %u in %s", 
-						size, (unsigned)st.st_size, path);
-				}
-
-				fclose(fp);
-			} else {
-				fprintf(stderr, "Can't fopen %s\n", path);
-			}
-				
-		} else {
-			fprintf(stderr, "No memory to load %s\n", path);
-		}
-	} else {
-		fprintf(stderr, "Can't stat %s\n", path);
-	}
-
-	return r;
 }
 
 const char *getPathFrom(char *d, const char *path, const char *base) {
@@ -172,11 +130,6 @@ void run(char *stmt) {
 }
 
 
-extern const struct Language javaLanguage;
-const struct Language *languages[] = {
-	&javaLanguage
-};
- 
 pthread_t parserThreads[4];
 void *files[5];
 queue_t fileQueue = QUEUE_INITIALIZER(files);
@@ -188,7 +141,6 @@ void updateFile(const char *path) {
 	int r;
 	int storedTime = 0;
 	sqlite3_stmt *stm;
-	const struct Language **l;
 	
 	r = stat(path, &st);
 	if(r < 0) {
@@ -217,25 +169,16 @@ void updateFile(const char *path) {
 		return;
 	}
 
-	l = languages + countof(languages);
-	while(--l >= languages) {
-		if((*l)->couldDoPath(path)) {
-			break;
-		}
-	}
-	if(l < languages) {
-		debug("No language detected for for %s", path);
-		l = NULL;
-	}
-		
 	
 	pf = malloc(sizeof(*pf));
-	pf->language = l ? *l : NULL;
 	pf->path = strdup(path);
+	if(!chooseLanguage(pf)) {
+		debug("No language detected for for %s", path);
+	}		
 	pf->mtime = st.st_mtime;
 	pf->currentSpan = NULL;
 
-	if(l) {
+	if(pf->language) {
 		debug("Loading: %s", path);
 		pf->contents = loadWhole(path, &pf->contentsEnd);
 		*pf->contentsEnd = '\n'; //padding
@@ -290,7 +233,7 @@ void *parserThread(void *unused) {
 		if(!pf)
 			break;
 		
-		startSpan(pf, pf->contents);
+		startGenericSpan(pf, pf->contents);
 		addTagToCurrentSpan(pf, F_FEATURE, F_FEATURE + 1);
 
 		assert(strchr(pf->path, '/'));
@@ -415,28 +358,6 @@ void update() {
 }
 
 
-
-#define SEARCH 1
-#define COMPLETE 2
-#define UPDATE 3
-#define LSDEFS 4
-
-#define TERM_SEQ 1
-#define TERM_POS 2
-#define TERM_INCOMPLETE 4
-
-struct Term {
-	int flags;
-	union {
-		char *word;
-		struct {
-			unsigned pos;
-			char *path;
-		};
-	};
-	sqlite3_stmt *stm;
-};
-
 int readSpan(struct Span *s, sqlite3_stmt *stm) {
 	int r;
 	char *tags, *next;
@@ -466,6 +387,22 @@ int readSpan(struct Span *s, sqlite3_stmt *stm) {
 	return 1;
 }
 
+
+#define TERM_SEQ 1
+#define TERM_POS 2
+#define TERM_INCOMPLETE 4
+
+struct Term {
+	int flags;
+	union {
+		char *word;
+		struct {
+			unsigned pos;
+			char *path;
+		};
+	};
+	sqlite3_stmt *stm;
+};
 
 
 int checkTerm(struct Term *t, struct Span *s) {
@@ -524,6 +461,11 @@ void startSearch(struct Term *t, sqlite3_stmt **stm) {
 		ASSERTSQL(sqlite3_bind_text(*stm, 1, ftsQuery, -1, SQLITE_STATIC));
 	}
 }	
+
+#define SEARCH 1
+#define COMPLETE 2
+#define UPDATE 3
+#define LSDEFS 4
 
 int main(int argc, char **argv){
 	int r;
