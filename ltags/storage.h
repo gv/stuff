@@ -11,7 +11,7 @@ struct Word {
 };
 
 struct Span {
-	struct Word tags[256], *tagsEnd;
+	struct Word tags[MAX_TAG_CNT], *tagsEnd;
 	int start, end;
 	int mtime;
 	const char *path;

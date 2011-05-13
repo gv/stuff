@@ -143,7 +143,6 @@ int findDb() {
 	strcpy(dbPath, dbDirPath);
 	strcat(dbPath, "/");
 	strcat(dbPath, dbName);
-	debug(dbPath);
 	return 1;
 }
 		
@@ -314,7 +313,9 @@ void *parserThread(void *unused) {
 
 		while(pf->currentSpan)
 			finishLastSpan(pf, pf->contentsEnd);
-		free(pf->contents);
+
+		if(pf->language)
+			free(pf->contents);
 		free(pf->path);
 		free(pf);
 	}
@@ -418,6 +419,7 @@ void update() {
 #define SEARCH 1
 #define COMPLETE 2
 #define UPDATE 3
+#define LSDEFS 4
 
 #define TERM_SEQ 1
 #define TERM_POS 2
@@ -532,6 +534,7 @@ int main(int argc, char **argv){
 	static struct option longOpts[] = {
 		{"complete", required_argument, 0, 'C'},
 		{"update", no_argument, 0, 'u'},
+		{"lsdefs", required_argument, 0, 'l'},
 		{"wheredb", no_argument, 0, 'W'},
 		{0, 0, 0, 0}
 	};
@@ -543,10 +546,6 @@ int main(int argc, char **argv){
 
 	char *p;
 	
-	/*for(c = 0; c < argc; c++)
-		debug("\narg %d: '%s'", c, argv[c]);
-	//*/
-
 	if(!getcwd(wdPath, sizeof dbPath - sizeof dbName - 2)) {
 		fprintf(stderr, "Can't getcwd");
 		exit(1);
@@ -554,7 +553,7 @@ int main(int argc, char **argv){
 
 	normalizePath(wdPath);
 
-	while(c = getopt_long(argc, argv, "u", longOpts, &optInd), c != -1) {
+	while(c = getopt_long(argc, argv, "ul:", longOpts, &optInd), c != -1) {
 		switch(c) {
 		case 'C':
 			mode = COMPLETE;
@@ -563,6 +562,13 @@ int main(int argc, char **argv){
 
 		case 'u':
 			mode = UPDATE;
+			break;
+
+		case 'l':
+			mode = LSDEFS;
+			lastTerm = &terms[0];
+			lastTerm->flags = TERM_POS;
+			lastTerm->path = optarg;
 			break;
 
 		case 'W':
@@ -582,7 +588,7 @@ int main(int argc, char **argv){
 			strcat(dbPath, dbName);
 		}
 		update();
-	} else {
+	} else  {
 		struct Span *span, *leaves = NULL;
 		char *ftsQuery;
 
@@ -607,6 +613,35 @@ int main(int argc, char **argv){
 			sqlite3_close(db);
 			exit(1);
 		}
+
+		if(LSDEFS == mode) {
+			sqlite3_stmt *stm;
+			struct Span span;
+			int started = 0;
+
+			if(optind > argc) {
+				fprintf(stderr, "list definitions: no position in file given\n");
+				exit(1);
+			}
+			
+			lastTerm->pos = atoi(argv[optind]);
+			startSearch(lastTerm, &stm);
+			while(readSpan(&span, stm)) {
+				struct Word *w = span.tags;
+				for(; w < span.tagsEnd; w++) {
+					if(w->end - w->start == 1)
+						if(w->start[0] == 'd') {
+							if(started)
+								printf("/");
+							printf("%s", span.tagsText);
+							started = 1;
+							break;
+						}
+				}
+			}
+			puts("");
+			return 0;
+		} 
 
 		if(COMPLETE == mode) {
 			completionTargetIndex += optind;
