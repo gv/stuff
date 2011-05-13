@@ -31,7 +31,7 @@ static void finish(struct File *pf) {
 #define LIST_EXPECTED 1
 #define ANNOTATION    2
 
-struct Span *startSpan(struct File *pf, const char *start) {
+static struct Span *startSpan(struct File *pf, const char *start) {
 	struct Span *s = startGenericSpan(pf, start);
 	s->particular = calloc(sizeof(struct JavaSpanState), 1);
 	return s;
@@ -52,7 +52,7 @@ static void processJavaWord(struct File *pf) {
 	if(spanHasFeature(pf->currentSpan, F_FEATURE)) // file
 		startSpan(pf, pf->token);
 
-	if(spanHasFeature(pf->currentSpan, B_FEATURE)) // class of function body
+	if(spanHasFeature(pf->currentSpan, B_FEATURE)) // class or function body
 		startSpan(pf, pf->token);
 
 	switch(rw) {
