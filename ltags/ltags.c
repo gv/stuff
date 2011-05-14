@@ -360,7 +360,6 @@ void update() {
 
 int readSpan(struct Span *s, sqlite3_stmt *stm) {
 	int r;
-	char *tags, *next;
 
 	r = sqlite3_step(stm);
 	if(r != SQLITE_ROW)	
@@ -369,8 +368,11 @@ int readSpan(struct Span *s, sqlite3_stmt *stm) {
 	s->start = sqlite3_column_int(stm, 1);
 	s->end = sqlite3_column_int(stm, 2);
 	s->tagsText = (char*)sqlite3_column_text(stm, 3); // not const 
-	//debug(s->tagsText);
+	return 1;
+}
 
+struct Word *splitTags(struct Span *s) {
+	char *tags, *next;
 	tags = s->tagsText;
 	s->tagsEnd = &s->tags[0];
 	while(*tags) {
@@ -383,10 +385,9 @@ int readSpan(struct Span *s, sqlite3_stmt *stm) {
 		if(!*next)
 			break;
 		tags = next + 1;
-	}					
-	return 1;
+	}
+	return &s->tags[0];
 }
-
 
 #define TERM_SEQ 1
 #define TERM_POS 2
@@ -471,7 +472,7 @@ int main(int argc, char **argv){
 	int r;
 	sqlite3_stmt *stm;
 	int mode = SEARCH;
-	struct Term terms[50], *lastTerm = terms, *indexTerm = 0;
+	struct Term terms[50], *lastTerm = terms, *indexTerm = 0, *completionTargetTerm;
 
 	static struct option longOpts[] = {
 		{"complete", required_argument, 0, 'C'},
@@ -483,7 +484,6 @@ int main(int argc, char **argv){
 
 	int c, optInd = 0;
 
-	const char *prefix = "";
 	int completionTargetIndex = 0;
 
 	char *p;
@@ -569,7 +569,7 @@ int main(int argc, char **argv){
 			lastTerm->pos = atoi(argv[optind]);
 			startSearch(lastTerm, &stm);
 			while(readSpan(&span, stm)) {
-				struct Word *w = span.tags;
+				struct Word *w = splitTags(&span);
 				for(; w < span.tagsEnd; w++) {
 					if(w->end - w->start == 1)
 						if(w->start[0] == 'd') {
@@ -632,7 +632,8 @@ int main(int argc, char **argv){
 			} while(e - s);
 
 			if(completionTargetIndex == optind) {
-				lastTerm[-1].flags |= TERM_INCOMPLETE;
+				completionTargetTerm = lastTerm - 1;
+				completionTargetTerm->flags |= TERM_INCOMPLETE;
 			}
 		}
 
@@ -663,7 +664,7 @@ int main(int argc, char **argv){
 							if(span->start < leaf->start && span->end > leaf->end) {
 								// span is outside
 								//debug("'%s' outside '%s'", span->tagsText, leaf->tagsText);
-								//span->parent = leaf;
+								span->parent = leaf;
 								span->particular = betterLeaves;
 								betterLeaves = span;
 								matched = 1;
@@ -745,19 +746,18 @@ int main(int argc, char **argv){
 				printf("%s:%d:", path, lineNumber);
 				fwrite(line, 1, nextLine - line, stdout); 
 			} else { // we need to complete prefix
-				const char *tags = span->tagsText, *next = tags;
-				while(*tags) {
-					next = strchr(tags, ' ');
-					if(!next)
-						next = strchr(tags, 0);
-					if(!strncmp(prefix, tags, strlen(prefix))) {
-						fwrite(tags, 1, next - tags, stdout);
-						fputs(" ", stdout);
+				struct Word *tag;
+				struct Span *s = span;
+				while(s) {
+					for(tag = splitTags(span); tag < span->tagsEnd; tag++) {
+						if(!strncmp(completionTargetTerm->word, tag->start, 
+								strlen(completionTargetTerm->word))) {
+							fwrite(tag->start, 1, tag->end - tag->start, stdout);
+							fputs(" ", stdout);
+						}
 					}
-					if(*next)
-						next++;
-					tags = next;
-				}					
+					s = s->parent;
+				}
 			}
 			span = span->particular;
 		}

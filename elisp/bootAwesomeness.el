@@ -12,17 +12,14 @@
 ;; Scratch buffer settings. Очищаем его.
 (setq initial-scratch-message nil)
 ;;гладкий скроллинг с полями
-(setq scroll-conservatively 100)
-(setq scroll-preserve-screen-position 't)
-(setq scroll-margin 0)
+(setq scroll-conservatively 100 scroll-preserve-screen-position 't
+	  scroll-margin 0)
 ;; show column & line numbers in status bar
-(setq column-number-mode t)
-(setq line-number-mode t)
+(setq column-number-mode t line-number-mode t)
 
 ;; Start off in "C:/home" dir.
 (cd "~/")
-(setq my-author-name (getenv "USER"))
-(setq user-full-name (getenv "USER"))
+(setq my-author-name (getenv "USER") user-full-name (getenv "USER"))
 ;; Shut off message buffer. Note - if you need to debug emacs,
 ;; comment these out so you can see what's going on.
 ; (setq message-log-max nil)
@@ -62,7 +59,7 @@
 (pc-bindings-mode)
 ;;Настройка выделения "как в Windows"
 (pc-selection-mode)
-(delete-selection-mode nil)
+;(delete-selection-mode nil)
 ;;
 ;;Установка режима CUA
 ;;поддержка Ctr-c,v,x,d как в windows
@@ -95,14 +92,13 @@
      (beginning-of-line)
      (kill-line)))
 ;; setting some f[1-12] keys
-(global-set-key [f1]    'help)
 (global-set-key [f2]    'save-buffer)
 (global-set-key [f4]    'ispell-buffer)
 (global-set-key [M-f4]  'save-buffers-kill-emacs)
 (global-set-key [C-f]  'isearch-forward)
 (global-set-key [M-f7]  'find-name-dired)
 (global-set-key [C-tab]  'other-window) 
-(global-set-key [M-left] 'pop-tag-mark)
+;(global-set-key [M-left] 'pop-tag-mark)
 
 ;;
 ;;    APPEARANCE
@@ -126,7 +122,7 @@
    "Courier New 9")
  )
 
-(set-cursor-color "red")
+;(set-cursor-color "red")
 (blink-cursor-mode nil)
 
 ;; 
@@ -167,6 +163,9 @@
 (add-to-list 'auto-mode-alist '("index.\\.*" . wikipedia-mode))
 
 (load "../ltags/ties/question")
+(global-set-key [M-up] 'question-here)
+(global-set-key (kbd "ESC <up>") 'question-here)
+(global-set-key [M-.] 'question-eponimous)
 
 (defun vg-tune-c ()
   (setq c-basic-offset 2
@@ -179,7 +178,7 @@
   (c-set-offset 'arglist-close 0)
   (setq js-indent-level 2)
   (local-set-key [M-.] 'question-eponimous)
-  (local-set-key [M-p] 'question-here)
+  (local-set-key [M-up] 'question-here)
   )
 
 (add-hook 'c-mode-common-hook 'vg-tune-c)

@@ -6,6 +6,7 @@ $(shell mkdir $(B))
 
 ifeq ($(OS), Windows_NT)
 	CC = cl /c
+	CCLINK = cl
 	CFLAGS += /Zi
 	CFLAGS += /Iext/pthread
 	O = /Fo
@@ -14,6 +15,7 @@ ifeq ($(OS), Windows_NT)
 	F = /
 else 
 	CC = gcc -c
+	CCLINK = gcc
 	CFLAGS += -g
 	O = -o 
 	OB = -o $(B)
@@ -62,11 +64,16 @@ $Bsqlite3.o: ext/sqlite/sqlite3.c
 	ext/sqlite/sqlite3.c $O$@
 
 
+testparse$X: tokenizer.c testparse.c util.c chooselang.c java.c js.c
+	$(CCLINK) $(CFLAGS) $O$@ $FDQUESTION_TESTPARSE \
+	testparse.c util.c chooselang.c java.c js.c
+
+OBJECTS += $Bltags.o $Bstorage.o $Btokenizer.o $Bchooselang.o $Butil.o
+OBJECTS += $Bjava.o $Bjs.o $Bsqlite3.o 
+
+
 ifeq ($(OS), Windows_NT)
-ltags$X: $Bltags.o $Bstorage.o $Btokenizer.o $Bchooselang.o $Butil.o\
-	$Bjava.o $Bjs.o\
-	$Bsqlite3.o $Bgetopt.o $Bgetopt1.o\
-	prebuilt/pthreadVC2.lib
+ltags$X: $(OBJECTS) $Bgetopt.o $Bgetopt1.o prebuilt/pthreadVC2.lib
 	cmd /c copy prebuilt\pthreadVC2.dll .
 	link /DEBUG $^
 
@@ -84,10 +91,8 @@ search$X: sqlite3.dll stub.hs
 	ghc -XScopedTypeVariables -XTypeSynonymInstances -XFlexibleInstances \
 -XUndecidableInstances sqlite3.dll stub.hs 
 
-testparse$X: tokenizer.c testparse.c util.c chooselang.c java.c js.c
-	cl /Zi /DQUESTION_TESTPARSE testparse.c util.c chooselang.c java.c js.c
 else 
-ltags$X: $Bltags.o $Bjava.o $Bsqlite3.o $Bstorage.o $Btokenizer.o
+ltags$X: $(OBJECTS)
 	gcc -lm -lpthread $^ -o $@
 endif
 

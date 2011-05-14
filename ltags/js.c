@@ -58,8 +58,15 @@ static void processWord(struct File *pf) {
 
 	case END_AFTER_BRACES_CLOSE:
 		startSpan(pf, pf->token);
+		TOPSTATE->mode = STATEMENTS;
 
 	case STATEMENTS:
+		if(!strncmp(pf->token, "var", pf->tokenEnd - pf->token)) 
+			return;
+		//if(!strncmp(pf->token, "for", pf->tokenEnd - pf->token)) 
+		//	return;
+		//if(!strncmp(pf->token, "if", pf->tokenEnd - pf->token)) 
+		//	return;
 		if(!strncmp(pf->token, "function", pf->tokenEnd - pf->token)) {
 			if(spanHasFeature(pf->currentSpan, W_FEATURE))
 				startSpan(pf, pf->token);
@@ -73,41 +80,64 @@ static void processWord(struct File *pf) {
 }
 
 static void processNonword(struct File *pf, const char *p) {
+	struct Span *s;
 	switch(*p) {
-	case '{':
+	case '(':
 		if(AFTER_FUNCTION == TOPSTATE->mode) {
 			TOPSTATE->mode = END_AFTER_BRACES_CLOSE;
 			TOPSTATE->braceCnt = 1;
-			return;
 		}
-		while(END_AFTER_BRACES_CLOSE != TOPSTATE->mode) 
-			finishLastSpan(pf, p);
-		TOPSTATE->braceCnt++;
-		break;
+		return;
 
-	case '=':
-	case ':':
-		if('=' == p[1]) 
-			break;
-
-		while(END_AFTER_BRACES_CLOSE != TOPSTATE->mode) 
-			finishLastSpan(pf, p);
-		startSpan(pf, pf->token);
-		TOPSTATE->mode = STATEMENTS;
-		addTagToCurrentSpan(pf, pf->token, pf->tokenEnd);
-		addTagToCurrentSpan(pf, W_FEATURE, W_FEATURE + 1);
+	case '{':
+		s = pf->currentSpan;
+		while(END_AFTER_BRACES_CLOSE != JPART(s)->mode) 
+			s = s->parent;
+		JPART(s)->braceCnt++;
 		break;
 		
+	case '=':
+	case ':':
+		if('=' != p[1]) {
+			if(p > pf->contents && p[-1] != '=') {
+				delTagFromCurrentSpan(pf, pf->token);
+				while(END_AFTER_BRACES_CLOSE != TOPSTATE->mode) 
+					finishLastSpan(pf, pf->token);
+				startSpan(pf, pf->token);
+				TOPSTATE->mode = STATEMENTS;
+				addTagToCurrentSpan(pf, pf->token, pf->tokenEnd);
+				addTagToCurrentSpan(pf, W_FEATURE, W_FEATURE + 1);
+			}
+		}
+	break;
+		
 	case '}':
-	case ';': // down to statements
-		while(END_AFTER_BRACES_CLOSE != TOPSTATE->mode) 
-			finishLastSpan(pf, p);
-
+	case ';': { 
+		s = pf->currentSpan;
+		while(END_AFTER_BRACES_CLOSE != JPART(s)->mode) { 
+			if(spanHasFeature(s, W_FEATURE))
+				break;
+			s = s->parent;
+		}
+		
+		if(END_AFTER_BRACES_CLOSE != JPART(s)->mode)
+			while(END_AFTER_BRACES_CLOSE != TOPSTATE->mode) 
+				finishLastSpan(pf, p);
+		
 		if('}' != *p)
 			break;
-		TOPSTATE->braceCnt--;
-		if(!TOPSTATE->braceCnt)
+		
+		while(END_AFTER_BRACES_CLOSE != JPART(s)->mode) { 
+			s = s->parent;
+		}
+
+		JPART(s)->braceCnt--;
+		if(!JPART(s)->braceCnt) {
+			while(pf->currentSpan != s)
+				finishLastSpan(pf, p);
 			finishLastSpan(pf, p);
+		}
+	}
 	}
 }
 

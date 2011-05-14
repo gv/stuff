@@ -31,7 +31,7 @@ unsigned classifyChar(int c) {
 
 void parse(struct File *pf) {
 	int r;
-	char *p;
+	char *p, *q;
 	int mode, flags;
 
 	pf->language->startParsing(pf);
@@ -49,7 +49,10 @@ void parse(struct File *pf) {
 			// p[-1] is valid here, bc we must have entered this mode by
 			// reading some characters
 			if(mode == *p) {
-				if('\\' != p[-1]) 
+				q = p - 1;
+				while('\\' == *q)
+					q--;
+				if((p-q)&1)
 					mode = SPACE;
 			}	else if(pf->contentsEnd == p)
 				goto end;
@@ -84,6 +87,7 @@ void parse(struct File *pf) {
 			if(flags & CHAR_TOKENMIDDLE) 
 				break;
 			
+			mode = SPACE;
 			goto space;
 			
 		case TOKEN:
