@@ -277,7 +277,7 @@ void *parserThread(void *unused) {
 
 
 
-void update() {
+void update(const char **srcPaths) {
 	int r;
 	char curPath[MAX_PATH];
 	sqlite3_stmt *stm;
@@ -334,12 +334,31 @@ void update() {
 			pthread_create(&parserThreads[i], NULL, parserThread, NULL);
 		}
 	
-		debug("Invalidating old entries...");
-		run("UPDATE spans SET status=1"); // 1 means "questionable"
-		run("BEGIN");
-		strcpy(curPath, dbDirPath);
-		debug(curPath);
-		updateDir(curPath);
+		if(*srcPaths) {
+			sqlite3_stmt *stm;
+			int r;
+			char path[PATH_MAX];
+			run("BEGIN");
+
+			ASSERTSQL(sqlite3_prepare_v2(db, 
+					"UPDATE spans SET status=1 WHERE path=?", -1, &stm, 0));
+			for(; *srcPaths; srcPaths++) {
+				ASSERTSQL(sqlite3_reset(stm));
+				ASSERTSQL(sqlite3_bind_text(stm, 1, *srcPaths, -1, SQLITE_STATIC));
+				if(SQLITE_DONE != sqlite3_step(stm))
+					debug("Invalidating not done");
+				normalizePath(*srcPaths);
+				updateFile(realpath(*srcPaths, path));
+			}
+		} else {
+			debug("Invalidating old entries...");
+			run("UPDATE spans SET status=1"); // 1 means "questionable"
+			run("BEGIN");
+
+			strcpy(curPath, dbDirPath);
+			debug(curPath);
+			updateDir(curPath);
+		}
 
 		// parser thread stops when it receives NULL
 		for(i = 0; i < countof(parserThreads); i++) {
@@ -473,6 +492,7 @@ int main(int argc, char **argv){
 	sqlite3_stmt *stm;
 	int mode = SEARCH;
 	struct Term terms[50], *lastTerm = terms, *indexTerm = 0, *completionTargetTerm;
+	char *srcPathArg = NULL;
 
 	static struct option longOpts[] = {
 		{"complete", required_argument, 0, 'C'},
@@ -518,6 +538,7 @@ int main(int argc, char **argv){
 				printf("%s\n", dbPath);
 			exit(0);
 			break;
+
 			
 		}
 	}
@@ -529,7 +550,8 @@ int main(int argc, char **argv){
 			strcat(dbPath, "/");
 			strcat(dbPath, dbName);
 		}
-		update();
+
+		update(argv + optind);
 	} else  {
 		struct Span *span, *leaves = NULL;
 		char *ftsQuery;
@@ -714,6 +736,7 @@ int main(int argc, char **argv){
 			// Count lines to make output grep-like
 			
 			if(SEARCH == mode) {
+				char *targetEnd, *bestLine = NULL;
 				path = getPathFrom(pathFromWd, span->path, wdPath);
 				
 				// print the shortest path
@@ -726,9 +749,12 @@ int main(int argc, char **argv){
 					continue;
 				}
 				
+				*contentsEnd = 0;
 				lineNumber = 1;
 				target = contents + span->start;
+				targetEnd = contents + span->end;
 				line = contents;
+				bestLine = contents;
 				do {
 					nextLine = memchr(line, '\n', contentsEnd - line);
 					if(!nextLine) {
@@ -737,14 +763,39 @@ int main(int argc, char **argv){
 					} else 
 						nextLine++;
 					
-					if(nextLine > target)
+					if(nextLine > targetEnd)
 						break;
+					
+					if(nextLine > target) {
+						struct Term *t = terms;
+						char *p;
+						for(; t < lastTerm; t++) {
+							if(!(t->flags & TERM_POS))
+								if(p = strstr(line, t->word))
+									if(p < nextLine)
+										break;
+						}
+						if(t < lastTerm)
+							break;
+					}
 					lineNumber++;
 					line = nextLine;
 				} while(1);
 			
 				printf("%s:%d:", path, lineNumber);
-				fwrite(line, 1, nextLine - line, stdout); 
+				if(target >= line && target <= nextLine) {
+					fwrite(line, 1, target - line, stdout);
+					printf("<<");
+				} else 
+					target = line;
+
+				if(targetEnd >= line && targetEnd <= nextLine) {
+					fwrite(target, 1, targetEnd - target, stdout);
+					printf(">>");
+				} else 
+					targetEnd = target;
+
+				fwrite(targetEnd, 1, nextLine - targetEnd, stdout);
 			} else { // we need to complete prefix
 				struct Word *tag;
 				struct Span *s = span;

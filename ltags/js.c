@@ -11,10 +11,10 @@ struct JsSpanState {
 	int flags;
 	int type;
 	enum {
-		STATEMENTS, 
-		AFTER_FUNCTION,
-		AFTER_FUNCTION_NAME,
-		END_AFTER_BRACES_CLOSE
+		TAKE_FUNCTION_NAME,
+		CONTAIN_COMPOUND,
+		CONTAIN_NOTHING,
+		CONTAIN_VALUE
 	} mode;
 };
 
@@ -24,12 +24,11 @@ struct JsParserState {
  
 #define TOPSTATE ((struct JsSpanState*)pf->currentSpan->particular)
 
-static int startParsing(struct File *pf) {
+static void startParsing(struct File *pf) {
 	pf->langParserState = calloc(sizeof (struct JsParserState), 1);
 	pf->currentSpan->particular = calloc(sizeof(struct JsSpanState), 1);
-	TOPSTATE->mode = END_AFTER_BRACES_CLOSE;
+	TOPSTATE->mode = CONTAIN_COMPOUND;
 	TOPSTATE->braceCnt = pf->contentsEnd - pf->contents;
-	return 1;
 }
 
 #define STATE ((struct JavaParserState*)pf->langParserState)
@@ -43,101 +42,97 @@ static struct Span *startSpan(struct File *pf, const char *start) {
 #define JPART(span) ((struct JsSpanState*)span->particular)
 
 static void processWord(struct File *pf) {
-	switch(TOPSTATE->mode) {
-	case AFTER_FUNCTION:
-		if(!spanHasFeature(pf->currentSpan, W_FEATURE)) { // was not assigned
-			addTagToCurrentSpan(pf, W_FEATURE, W_FEATURE+ 1);
-			addTagToCurrentSpan(pf, D_FEATURE, D_FEATURE + 1);
-			addTagToCurrentSpan(pf, pf->token, pf->tokenEnd);
-		}
-		TOPSTATE->mode = END_AFTER_BRACES_CLOSE;
-		TOPSTATE->braceCnt = 0;
-		startSpan(pf, pf->tokenEnd);
-		TOPSTATE->mode = STATEMENTS;
+	if(!strncmp(pf->token, "var", pf->tokenEnd - pf->token)) 
 		return;
 
-	case END_AFTER_BRACES_CLOSE:
-		startSpan(pf, pf->token);
-		TOPSTATE->mode = STATEMENTS;
-
-	case STATEMENTS:
-		if(!strncmp(pf->token, "var", pf->tokenEnd - pf->token)) 
-			return;
-		//if(!strncmp(pf->token, "for", pf->tokenEnd - pf->token)) 
-		//	return;
-		//if(!strncmp(pf->token, "if", pf->tokenEnd - pf->token)) 
-		//	return;
-		if(!strncmp(pf->token, "function", pf->tokenEnd - pf->token)) {
-			if(spanHasFeature(pf->currentSpan, W_FEATURE))
-				startSpan(pf, pf->token);
-			TOPSTATE->mode = AFTER_FUNCTION;
-			return;
-		}
-		addTagToCurrentSpan(pf, pf->token, pf->tokenEnd);
+	if(!strncmp(pf->token, "function", pf->tokenEnd - pf->token)) {
+		while(CONTAIN_NOTHING == TOPSTATE->mode)
+			finishLastSpan(pf, pf->token);
+		startSpan(pf, pf->token); 
+		// if name doesn't follow, this span will just have no tags
+		TOPSTATE->mode = TAKE_FUNCTION_NAME;
+		addTagToCurrentSpan(pf, W_FEATURE, W_FEATURE+ 1);
+		addTagToCurrentSpan(pf, D_FEATURE, D_FEATURE + 1);
 		return;
 	}
 
+	if(TAKE_FUNCTION_NAME == TOPSTATE->mode) {
+		addTagToCurrentSpan(pf, pf->token, pf->tokenEnd);
+		TOPSTATE->mode = CONTAIN_COMPOUND;
+		TOPSTATE->braceCnt = 0;
+		return;
+	}
+
+	if(CONTAIN_NOTHING != TOPSTATE->mode) {
+		startSpan(pf, pf->token);
+		TOPSTATE->mode = CONTAIN_NOTHING;
+	}
+	addTagToCurrentSpan(pf, pf->token, pf->tokenEnd);
+}
+
+inline static struct Span *findCompound(struct Span *s) {
+	while(CONTAIN_COMPOUND != JPART(s)->mode) 
+		s = s->parent;
+	return s;
 }
 
 static void processNonword(struct File *pf, const char *p) {
 	struct Span *s;
 	switch(*p) {
 	case '(':
-		if(AFTER_FUNCTION == TOPSTATE->mode) {
-			TOPSTATE->mode = END_AFTER_BRACES_CLOSE;
-			TOPSTATE->braceCnt = 1;
+		if(TAKE_FUNCTION_NAME == TOPSTATE->mode) {
+			TOPSTATE->mode = CONTAIN_COMPOUND;
+			TOPSTATE->braceCnt = 0;
 		}
 		return;
 
 	case '{':
 		s = pf->currentSpan;
-		while(END_AFTER_BRACES_CLOSE != JPART(s)->mode) 
-			s = s->parent;
-		JPART(s)->braceCnt++;
+		JPART(findCompound(s))->braceCnt++;
 		break;
 		
-	case '=':
-	case ':':
-		if('=' != p[1]) {
-			if(p > pf->contents && p[-1] != '=') {
-				delTagFromCurrentSpan(pf, pf->token);
-				while(END_AFTER_BRACES_CLOSE != TOPSTATE->mode) 
-					finishLastSpan(pf, pf->token);
-				startSpan(pf, pf->token);
-				TOPSTATE->mode = STATEMENTS;
-				addTagToCurrentSpan(pf, pf->token, pf->tokenEnd);
-				addTagToCurrentSpan(pf, W_FEATURE, W_FEATURE + 1);
-			}
-		}
-	break;
-		
-	case '}':
-	case ';': { 
-		s = pf->currentSpan;
-		while(END_AFTER_BRACES_CLOSE != JPART(s)->mode) { 
-			if(spanHasFeature(s, W_FEATURE))
-				break;
-			s = s->parent;
-		}
-		
-		if(END_AFTER_BRACES_CLOSE != JPART(s)->mode)
-			while(END_AFTER_BRACES_CLOSE != TOPSTATE->mode) 
-				finishLastSpan(pf, p);
-		
-		if('}' != *p)
-			break;
-		
-		while(END_AFTER_BRACES_CLOSE != JPART(s)->mode) { 
-			s = s->parent;
-		}
-
+	case '}':		
+		s = findCompound(pf->currentSpan);
 		JPART(s)->braceCnt--;
 		if(!JPART(s)->braceCnt) {
 			while(pf->currentSpan != s)
 				finishLastSpan(pf, p);
 			finishLastSpan(pf, p);
 		}
-	}
+		break;
+
+	case '=':
+	case ':': {
+		if('=' == p[1]) 
+			break;
+		if(p == pf->contents) 
+			break;
+		if(p[-1] == '=' || p[-1] == '<' || p[-1] == '>')
+			break;
+
+		while(CONTAIN_NOTHING == TOPSTATE->mode || CONTAIN_VALUE == TOPSTATE->mode) {
+			delTagFromCurrentSpan(pf, pf->token);
+			finishLastSpan(pf, pf->token);
+		}
+		
+		startSpan(pf, pf->token);
+		TOPSTATE->mode = CONTAIN_VALUE;
+		addTagToCurrentSpan(pf, pf->token, pf->tokenEnd);
+		addTagToCurrentSpan(pf, W_FEATURE, W_FEATURE + 1);
+		}
+	break;
+
+	case ';': // if we're inside assignment, return to compound
+		s = pf->currentSpan;
+		while(CONTAIN_COMPOUND != JPART(s)->mode) { 
+			if(CONTAIN_VALUE == JPART(s)->mode) {
+				while(CONTAIN_COMPOUND != TOPSTATE->mode)
+					finishLastSpan(pf, p);
+				break;
+			}
+			s = s->parent;
+		}
+		break;
 	}
 }
 
