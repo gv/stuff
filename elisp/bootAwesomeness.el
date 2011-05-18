@@ -163,8 +163,11 @@
 (add-to-list 'auto-mode-alist '("index.\\.*" . wikipedia-mode))
 
 (load "../ltags/ties/question")
-(global-set-key [M-up] 'question-here)
-(global-set-key (kbd "ESC <up>") 'question-here)
+;(global-set-key [M-up] 'question-here)
+;(global-set-key (kbd "ESC <up>") 'question-here)
+(global-set-key [M-up] 'previous-error)
+(global-set-key (kbd "ESC <up>") 'previous-error)
+(global-set-key [M-down] 'next-error)
 (global-set-key [M-.] 'question-eponimous)
 
 (defun vg-tune-c ()
@@ -178,7 +181,7 @@
   (c-set-offset 'arglist-close 0)
   (setq js-indent-level 2)
   (local-set-key [M-.] 'question-eponimous)
-  (local-set-key [M-up] 'question-here)
+  ;(local-set-key [M-up] 'question-here)
   )
 
 (add-hook 'c-mode-common-hook 'vg-tune-c)

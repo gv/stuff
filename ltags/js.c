@@ -70,7 +70,7 @@ static void processWord(struct File *pf) {
 	addTagToCurrentSpan(pf, pf->token, pf->tokenEnd);
 }
 
-inline static struct Span *findCompound(struct Span *s) {
+static struct Span *findCompound(struct Span *s) {
 	while(CONTAIN_COMPOUND != JPART(s)->mode) 
 		s = s->parent;
 	return s;

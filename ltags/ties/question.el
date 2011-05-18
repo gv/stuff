@@ -1,9 +1,9 @@
 (defun question-complete (what check type) 
   (let ((text (shell-command-to-string 
-			   (message (format "qn --complete %d 0 %s" (length (split-string what)) what))
+			   (format "qn --complete 1 0 \"%s\"" what)
 			   ))
 		(words))
-	(setq words (split-string text))
+	(setq words (split-string text "\n"))
 	(cond ((eq type nil)
 		   (try-completion what words check))
 		  ((eq type t)
@@ -12,6 +12,8 @@
 		   nil))
 	)
   )
+
+
 
 (defun question-jump-to-single ()
   

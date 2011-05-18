@@ -19,7 +19,9 @@
 #include "queue.h"
 #include "tokenizer.h"
 
+
 #ifndef MAX_PATH
+# error r
 # define MAX_PATH 1000
 #endif
 
@@ -74,6 +76,50 @@ char wdPath[MAX_PATH];
 char dbPath[MAX_PATH];
 char dbDirPath[MAX_PATH];
 
+char *strChrOrEnd(const char *str, char c) {
+	char *r = strchr(str, c);
+	if(r)
+		return r;
+	return strchr(str, 0);
+}
+
+char *realpath(char *path, char *resolved) {
+	char *end;
+	const char *itemStart = path, *itemEnd;
+	
+	if('/' == path[0])
+		return path;
+	if(':' == path[1] && '/' == path[2])
+		return path;
+
+	strncpy(resolved, wdPath, MAX_PATH);
+	for(itemEnd = path; *itemEnd; itemStart = itemEnd + 1) {
+		itemEnd = strChrOrEnd(itemStart, '/');
+		if(itemEnd == itemStart) 
+			continue;
+		if('.' == *itemStart) {
+			if(1 == itemEnd - itemStart)
+				continue;
+			if('.' == itemStart[1] && itemEnd - itemStart == 2) {
+				end = strrchr(resolved, '/');
+				if(end)
+					*end = 0;
+				continue;
+			}
+		}
+			
+		end = strrchr(resolved, 0);
+		if(end >= resolved + MAX_PATH)
+			return NULL;
+		*end++ = '/';
+		while(end < resolved + MAX_PATH - 1 && itemStart < itemEnd)
+			*end++ = *itemStart++;
+		
+		*end = 0;
+	}
+	return resolved;
+}
+		
 int findDb() {
 	char *end, *minEnd = 0;
 	struct stat st;
@@ -337,7 +383,7 @@ void update(const char **srcPaths) {
 		if(*srcPaths) {
 			sqlite3_stmt *stm;
 			int r;
-			char path[PATH_MAX];
+			char path[MAX_PATH];
 			run("BEGIN");
 
 			ASSERTSQL(sqlite3_prepare_v2(db, 
@@ -413,6 +459,8 @@ struct Word *splitTags(struct Span *s) {
 #define TERM_INCOMPLETE 4
 
 struct Term {
+	char *arg, *argPos, *argEnd;
+	
 	int flags;
 	union {
 		char *word;
@@ -471,6 +519,15 @@ void startSearch(struct Term *t, sqlite3_stmt **stm) {
 		}
 		
 		//debug("searching indexed: %s", ftsQuery);
+		
+		if(!strlen(t->word)) {
+			ASSERTSQL(sqlite3_prepare_v2(db, 
+					"SELECT path, start, end, tags " 
+					"FROM spans ", 
+					-1, stm, 0));
+			return;
+		}
+		
 
 		ASSERTSQL(sqlite3_prepare_v2(db, 
 				"SELECT path, start, end, tags " 
@@ -480,7 +537,9 @@ void startSearch(struct Term *t, sqlite3_stmt **stm) {
 		
 		ASSERTSQL(sqlite3_bind_text(*stm, 1, ftsQuery, -1, SQLITE_STATIC));
 	}
-}	
+}
+
+#define MAX_COMPLETION_COUNT 100
 
 #define SEARCH 1
 #define COMPLETE 2
@@ -607,11 +666,15 @@ int main(int argc, char **argv){
 			return 0;
 		} 
 
+
+		/*
+			Read search query from command line
+		*/
+
 		if(COMPLETE == mode) {
 			completionTargetIndex += optind;
 			optind++; // program name comes first
 		}
-
 
 		for(; optind < argc; optind++) {
 			static const char punctuation[] = ":;,`~!()-=\\| ";
@@ -645,6 +708,9 @@ int main(int argc, char **argv){
 						lastTerm->flags |= TERM_INCOMPLETE;
 					}
 					lastTerm->word = malloc(e - s + 1);
+					lastTerm->arg = argv[optind];
+					lastTerm->argPos = s;
+					lastTerm->argEnd = e;
 					memcpy(lastTerm->word, s, e - s);
 					lastTerm->word[e - s] = 0;
 					lastTerm++;
@@ -654,15 +720,36 @@ int main(int argc, char **argv){
 			} while(e - s);
 
 			if(completionTargetIndex == optind) {
-				completionTargetTerm = lastTerm - 1;
+				completionTargetTerm = NULL;
+				if(lastTerm > terms) {
+					completionTargetTerm = lastTerm - 1;
+					// XXX check term mode
+					if(*completionTargetTerm->argEnd) // space after word
+						completionTargetTerm = NULL;
+				}
+				
+				if(!completionTargetTerm) {
+					completionTargetTerm = lastTerm;
+					lastTerm->flags = 0;
+					lastTerm->arg = argv[optind];
+					lastTerm->argEnd = lastTerm->argPos = strrchr(lastTerm->arg, 0);
+					lastTerm->word = strdup("");
+					lastTerm++;
+				}
 				completionTargetTerm->flags |= TERM_INCOMPLETE;
 			}
 		}
+	
 
 		if(lastTerm == terms) {
 			fputs("No query", stderr);
 			exit(1);
 		}
+
+		
+		/*
+			Look into index
+		*/
 
 		for(indexTerm = &terms[0]; indexTerm < lastTerm; indexTerm++ ) {
 			struct Span *span, *betterLeaves = 0;
@@ -736,7 +823,7 @@ int main(int argc, char **argv){
 			// Count lines to make output grep-like
 			
 			if(SEARCH == mode) {
-				char *targetEnd, *bestLine = NULL;
+				const char *targetEnd, *bestLine = NULL;
 				path = getPathFrom(pathFromWd, span->path, wdPath);
 				
 				// print the shortest path
@@ -803,8 +890,11 @@ int main(int argc, char **argv){
 					for(tag = splitTags(span); tag < span->tagsEnd; tag++) {
 						if(!strncmp(completionTargetTerm->word, tag->start, 
 								strlen(completionTargetTerm->word))) {
+							fwrite(completionTargetTerm->arg, 1, 
+								completionTargetTerm->argPos - completionTargetTerm->arg, stdout);
 							fwrite(tag->start, 1, tag->end - tag->start, stdout);
-							fputs(" ", stdout);
+							puts(completionTargetTerm->argEnd);
+							//fputs(" ", stdout);
 						}
 					}
 					s = s->parent;
