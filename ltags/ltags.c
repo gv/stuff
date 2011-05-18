@@ -346,7 +346,8 @@ void update(const char **srcPaths) {
 		if(justCreated) {
 			ASSERTSQL(sqlite3_prepare_v2(db, 
 					"CREATE VIRTUAL TABLE spans USING fts3("
-					"path   VARCHAR(256), "
+					"path     VARCHAR(256), "
+					"features VARCHAR(256), "
 					"mtime  INTEGER, "
 					"start  INTEGER, "
 					"end    INTEGER, "
@@ -539,7 +540,8 @@ void startSearch(struct Term *t, sqlite3_stmt **stm) {
 	}
 }
 
-#define MAX_COMPLETION_COUNT 100
+#define MAX_COMPLETION_COUNT 100 // TODO implement
+#define MAX_RESULTING_SPAN_COUNT 50
 
 #define SEARCH 1
 #define COMPLETE 2
@@ -894,7 +896,6 @@ int main(int argc, char **argv){
 								completionTargetTerm->argPos - completionTargetTerm->arg, stdout);
 							fwrite(tag->start, 1, tag->end - tag->start, stdout);
 							puts(completionTargetTerm->argEnd);
-							//fputs(" ", stdout);
 						}
 					}
 					s = s->parent;
