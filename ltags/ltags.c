@@ -21,9 +21,17 @@
 
 
 #ifndef MAX_PATH
-# error r
-# define MAX_PATH 1000
+# ifdef PATH_MAX
+#  define MAX_PATH PATH_MAX
+# endif
 #endif
+
+char *strChrOrEnd(const char *str, char c) {
+	char *r = strchr(str, c);
+	if(r)
+		return r;
+	return strchr(str, 0);
+}
 
 void normalizePath(char *path) {
 	char *p;
@@ -69,20 +77,9 @@ const char *getPathFrom(char *d, const char *path, const char *base) {
 	return d;
 }
 
-#define PROGNAME "ltags"
-
-const char *dbName = "." PROGNAME ".sqlite";
 char wdPath[MAX_PATH];
-char dbPath[MAX_PATH];
-char dbDirPath[MAX_PATH];
 
-char *strChrOrEnd(const char *str, char c) {
-	char *r = strchr(str, c);
-	if(r)
-		return r;
-	return strchr(str, 0);
-}
-
+#ifdef _WIN32
 char *realpath(char *path, char *resolved) {
 	char *end;
 	const char *itemStart = path, *itemEnd;
@@ -119,7 +116,14 @@ char *realpath(char *path, char *resolved) {
 	}
 	return resolved;
 }
-		
+#endif
+
+#define PROGNAME "ltags"
+
+const char *dbName = "." PROGNAME ".sqlite";
+char dbPath[MAX_PATH];
+char dbDirPath[MAX_PATH];
+
 int findDb() {
 	char *end, *minEnd = 0;
 	struct stat st;
@@ -550,10 +554,9 @@ void startSearch(struct Term *t, sqlite3_stmt **stm) {
 
 int main(int argc, char **argv){
 	int r;
-	sqlite3_stmt *stm;
 	int mode = SEARCH;
-	struct Term terms[50], *lastTerm = terms, *indexTerm = 0, *completionTargetTerm;
-	char *srcPathArg = NULL;
+	struct Term terms[50], *lastTerm = terms, *indexTerm = NULL, 
+		*completionTargetTerm;
 
 	static struct option longOpts[] = {
 		{"complete", required_argument, 0, 'C'},
@@ -562,21 +565,17 @@ int main(int argc, char **argv){
 		{"wheredb", no_argument, 0, 'W'},
 		{0, 0, 0, 0}
 	};
-
-	int c, optInd = 0;
-
+	int c, longOptIndex = 0;
+	char *srcPathArg = NULL;
 	int completionTargetIndex = 0;
 
-	char *p;
-	
 	if(!getcwd(wdPath, sizeof dbPath - sizeof dbName - 2)) {
 		fprintf(stderr, "Can't getcwd");
 		exit(1);
 	}
-
 	normalizePath(wdPath);
 
-	while(c = getopt_long(argc, argv, "ul:", longOpts, &optInd), c != -1) {
+	while(c = getopt_long(argc, argv, "Cul:", longOpts, &longOptIndex), c != -1) {
 		switch(c) {
 		case 'C':
 			mode = COMPLETE;
@@ -770,24 +769,19 @@ int main(int argc, char **argv){
 				} else {
 					struct Span *leaf = leaves;
 					while(leaf) {
-						int matched = 0;
 						if(!strcmp(span->path, leaf->path)) {
 							if(span->start < leaf->start && span->end > leaf->end) {
 								// span is outside
-								//debug("'%s' outside '%s'", span->tagsText, leaf->tagsText);
 								span->parent = leaf;
 								span->particular = betterLeaves;
 								betterLeaves = span;
-								matched = 1;
 								count++;
 								break;
 							}	else if(span->start >= leaf->start && span->end <= leaf->end) {
 								// span is inside or at the same place
-								//debug("'%s' inside or eq '%s'", span->tagsText, leaf->tagsText);
 								span->parent = leaf;
 								span->particular = betterLeaves;
 								betterLeaves = span;
-								matched = 1;
 								count++;
 								break;
 							}
@@ -804,27 +798,15 @@ int main(int argc, char **argv){
 				
 		span = leaves;
 		while(span) {
-			char pathFromWd[MAX_PATH];
-			const char *path;
-			const char *contents;
-			char *contentsEnd;
-			const char *line, *target, *nextLine;
-			int lineNumber;
-
-			/*struct Term *term = terms;
-			int allTermsSatisfied = 1;
-			for(; term < lastTerm; term++) {
-				if(!checkTerm(term, &span)) {
-					allTermsSatisfied = 0;
-					break;
-				}
-			}
-			if(!allTermsSatisfied)
-			continue;*/
-
-			// Count lines to make output grep-like
-			
 			if(SEARCH == mode) {
+				// Count lines to make output grep-like
+			
+				const char *path;
+				const char *contents;
+				char *contentsEnd;
+				const char *line, *target, *nextLine;
+				int lineNumber;
+				char pathFromWd[MAX_PATH];
 				const char *targetEnd, *bestLine = NULL;
 				path = getPathFrom(pathFromWd, span->path, wdPath);
 				
