@@ -3,7 +3,7 @@ package vg.Sc;
 import java.lang.Thread;
 
 import java.io.IOException;
-//import org.teleal.cling.UpnpService;
+import org.teleal.cling.UpnpService;
 import org.teleal.cling.UpnpServiceImpl;
 import org.teleal.cling.binding.*;
 import org.teleal.cling.binding.annotations.*;
@@ -12,7 +12,7 @@ import org.teleal.cling.model.meta.*;
 import org.teleal.cling.model.types.*;
 
 
-@UpnpService(
+@org.teleal.cling.binding.annotations.UpnpService(
         serviceId = @UpnpServiceId("DuctTapedCameras"),
         serviceType = @UpnpServiceType(value = "DuctTapedCameras", version = 1)
 )
@@ -54,7 +54,7 @@ public class NetworkNode {
 	}
 
 	public LocalDevice m_upnpDev;
-
+	private UpnpService m_serv;
 	private User m_user;
 	private Thread m_serverThread;
  
@@ -63,11 +63,16 @@ public class NetworkNode {
 		m_upnpDev = createDevice();
 		m_serverThread = new Thread() {
 				public void run() {
-					org.teleal.cling.UpnpService s = new UpnpServiceImpl();
-					s.getRegistry().addDevice(m_upnpDev);
+					m_serv = new UpnpServiceImpl();
+					m_serv.getRegistry().addDevice(m_upnpDev);
 				}
 			};
 		m_serverThread.start();
+	}
+
+	public void quit() throws InterruptedException {
+		m_serv.shutdown();
+		m_serverThread.join();
 	}
 
 	LocalDevice createDevice()

@@ -10,4 +10,5 @@ a.out
 *.s
 *.pdb
 *.pyc
+*.jar
 ws
