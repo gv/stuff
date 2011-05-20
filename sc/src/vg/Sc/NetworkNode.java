@@ -10,6 +10,96 @@ import org.teleal.cling.binding.annotations.*;
 import org.teleal.cling.model.*;
 import org.teleal.cling.model.meta.*;
 import org.teleal.cling.model.types.*;
+import org.teleal.cling.registry.*;
+import org.teleal.cling.model.message.header.*;
+
+public class NetworkNode extends DefaultRegistryListener {
+	/*
+		API
+	*/
+		
+	public class Status {
+		public String name;
+	}
+
+	public interface User {
+		void handleOtherNodePresence(Status s);
+	}
+
+	public NetworkNode(User u) 
+		throws ValidationException, LocalServiceBindingException, IOException {
+		m_user = u;
+		m_upnpDev = createDevice();
+		m_upnp = new UpnpServiceImpl();
+		m_upnp.getRegistry().addDevice(m_upnpDev);
+		m_upnp.getRegistry().addListener(this);
+		refresh();
+	}
+
+	public void refresh() {
+		// Broadcast a search message for all devices
+		m_upnp.getControlPoint().search(new STAllHeader());
+	}		
+
+	public void quit() throws InterruptedException {
+		m_upnp.shutdown();
+	}
+
+	private LocalDevice m_upnpDev;
+	private UpnpService m_upnp;
+	private User m_user;
+ 
+	/*
+		RegistryListener
+	*/
+
+	ServiceId serviceId = new UDAServiceId("DuctTapedCameras");
+
+	@Override
+		public void remoteDeviceAdded(Registry registry, RemoteDevice device) {
+		Service switchPower;
+		if ((switchPower = device.findService(serviceId)) != null) {
+			System.out.println("Service discovered: " + switchPower);
+			//executeAction(upnpService, switchPower);
+		}
+	}
+
+	@Override
+		public void remoteDeviceRemoved(Registry registry, RemoteDevice device) {
+		Service switchPower;
+		if ((switchPower = device.findService(serviceId)) != null) {
+			System.out.println("Service disappeared: " + switchPower);
+		}
+	}
+	
+
+	LocalDevice createDevice()
+		throws ValidationException, LocalServiceBindingException, IOException {
+    DeviceIdentity identity =
+			new DeviceIdentity(UDN.uniqueSystemIdentifier("Duct taped cameras"));
+    DeviceType type = new UDADeviceType("DuctTapedCameras", 1);
+    DeviceDetails details = new DeviceDetails("A synchronizable camera",
+			new ManufacturerDetails("vg"),
+			new ModelDetails(
+				"Hi",
+				"what",
+				"v1"
+			)
+		);
+
+    /*Icon icon =  new Icon("image/png", 48, 48, 8,
+                    getClass().getResource("icon.png"));*/
+
+    LocalService<SwitchPower> switchPowerService =
+            new AnnotationLocalServiceBinder().read(SwitchPower.class);
+    switchPowerService.setManager(
+            new DefaultServiceManager(switchPowerService, SwitchPower.class)
+    );
+    return new LocalDevice(identity, type, details, /*icon,*/ switchPowerService);
+	}
+
+}
+	
 
 
 @org.teleal.cling.binding.annotations.UpnpService(
@@ -44,75 +134,6 @@ class SwitchPower {
 
 }
 
-public class NetworkNode {
-	public class Status {
-		public String name;
-	}
-
-	public interface User {
-		void handleOtherNodePresence(Status s);
-	}
-
-	public LocalDevice m_upnpDev;
-	private UpnpService m_serv;
-	private User m_user;
-	private Thread m_serverThread;
- 
-	public NetworkNode(User u) throws ValidationException, LocalServiceBindingException, IOException {
-		m_user = u;
-		m_upnpDev = createDevice();
-		m_serverThread = new Thread() {
-				public void run() {
-					m_serv = new UpnpServiceImpl();
-					m_serv.getRegistry().addDevice(m_upnpDev);
-				}
-			};
-		m_serverThread.start();
-	}
-
-	public void quit() throws InterruptedException {
-		m_serv.shutdown();
-		m_serverThread.join();
-	}
-
-	LocalDevice createDevice()
-		throws ValidationException, LocalServiceBindingException, IOException 
-	{
-
-    DeviceIdentity identity =
-			new DeviceIdentity(UDN.uniqueSystemIdentifier("Demo Binary Light"));
-
-    DeviceType type = new UDADeviceType("BinaryLight", 1);
-
-    DeviceDetails details =
-            new DeviceDetails(
-                    "Friendly Binary Light",
-                    new ManufacturerDetails("ACME"),
-                    new ModelDetails(
-                            "BinLight2000",
-                            "A demo light with on/off switch.",
-                            "v1"
-                    )
-            );
-
-    /*Icon icon =
-            new Icon(
-                    "image/png", 48, 48, 8,
-                    getClass().getResource("icon.png")
-										);*/
-
-    LocalService<SwitchPower> switchPowerService =
-            new AnnotationLocalServiceBinder().read(SwitchPower.class);
-
-    switchPowerService.setManager(
-            new DefaultServiceManager(switchPowerService, SwitchPower.class)
-    );
-
-    return new LocalDevice(identity, type, details, /*icon,*/ switchPowerService);
-	}
-
-}
-	
 
 
 
