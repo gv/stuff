@@ -13,6 +13,8 @@ import org.teleal.cling.model.types.*;
 import org.teleal.cling.registry.*;
 import org.teleal.cling.model.message.header.*;
 
+//import org.teleal.cling.android.AndroidUpnpServiceConfiguration;
+
 public class NetworkNode extends DefaultRegistryListener {
 	/*
 		API
@@ -20,17 +22,39 @@ public class NetworkNode extends DefaultRegistryListener {
 		
 	public class Status {
 		public String name;
+		public Status(Device dev) {
+			name = dev.getDisplayString();
+		}
+		public boolean equals(Status other) {
+			return other.name == name;
+		}
 	}
 
 	public interface User {
 		void handleOtherNodePresence(Status s);
+		void handleOtherNodeQuit(Status s);
 	}
 
 	public NetworkNode(User u) 
 		throws ValidationException, LocalServiceBindingException, IOException {
 		m_user = u;
-		m_upnpDev = createDevice();
 		m_upnp = new UpnpServiceImpl();
+		init();
+	}
+
+	public NetworkNode(User u, UpnpService upnp) 
+		throws ValidationException, LocalServiceBindingException, IOException {
+		m_user = u;
+		m_upnp = upnp;
+		init();
+		for (Device device : m_upnp.getRegistry().getDevices()) {
+			//deviceAddedHlp(m_upnp.getRegistry(), device);
+		}
+	}		
+	
+	private void init() 
+		throws ValidationException, LocalServiceBindingException, IOException {
+		m_upnpDev = createDevice();
 		m_upnp.getRegistry().addDevice(m_upnpDev);
 		m_upnp.getRegistry().addListener(this);
 		refresh();
@@ -44,6 +68,15 @@ public class NetworkNode extends DefaultRegistryListener {
 	public void quit() throws InterruptedException {
 		m_upnp.shutdown();
 	}
+	
+	public String report() {
+		String r = "";
+		for(NetworkAddress na: m_upnp.getRouter().getActiveStreamServers(null)) {
+			r += na.getAddress().toString();
+		}
+		return r;
+	}
+				
 
 	private LocalDevice m_upnpDev;
 	private UpnpService m_upnp;
@@ -57,9 +90,14 @@ public class NetworkNode extends DefaultRegistryListener {
 
 	@Override
 		public void remoteDeviceAdded(Registry registry, RemoteDevice device) {
+		deviceAddedHlp(registry, device);
+	}
+
+	private void deviceAddedHlp(Registry registry, Device device) {
 		Service switchPower;
 		if ((switchPower = device.findService(serviceId)) != null) {
-			System.out.println("Service discovered: " + switchPower);
+			Status s = new Status(device);
+			m_user.handleOtherNodePresence(s);
 			//executeAction(upnpService, switchPower);
 		}
 	}
@@ -68,7 +106,8 @@ public class NetworkNode extends DefaultRegistryListener {
 		public void remoteDeviceRemoved(Registry registry, RemoteDevice device) {
 		Service switchPower;
 		if ((switchPower = device.findService(serviceId)) != null) {
-			System.out.println("Service disappeared: " + switchPower);
+			Status s = new Status(device);
+			m_user.handleOtherNodeQuit(s);
 		}
 	}
 	

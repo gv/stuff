@@ -6,7 +6,11 @@ import vg.Sc.NetworkNode;
 
 public class demo implements NetworkNode.User {
 	public void handleOtherNodePresence(NetworkNode.Status status) {
+		System.out.println("present: " + status.name);
+	}
 
+	public void handleOtherNodeQuit(NetworkNode.Status status) {
+		System.out.println("quit: " + status.name);
 	}
 
 	public static void main(String[] args) throws Exception {
