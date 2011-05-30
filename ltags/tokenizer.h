@@ -44,8 +44,10 @@ unsigned
 classifyChar(int c);
 
 struct Span *
-addTagToCurrentSpan(struct File *pf, 
-	const char *start, const char *end);
+addTagToCurrentSpan(struct File *pf, const char *start, const char *end);
+
+struct Span *
+addFeatureToCurrentSpan(struct File *pf, const char *feat);
 
 struct Span *
 startGenericSpan(struct File *pf, const char *start);

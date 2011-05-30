@@ -51,8 +51,8 @@ static void processWord(struct File *pf) {
 		startSpan(pf, pf->token); 
 		// if name doesn't follow, this span will just have no tags
 		TOPSTATE->mode = TAKE_FUNCTION_NAME;
-		addTagToCurrentSpan(pf, W_FEATURE, W_FEATURE+ 1);
-		addTagToCurrentSpan(pf, D_FEATURE, D_FEATURE + 1);
+		addFeatureToCurrentSpan(pf, W_FEATURE);
+		addFeatureToCurrentSpan(pf, D_FEATURE);
 		return;
 	}
 
@@ -118,7 +118,7 @@ static void processNonword(struct File *pf, const char *p) {
 		startSpan(pf, pf->token);
 		TOPSTATE->mode = CONTAIN_VALUE;
 		addTagToCurrentSpan(pf, pf->token, pf->tokenEnd);
-		addTagToCurrentSpan(pf, W_FEATURE, W_FEATURE + 1);
+		addFeatureToCurrentSpan(pf, W_FEATURE);
 		}
 	break;
 

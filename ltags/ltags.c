@@ -352,11 +352,12 @@ void update(const char **srcPaths) {
 					"CREATE VIRTUAL TABLE spans USING fts3("
 					"path     VARCHAR(256), "
 					"features VARCHAR(256), "
-					"mtime  INTEGER, "
-					"start  INTEGER, "
-					"end    INTEGER, "
-					"status INTEGER, "
-					"tags   TEXT)",
+					"weight   INTEGER, "
+					"mtime    INTEGER, "
+					"start    INTEGER, "
+					"end      INTEGER, "
+					"status   INTEGER, "
+					"tags     TEXT)",
 					-1, &stm, 0));
 
 			r = sqlite3_step(stm);

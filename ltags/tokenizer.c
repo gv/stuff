@@ -156,6 +156,17 @@ struct Span *addTagToCurrentSpan(struct File *pf,
 	return pf->currentSpan;
 }
 
+struct Span *addFeatureToCurrentSpan(struct File *pf, const char *feature) {
+	if(pf->currentSpan->endOfFeatures >= 
+		pf->currentSpan->features + MAX_FEATURE_CNT) {
+		// ???
+		return pf->currentSpan;
+	}
+	
+	*pf->currentSpan->endOfFeatures = feature;
+	pf->currentSpan->endOfFeatures++;
+}
+
 struct Span *startGenericSpan(struct File *pf, const char *start) {
 	struct Span *s = malloc(sizeof (struct Span));
 	s->path = pf->path;
@@ -163,6 +174,8 @@ struct Span *startGenericSpan(struct File *pf, const char *start) {
 	s->start = start - pf->contents;
 	s->tagsEnd = s->tags;
 	s->end = 0;
+	s->weight = 0;
+	s->endOfFeatures = s->features;
 	s->particular = NULL;
 
 	s->parent = pf->currentSpan;

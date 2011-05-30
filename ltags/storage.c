@@ -21,11 +21,11 @@ void initStorageThread() {
 	int r;
 	ASSERTSQL(sqlite3_prepare_v2(db, 
 			"UPDATE spans SET status=0 WHERE " 
-			"path=? AND start=? AND end=? AND tags MATCH ?",
+			"path=? AND start=? AND end=? AND weight=? AND features=? AND tags MATCH ?",
 			-1, &spanUpdateStm, 0));
 	ASSERTSQL(sqlite3_prepare_v2(db,
-			"INSERT INTO spans (path, start, end, tags, mtime, status) "
-			"VALUES (?, ?, ?, ?, ?, 0)",
+			"INSERT INTO spans (path, start, end, weight, features, tags, mtime, status) "
+			"VALUES (?, ?, ?, ?, ?, ?, ?, 0)",
 			-1, &spanInsertStm, 0));
 }
 
@@ -33,9 +33,25 @@ void saveSpan(const struct Span *pSpan) {
 	int r;
 	sqlite3_stmt *stm;
 	char text[MAX_TAG_CNT * 32], *tail =  text, *nextTail = text;
+	const char **pft;
+	char *featuresText = NULL;
 	const struct Word *w;
+	int featuresTextLen = 0;
+
+	for(pft = pSpan->features; pft < pSpan->endOfFeatures; pft++)
+		featuresTextLen += strlen(*pft) + 1;
+	if(featuresTextLen) {
+		featuresText = malloc(featuresTextLen); // or die
+		featuresText[0] = 0;
+		for(pft = pSpan->features; pft < pSpan->endOfFeatures; pft++) {
+			strcat(featuresText, *pft);
+			strcat(featuresText, " ");
+		}
+		featuresText[featuresTextLen - 1] = 0;
+	}
 	
 	w = pSpan->tags;
+	tail = text;
 	while(w < pSpan->tagsEnd) {
 		nextTail = tail + (w->end - w->start) + 1;
 		if(nextTail > text + sizeof text) {
@@ -57,7 +73,10 @@ void saveSpan(const struct Span *pSpan) {
 		ASSERTSQL(sqlite3_bind_text(stm, 1, pSpan->path, -1, SQLITE_STATIC));
 		ASSERTSQL(sqlite3_bind_int(stm, 2, pSpan->start));
 		ASSERTSQL(sqlite3_bind_int(stm, 3, pSpan->end));
-		ASSERTSQL(sqlite3_bind_text(stm, 4, text, -1, SQLITE_STATIC));
+		ASSERTSQL(sqlite3_bind_int(stm, 4, pSpan->weight));
+		if(featuresText)
+			ASSERTSQL(sqlite3_bind_text(stm, 5, featuresText, featuresTextLen, SQLITE_STATIC));
+		ASSERTSQL(sqlite3_bind_text(stm, 6, text, -1, SQLITE_STATIC));
 
 		if(spanInsertStm == stm) {
 			ASSERTSQL(sqlite3_bind_int(stm, 5, pSpan->mtime));
@@ -76,9 +95,11 @@ void saveSpan(const struct Span *pSpan) {
 		// TODO UNLOCK
 
 		if(r)
-			return;
+			break;
 		
 		stm = spanInsertStm;
 	}
+
+	free(featuresText);
 }
 	
