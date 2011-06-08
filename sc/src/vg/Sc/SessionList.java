@@ -1,6 +1,7 @@
 package vg.Sc;
 
 import java.util.ArrayList;
+import java.lang.Math;
 
 import android.app.Activity;
 import android.content.Context;
@@ -16,16 +17,23 @@ import android.util.Log;
 import android.hardware.Camera;
 import android.view.SurfaceView;
 import android.view.SurfaceHolder;
+import android.graphics.PixelFormat;
+import android.graphics.drawable.Drawable;
+import android.graphics.Paint;
+import android.graphics.Canvas;
+import android.graphics.ColorFilter;
 
 import org.teleal.cling.android.AndroidUpnpService;
 import org.teleal.cling.android.AndroidUpnpServiceImpl;
 
 public class SessionList extends Activity 
-	implements NetworkNode.User, SurfaceHolder.Callback {
+	implements NetworkNode.User, SurfaceHolder.Callback, Camera.PreviewCallback {
 	static final String TAG = "DuctTapedC";
 	ServiceConnection m_upnpSvcConn;
-	Camera m_cam;
+	Camera mCam;
 	SurfaceHolder m_sfcHl;
+	int mViewFinderHeight = 0;
+	View mOverlay;
 	
 	/* 
 		 Activity events
@@ -38,10 +46,12 @@ public class SessionList extends Activity
 
 			// Init camera
 
-			m_cam = Camera.open();
-			m_cam.startPreview();
+			mCam = Camera.open();
+			mCam.startPreview();
 			if(m_sfcHl != null)
-				m_cam.setPreviewDisplay(m_sfcHl);
+				mCam.setPreviewDisplay(m_sfcHl);
+			mCam.addCallbackBuffer(new byte[getPreviewBufferSize()]);
+			mCam.setPreviewCallbackWithBuffer(this);
 		} catch(Exception e) {
 			Log.e(TAG, "onResume", e);
 		}
@@ -51,14 +61,14 @@ public class SessionList extends Activity
 	@Override
     public void onPause() {
 		super.onPause();
-		m_cam.release();
-		m_cam = null;
+		mCam.release();
+		mCam = null;
 	}
 
 
 	@Override
     public void onCreate(Bundle savedInstanceState) {
-		m_cameras = new ArrayList<NetworkNode.Status>();
+		mCameras = new ArrayList<NetworkNode.Status>();
 
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.main);
@@ -67,10 +77,36 @@ public class SessionList extends Activity
 		hl.addCallback(this);
 		hl.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
 		
+		mViewFinderHeight = 200;//findViewById(R.id.over).getHeight();
+		Log.d(TAG, "h=" + mViewFinderHeight);
+		mOverlay = findViewById(R.id.over);
+		mOverlay.setBackgroundDrawable(new Drawable() {
+				public int getOpacity() {
+					return PixelFormat.TRANSPARENT;
+				}
 
+				public void draw(Canvas c) {
+					float width = c.getWidth();
+					float height = mViewFinderHeight;
+					float r = (float)Math.random() * Math.min(width, height) / 2;
+					Paint paint = new Paint();
+					paint.setColor(0x77FF0000);
+					paint.setStyle(Paint.Style.STROKE);
+					
+					c.drawCircle(width/2, height/2, r, paint);
+				}
+				
+				public void setColorFilter(ColorFilter cf) {
+
+				}
+
+				public void setAlpha(int a) {
+					
+				}
+			});
 
 	/*
-		Init communications
+		Communication setup
 	*/
 	
 		m_upnpSvcConn = new ServiceConnection() {
@@ -130,8 +166,8 @@ public class SessionList extends Activity
 		try {
 			m_sfcHl = hl;
 			if(hl.isCreating()) {
-				if(m_cam != null)
-					m_cam.setPreviewDisplay(m_sfcHl);
+				if(mCam != null)
+					mCam.setPreviewDisplay(m_sfcHl);
 			}
 		} catch(Exception e) {
 			Log.e(TAG, "surfaceChanged", e);
@@ -147,14 +183,24 @@ public class SessionList extends Activity
 	*/
 
 	public void handleOtherNodePresence(NetworkNode.Status stat) {
-		if(!m_cameras.contains(stat))
-			m_cameras.add(stat);
+		if(!mCameras.contains(stat))
+			mCameras.add(stat);
 		redisplayList();
 	}
 
 	public void handleOtherNodeQuit(NetworkNode.Status stat) {
-		m_cameras.remove(stat);
+		mCameras.remove(stat);
 		redisplayList();
+	}
+
+
+	/*
+		Camera.PreviewCallback
+	*/
+
+	public void onPreviewFrame(byte[] data, Camera camera) {
+		mOverlay.invalidate();
+		camera.addCallbackBuffer(data);
 	}
 
 
@@ -172,12 +218,21 @@ public class SessionList extends Activity
 					m_listVw.setAdapter(new ArrayAdapter<NetworkNode.Status>(
 							SessionList.this, 
 							R.layout.cams_list_entry, 
-							m_cameras.toArray(new NetworkNode.Status[0])));
+							mCameras.toArray(new NetworkNode.Status[0])));
 				}
 			});
 	}
-
+	
+	private int getPreviewBufferSize() {
+		PixelFormat pf = new PixelFormat();
+		PixelFormat.getPixelFormatInfo(mCam.getParameters().getPreviewFormat(), pf);
+		int size = mCam.getParameters().getPreviewSize().width *
+			mCam.getParameters().getPreviewSize().height *
+			pf.bitsPerPixel / 8;
+		return size;
+	}
+	
 	private ListView m_listVw;
-	private ArrayList<NetworkNode.Status> m_cameras;
+	private ArrayList<NetworkNode.Status> mCameras;
 	private NetworkNode m_node;
 }
