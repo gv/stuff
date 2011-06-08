@@ -20,6 +20,7 @@ import android.view.SurfaceHolder;
 import android.graphics.PixelFormat;
 import android.graphics.drawable.Drawable;
 import android.graphics.Paint;
+import android.graphics.Point;
 import android.graphics.Canvas;
 import android.graphics.ColorFilter;
 
@@ -199,6 +200,8 @@ public class SessionList extends Activity
 	*/
 
 	public void onPreviewFrame(byte[] data, Camera camera) {
+		Point[] ps = new Point[100];
+		findFeatures(data, ps);
 		mOverlay.invalidate();
 		camera.addCallbackBuffer(data);
 	}
@@ -235,4 +238,8 @@ public class SessionList extends Activity
 	private ListView m_listVw;
 	private ArrayList<NetworkNode.Status> mCameras;
 	private NetworkNode m_node;
+
+	public native int findFeatures(byte[] buf, Point[] out) {
+
+	}
 }
