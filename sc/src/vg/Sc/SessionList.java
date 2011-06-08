@@ -30,9 +30,9 @@ import org.teleal.cling.android.AndroidUpnpServiceImpl;
 public class SessionList extends Activity 
 	implements NetworkNode.User, SurfaceHolder.Callback, Camera.PreviewCallback {
 	static final String TAG = "DuctTapedC";
-	ServiceConnection m_upnpSvcConn;
+	ServiceConnection mUpnpSvcConn;
 	Camera mCam;
-	SurfaceHolder m_sfcHl;
+	SurfaceHolder mSfcHl;
 	int mViewFinderHeight = 0;
 	View mOverlay;
 	
@@ -49,8 +49,11 @@ public class SessionList extends Activity
 
 			mCam = Camera.open();
 			mCam.startPreview();
-			if(m_sfcHl != null)
-				mCam.setPreviewDisplay(m_sfcHl);
+			if(mSfcHl != null)
+				mCam.setPreviewDisplay(mSfcHl);
+
+			System.loadLibrary("libducttapedcams");
+
 			mCam.addCallbackBuffer(new byte[getPreviewBufferSize()]);
 			mCam.setPreviewCallbackWithBuffer(this);
 		} catch(Exception e) {
@@ -73,7 +76,7 @@ public class SessionList extends Activity
 
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.main);
-		m_listVw = (ListView) findViewById(R.id.list);
+		mListVw = (ListView) findViewById(R.id.list);
 		SurfaceHolder hl = ((SurfaceView) findViewById(R.id.surface)).getHolder();
 		hl.addCallback(this);
 		hl.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
@@ -89,12 +92,14 @@ public class SessionList extends Activity
 				public void draw(Canvas c) {
 					float width = c.getWidth();
 					float height = mViewFinderHeight;
-					float r = (float)Math.random() * Math.min(width, height) / 2;
+					float r = 10;//(float)Math.random() * Math.min(width, height) / 2;
+
 					Paint paint = new Paint();
 					paint.setColor(0x77FF0000);
 					paint.setStyle(Paint.Style.STROKE);
 					
-					c.drawCircle(width/2, height/2, r, paint);
+					for(Point p: mLastPoints)
+						c.drawCircle(p.x, p.y, r, paint);
 				}
 				
 				public void setColorFilter(ColorFilter cf) {
@@ -106,17 +111,17 @@ public class SessionList extends Activity
 				}
 			});
 
-	/*
-		Communication setup
-	*/
+		/*
+			Communication setup
+		*/
 	
-		m_upnpSvcConn = new ServiceConnection() {
+		mUpnpSvcConn = new ServiceConnection() {
 				public void onServiceConnected(ComponentName className, IBinder service) {
 					AndroidUpnpService aus = (AndroidUpnpService) service;
 
 					try {
-						m_node = new NetworkNode(SessionList.this, aus.get());
-						Toast.makeText(SessionList.this, "r: " + m_node.report(),
+						mNode = new NetworkNode(SessionList.this, aus.get());
+						Toast.makeText(SessionList.this, "r: " + mNode.report(),
 							Toast.LENGTH_LONG).show();
 					} catch(Exception e) {
 						// what to do
@@ -124,7 +129,7 @@ public class SessionList extends Activity
 							Toast.LENGTH_LONG).show();						
 					}
 
-					Toast.makeText(SessionList.this, "r: " + m_node.report(),
+					Toast.makeText(SessionList.this, "r: " + mNode.report(),
 						Toast.LENGTH_LONG).show();
 
 					final Button refreshBtn = (Button) findViewById(R.id.refresh);
@@ -144,16 +149,16 @@ public class SessionList extends Activity
 		
 		getApplicationContext().bindService(
 			new Intent(this, AndroidUpnpServiceImpl.class),
-			m_upnpSvcConn,
+			mUpnpSvcConn, 
 			Context.BIND_AUTO_CREATE);
 	}
 
 	@Override protected void onDestroy() {
 		super.onDestroy();
-		if (m_upnpSvcConn != null) {
+		if (mUpnpSvcConn != null) {
 			//	upnpService.getRegistry().removeListener(registryListener);
 		}
-		getApplicationContext().unbindService(m_upnpSvcConn);
+		getApplicationContext().unbindService(mUpnpSvcConn);
 	}
 
 	/*
@@ -165,10 +170,10 @@ public class SessionList extends Activity
 
 	public void surfaceChanged(SurfaceHolder hl, int format, int w, int h) {
 		try {
-			m_sfcHl = hl;
+			mSfcHl = hl;
 			if(hl.isCreating()) {
 				if(mCam != null)
-					mCam.setPreviewDisplay(m_sfcHl);
+					mCam.setPreviewDisplay(mSfcHl);
 			}
 		} catch(Exception e) {
 			Log.e(TAG, "surfaceChanged", e);
@@ -176,7 +181,7 @@ public class SessionList extends Activity
 	}			
 	
 	public void surfaceDestroyed(SurfaceHolder h) {
-		m_sfcHl = null;
+		mSfcHl = null;
 	}
 	
 	/*
@@ -199,11 +204,17 @@ public class SessionList extends Activity
 		Camera.PreviewCallback
 	*/
 
-	public void onPreviewFrame(byte[] data, Camera camera) {
-		Point[] ps = new Point[100];
-		findFeatures(data, ps);
+	public void onPreviewFrame(byte[] data, Camera cam) {
+		int width = cam.getParameters().getPreviewSize().width;
+		int[] visionResult = findFeatures(data, width);
+		int ptCnt = visionResult.length / 2;
+
+		mLastPoints = new Point[ptCnt];
+		for(int i = 0; i < ptCnt; i++)
+			mLastPoints[i] = new Point(visionResult[i*2], visionResult[i*2+1]);
+
 		mOverlay.invalidate();
-		camera.addCallbackBuffer(data);
+		cam.addCallbackBuffer(data);
 	}
 
 
@@ -218,7 +229,7 @@ public class SessionList extends Activity
 	private void redisplayList() {
 		runOnUiThread(new Runnable() {
 				public void run() {
-					m_listVw.setAdapter(new ArrayAdapter<NetworkNode.Status>(
+					mListVw.setAdapter(new ArrayAdapter<NetworkNode.Status>(
 							SessionList.this, 
 							R.layout.cams_list_entry, 
 							mCameras.toArray(new NetworkNode.Status[0])));
@@ -235,11 +246,10 @@ public class SessionList extends Activity
 		return size;
 	}
 	
-	private ListView m_listVw;
+	private ListView mListVw;
 	private ArrayList<NetworkNode.Status> mCameras;
-	private NetworkNode m_node;
+	private NetworkNode mNode;
+	private Point[] mLastPoints;
 
-	public native int findFeatures(byte[] buf, Point[] out) {
-
-	}
+	public native int[] findFeatures(byte[] buf, int width);
 }
