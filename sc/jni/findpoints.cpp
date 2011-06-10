@@ -1,7 +1,9 @@
 #include <stdlib.h>
 #include <jni.h>
 
-//#include <opencv2/core/core.hpp>
+#include <ctype.h>
+#include <opencv2/core/core.hpp>
+//#include <vector>
 
 
 extern "C"
