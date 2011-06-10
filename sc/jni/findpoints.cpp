@@ -1,9 +1,11 @@
 #include <stdlib.h>
 #include <jni.h>
 
+//#include <opencv2/core/core.hpp>
+
 
 extern "C"
-jintArray Java_vg_Sc_MainScreen_findFeatures(JNIEnv* j, jobject jthis, 
+jintArray Java_vg_Sc_SessionList_findFeatures(JNIEnv* j, jobject jthis, 
 	jbyteArray imgBytes, jint width) {
 	jintArray r;
 	jint *out;

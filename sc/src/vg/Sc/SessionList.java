@@ -52,7 +52,7 @@ public class SessionList extends Activity
 			if(mSfcHl != null)
 				mCam.setPreviewDisplay(mSfcHl);
 
-			System.loadLibrary("libducttapedcams");
+			System.loadLibrary("ducttapedcams");
 
 			mCam.addCallbackBuffer(new byte[getPreviewBufferSize()]);
 			mCam.setPreviewCallbackWithBuffer(this);
