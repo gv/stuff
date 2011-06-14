@@ -205,6 +205,13 @@ public class SessionList extends Activity
 	*/
 
 	public void onPreviewFrame(byte[] data, Camera cam) {
+		// TODO lock
+		if(null == mCam)
+			return;
+
+		int f = mCam.getParameters().getPreviewFormat();
+
+		
 		int width = cam.getParameters().getPreviewSize().width;
 		int[] visionResult = findFeatures(data, width);
 		int ptCnt = visionResult.length / 2;
@@ -238,11 +245,13 @@ public class SessionList extends Activity
 	}
 	
 	private int getPreviewBufferSize() {
-		PixelFormat pf = new PixelFormat();
-		PixelFormat.getPixelFormatInfo(mCam.getParameters().getPreviewFormat(), pf);
-		int size = mCam.getParameters().getPreviewSize().width *
-			mCam.getParameters().getPreviewSize().height *
-			pf.bitsPerPixel / 8;
+		PixelFormat formatDesc = new PixelFormat();
+		int f = mCam.getParameters().getPreviewFormat();
+		PixelFormat.getPixelFormatInfo(f, formatDesc);
+		int w = mCam.getParameters().getPreviewSize().width;
+		int h = mCam.getParameters().getPreviewSize().height;
+		Log.d(TAG, w + "x" + h + "x" + formatDesc.bitsPerPixel + " (" + f + ")");
+		int size = w * h * formatDesc.bitsPerPixel / 8;
 		return size;
 	}
 	
