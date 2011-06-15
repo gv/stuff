@@ -6,7 +6,7 @@
     >
   <FrameLayout android:id="@+id/frame"
 			   android:layout_width="match_parent"
-			   android:layout_height="200px">
+			   android:layout_height="500px">
 	<SurfaceView android:id="@+id/surface"
 				 android:layout_width="match_parent"
 				 android:layout_height="match_parent" />
@@ -18,10 +18,6 @@
 			android:layout_width="fill_parent"
 			android:layout_height="wrap_content" 
 			android:text="..." />
-  <Button android:id="@+id/refresh"
-		  android:layout_height="wrap_content"
-		  android:layout_width="wrap_content"
-		  android:text="Refresh" />
   <ListView android:id="@+id/list"
 			android:layout_width="fill_parent" 
 			android:layout_height="wrap_content" 

@@ -92,14 +92,19 @@ public class SessionList extends Activity
 				public void draw(Canvas c) {
 					float width = c.getWidth();
 					float height = mViewFinderHeight;
-					float r = 10;//(float)Math.random() * Math.min(width, height) / 2;
 
 					Paint paint = new Paint();
 					paint.setColor(0x77FF0000);
 					paint.setStyle(Paint.Style.STROKE);
 					
-					for(Point p: mLastPoints)
-						c.drawCircle(p.x, p.y, r, paint);
+					int i = 0;
+					int iSize = mLastVisionResult.length * 2 / 3;
+					for(; iSize < mLastVisionResult.length; iSize++) {
+						int x = mLastVisionResult[i++];
+						int y = mLastVisionResult[i++];
+						int r = mLastVisionResult[iSize] + 3;
+						c.drawCircle(x, y, r, paint);
+					}
 				}
 				
 				public void setColorFilter(ColorFilter cf) {
@@ -121,23 +126,20 @@ public class SessionList extends Activity
 
 					try {
 						mNode = new NetworkNode(SessionList.this, aus.get());
-						Toast.makeText(SessionList.this, "r: " + mNode.report(),
-							Toast.LENGTH_LONG).show();
+						Log.d(TAG, "r: " + mNode.report());
 					} catch(Exception e) {
 						// what to do
-						Toast.makeText(SessionList.this, "E:" + e.toString(),
-							Toast.LENGTH_LONG).show();						
+						Log.e(TAG, "onServiceConnected", e);
 					}
 
-					Toast.makeText(SessionList.this, "r: " + mNode.report(),
-						Toast.LENGTH_LONG).show();
-
+					/*
 					final Button refreshBtn = (Button) findViewById(R.id.refresh);
 					refreshBtn.setOnClickListener(new View.OnClickListener() {
 							public void onClick(View v) {
 								refresh();
 							}
 						});
+					*/
 				}
 			
 
@@ -214,11 +216,13 @@ public class SessionList extends Activity
 		
 		int width = cam.getParameters().getPreviewSize().width;
 		int[] visionResult = findFeatures(data, width);
-		int ptCnt = visionResult.length / 2;
+		int ptCnt = visionResult.length / 3;
 
 		mLastPoints = new Point[ptCnt];
 		for(int i = 0; i < ptCnt; i++)
 			mLastPoints[i] = new Point(visionResult[i*2], visionResult[i*2+1]);
+
+		mLastVisionResult = visionResult;
 
 		mOverlay.invalidate();
 		cam.addCallbackBuffer(data);
@@ -230,7 +234,6 @@ public class SessionList extends Activity
 	*/
 
 	private void refresh() {
-		
 	}
 
 	private void redisplayList() {
@@ -259,6 +262,7 @@ public class SessionList extends Activity
 	private ArrayList<NetworkNode.Status> mCameras;
 	private NetworkNode mNode;
 	private Point[] mLastPoints;
+	private int[] mLastVisionResult;
 
 	public native int[] findFeatures(byte[] buf, int width);
 }
