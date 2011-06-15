@@ -90,8 +90,20 @@ public class SessionList extends Activity
 				}
 
 				public void draw(Canvas c) {
-					float width = c.getWidth();
-					float height = mViewFinderHeight;
+					// todo lock
+					if(null == mCam) {
+						// todo draw message
+						return;
+					}
+
+					if(null == mLastVisionResult) {
+
+						return;
+					}
+					float framePxWidth = mOverlay.getWidth();
+					framePxWidth /= mCam.getParameters().getPreviewSize().width;
+					float framePxHeight = mOverlay.getHeight();
+					framePxHeight /= mCam.getParameters().getPreviewSize().height;
 
 					Paint paint = new Paint();
 					paint.setColor(0x77FF0000);
@@ -100,8 +112,8 @@ public class SessionList extends Activity
 					int i = 0;
 					int iSize = mLastVisionResult.length * 2 / 3;
 					for(; iSize < mLastVisionResult.length; iSize++) {
-						int x = mLastVisionResult[i++];
-						int y = mLastVisionResult[i++];
+						int x = (int)(framePxWidth * (float)mLastVisionResult[i++]);
+						int y = (int)(framePxHeight * (float)mLastVisionResult[i++]);
 						int r = mLastVisionResult[iSize] + 3;
 						c.drawCircle(x, y, r, paint);
 					}
