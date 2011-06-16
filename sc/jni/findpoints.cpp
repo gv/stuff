@@ -18,8 +18,9 @@ jintArray Java_vg_Sc_SessionList_findFeatures(JNIEnv* j, jobject jthis,
 	height = j->GetArrayLength(imgBytesArr) / width * 2 / 3;
 	imgBytes = j->GetByteArrayElements(imgBytesArr, NULL);
 	Mat greyMat(width, height, CV_8UC1, imgBytes);
-	SurfFeatureDetector detector(100./*hessian_threshold*/, 1/*octaves*/, 
-		2/*octave_layers*/);
+	//SurfFeatureDetector detector(100./*hessian_threshold*/, 1/*octaves*/, 
+	//	2/*octave_layers*/);
+	FastFeatureDetector detector(20/*threshold*/, true/*nonmax_suppression*/);
 	typedef vector<KeyPoint> Points;
 	Points keyPoints;
 	detector.detect(greyMat, keyPoints);

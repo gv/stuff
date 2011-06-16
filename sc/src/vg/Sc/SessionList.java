@@ -48,6 +48,7 @@ public class SessionList extends Activity
 			// Init camera
 
 			mCam = Camera.open();
+			mCam.setDisplayOrientation(90);
 			mCam.startPreview();
 			if(mSfcHl != null)
 				mCam.setPreviewDisplay(mSfcHl);
@@ -101,8 +102,9 @@ public class SessionList extends Activity
 						return;
 					}
 					float framePxWidth = mOverlay.getWidth();
-					framePxWidth /= mCam.getParameters().getPreviewSize().width;
 					float framePxHeight = mOverlay.getHeight();
+					Log.d(TAG, "overlay: " + framePxWidth + "x" + framePxHeight);
+					framePxWidth /= mCam.getParameters().getPreviewSize().width;
 					framePxHeight /= mCam.getParameters().getPreviewSize().height;
 
 					Paint paint = new Paint();
