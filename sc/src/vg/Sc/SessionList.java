@@ -23,6 +23,7 @@ import android.graphics.Paint;
 import android.graphics.Point;
 import android.graphics.Canvas;
 import android.graphics.ColorFilter;
+import android.view.KeyEvent;
 
 import org.teleal.cling.android.AndroidUpnpService;
 import org.teleal.cling.android.AndroidUpnpServiceImpl;
@@ -35,6 +36,20 @@ public class SessionList extends Activity
 	SurfaceHolder mSfcHl;
 	int mViewFinderHeight = 0;
 	View mOverlay;
+
+	class Position {
+		public int[] mVisionResult; // blob
+
+		Position getRef() {
+			if(null == mVisionResult)
+				return null;
+			Position r = new Position();
+			r.mVisionResult = mVisionResult;
+			return r;
+		}
+	}
+
+	Position mCurPos = new Position(), mRefPos;
 	
 	/* 
 		 Activity events
@@ -72,6 +87,16 @@ public class SessionList extends Activity
 
 
 	@Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+		switch (keyCode) {
+		case KeyEvent.KEYCODE_DPAD_CENTER:
+			mRefPos = mCurPos.getRef();
+			return true;
+		}
+		return super.onKeyDown(keyCode, event);
+	}
+
+	@Override
     public void onCreate(Bundle savedInstanceState) {
 		mCameras = new ArrayList<NetworkNode.Status>();
 
@@ -91,23 +116,22 @@ public class SessionList extends Activity
 				}
 
 				public void draw(Canvas c) {
+					Paint red = new Paint();
+					red.setColor(0x77FF0000);
+					red.setStyle(Paint.Style.STROKE);
+					
+					float viewWidth = mOverlay.getWidth();
+					float viewHeight = mOverlay.getHeight();
+
 					// todo lock
 					if(null == mCam) {
-						// todo draw message
+						c.drawText("Camera is sleeping...", 0, viewHeight, red);
 						return;
 					}
-
-					if(null == mLastVisionResult) {
-
-						return;
-					}
-					int iSize = mLastVisionResult.length * 2 / 3;
 
 					// surface is rotated 90degree clockwise
 					// preview X axis goes from bottom to top
 					// preview Y axis goes from left to right
-					float viewWidth = mOverlay.getWidth();
-					float viewHeight = mOverlay.getHeight();
 					float pvWidth = mCam.getParameters().getPreviewSize().width;
 					float pvHeight = mCam.getParameters().getPreviewSize().height;
 
@@ -117,18 +141,43 @@ public class SessionList extends Activity
 					float framePxWidth = viewHeight / pvWidth;
 					float framePxHeight = viewWidth / pvHeight;
 
-					Paint paint = new Paint();
-					paint.setColor(0x77FF0000);
-					paint.setStyle(Paint.Style.STROKE);
+
+					if(mRefPos != null) {
+						int[] blob = mRefPos.mVisionResult;
+						if(null != blob) {
+							Paint green = new Paint();
+							green.setColor(0x7700FF00);
+							green.setStyle(Paint.Style.STROKE);
+
+							int iSize = blob.length * 2 / 3, i = 0;
+							for(; iSize < blob.length; iSize++) {
+								int px = blob[i++];
+								int py = blob[i++];
+								int y = (int)(framePxWidth * (float)px);
+								int x = (int)(viewWidth - framePxHeight * (float)py);
+								int r = blob[iSize] + 3;
+								c.drawCircle(x, y, r, green);
+							}
+						}
+					}
 					
+
+
+					int[] blob = mCurPos.mVisionResult;
+					if(null == blob) {
+						c.drawText("Trying to see anything...", 0, viewHeight, red);
+						return;
+					}
+					int iSize = blob.length * 2 / 3;
+
 					int i = 0;
-					for(; iSize < mLastVisionResult.length; iSize++) {
-						int px = mLastVisionResult[i++];
-						int py = mLastVisionResult[i++];
+					for(; iSize < blob.length; iSize++) {
+						int px = blob[i++];
+						int py = blob[i++];
 						int y = (int)(framePxWidth * (float)px);
 						int x = (int)(viewWidth - framePxHeight * (float)py);
-						int r = mLastVisionResult[iSize] + 3;
-						c.drawCircle(x, y, r, paint);
+						int r = blob[iSize] + 3;
+						c.drawCircle(x, y, r, red);
 					}
 				}
 				
@@ -140,6 +189,7 @@ public class SessionList extends Activity
 					
 				}
 			});
+
 
 		/*
 			Communication setup
@@ -243,11 +293,11 @@ public class SessionList extends Activity
 		int[] visionResult = findFeatures(data, width);
 		int ptCnt = visionResult.length / 3;
 
-		mLastPoints = new Point[ptCnt];
+		/*mLastPoints = new Point[ptCnt];
 		for(int i = 0; i < ptCnt; i++)
-			mLastPoints[i] = new Point(visionResult[i*2], visionResult[i*2+1]);
+		mLastPoints[i] = new Point(visionResult[i*2], visionResult[i*2+1]);*/
 
-		mLastVisionResult = visionResult;
+		mCurPos.mVisionResult = visionResult;
 
 		mOverlay.invalidate();
 		cam.addCallbackBuffer(data);
@@ -287,7 +337,6 @@ public class SessionList extends Activity
 	private ArrayList<NetworkNode.Status> mCameras;
 	private NetworkNode mNode;
 	private Point[] mLastPoints;
-	private int[] mLastVisionResult;
 
 	public native int[] findFeatures(byte[] buf, int width);
 }
