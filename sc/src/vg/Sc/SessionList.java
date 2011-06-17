@@ -101,21 +101,32 @@ public class SessionList extends Activity
 
 						return;
 					}
-					float framePxWidth = mOverlay.getWidth();
-					float framePxHeight = mOverlay.getHeight();
-					Log.d(TAG, "overlay: " + framePxWidth + "x" + framePxHeight);
-					framePxWidth /= mCam.getParameters().getPreviewSize().width;
-					framePxHeight /= mCam.getParameters().getPreviewSize().height;
+					int iSize = mLastVisionResult.length * 2 / 3;
+
+					// surface is rotated 90degree clockwise
+					// preview X axis goes from bottom to top
+					// preview Y axis goes from left to right
+					float viewWidth = mOverlay.getWidth();
+					float viewHeight = mOverlay.getHeight();
+					float pvWidth = mCam.getParameters().getPreviewSize().width;
+					float pvHeight = mCam.getParameters().getPreviewSize().height;
+
+					//Log.d(TAG, "overlay: " + viewWidth + "x" + viewHeight + " / " + 
+					//	pvWidth + "x" + pvHeight + " " + iSize/2);
+
+					float framePxWidth = viewHeight / pvWidth;
+					float framePxHeight = viewWidth / pvHeight;
 
 					Paint paint = new Paint();
 					paint.setColor(0x77FF0000);
 					paint.setStyle(Paint.Style.STROKE);
 					
 					int i = 0;
-					int iSize = mLastVisionResult.length * 2 / 3;
 					for(; iSize < mLastVisionResult.length; iSize++) {
-						int x = (int)(framePxWidth * (float)mLastVisionResult[i++]);
-						int y = (int)(framePxHeight * (float)mLastVisionResult[i++]);
+						int px = mLastVisionResult[i++];
+						int py = mLastVisionResult[i++];
+						int y = (int)(framePxWidth * (float)px);
+						int x = (int)(viewWidth - framePxHeight * (float)py);
 						int r = mLastVisionResult[iSize] + 3;
 						c.drawCircle(x, y, r, paint);
 					}
