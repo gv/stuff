@@ -25,11 +25,17 @@ import android.graphics.Canvas;
 import android.graphics.ColorFilter;
 import android.view.KeyEvent;
 
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+
 import org.teleal.cling.android.AndroidUpnpService;
 import org.teleal.cling.android.AndroidUpnpServiceImpl;
 
 public class SessionList extends Activity 
-	implements NetworkNode.User, SurfaceHolder.Callback, Camera.PreviewCallback {
+	implements NetworkNode.User, SurfaceHolder.Callback, Camera.PreviewCallback, 
+						 SensorEventListener {
 	static final String TAG = "DuctTapedC";
 	ServiceConnection mUpnpSvcConn;
 	Camera mCam;
@@ -57,6 +63,8 @@ public class SessionList extends Activity
 
 	@Override
     public void onResume() {
+		mSensorManager.registerListener(this, mAccelerometer, 
+			SensorManager.SENSOR_DELAY_NORMAL);
 		try {
 			super.onResume();
 
@@ -81,6 +89,7 @@ public class SessionList extends Activity
 	@Override
     public void onPause() {
 		super.onPause();
+		mSensorManager.unregisterListener(this);
 		mCam.release();
 		mCam = null;
 	}
@@ -101,6 +110,10 @@ public class SessionList extends Activity
 		mCameras = new ArrayList<NetworkNode.Status>();
 
 		super.onCreate(savedInstanceState);
+
+		mSensorManager = (SensorManager)getSystemService(SENSOR_SERVICE);
+		mAccelerometer = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+
 		setContentView(R.layout.main);
 		mListVw = (ListView) findViewById(R.id.list);
 		SurfaceHolder hl = ((SurfaceView) findViewById(R.id.surface)).getHolder();
@@ -119,9 +132,24 @@ public class SessionList extends Activity
 					Paint red = new Paint();
 					red.setColor(0x77FF0000);
 					red.setStyle(Paint.Style.STROKE);
+
+					Paint levelLine = new Paint();
+					levelLine.setColor(0x88FFFFFF);
+					levelLine.setStyle(Paint.Style.STROKE);
+					levelLine.setStrokeWidth(6);
 					
 					float viewWidth = mOverlay.getWidth();
 					float viewHeight = mOverlay.getHeight();
+
+					if(Math.abs(mAccY) >= Math.abs(mAccX)) {
+						float ratio = mAccX / mAccY;
+						c.drawLine(.0f, (1 - ratio) * viewHeight / 2, 
+							viewWidth, (1 + ratio) * viewHeight / 2, levelLine);
+					} else {
+						float ratio = mAccY / mAccX;
+						c.drawLine((1 - ratio) * viewWidth / 2, .0f, 
+							(1 + ratio) * viewWidth / 2, viewHeight, levelLine);
+					}
 
 					// todo lock
 					if(null == mCam) {
@@ -236,6 +264,31 @@ public class SessionList extends Activity
 			//	upnpService.getRegistry().removeListener(registryListener);
 		}
 		getApplicationContext().unbindService(mUpnpSvcConn);
+	}
+
+
+	/*
+		Sensor stuff
+	*/
+
+	private SensorManager mSensorManager;
+	private Sensor mAccelerometer;
+
+	public SessionList() {
+	}
+
+
+	public void onAccuracyChanged(Sensor sensor, int accuracy) {
+	}
+
+	float mAccX = 1, mAccY = 0;
+		 
+
+	public void onSensorChanged(SensorEvent event) {
+		if (event.sensor.getType() != Sensor.TYPE_ACCELEROMETER)
+			return;
+		mAccX = event.values[0];
+		mAccY = event.values[1];
 	}
 
 	/*
