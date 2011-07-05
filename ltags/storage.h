@@ -17,7 +17,8 @@ struct Span {
 	int start, end;
 	int mtime;
 	int weight;
-	const char *path;
+	//const char *path;
+	unsigned long long pathId;
 	
 	struct Span *parent;
 	void *particular;

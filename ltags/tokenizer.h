@@ -12,6 +12,7 @@ struct Language {
 // parser state		
 struct File {
 	char *path;
+	unsigned long long pathId;
 	int mtime;
 
 	char *contents;

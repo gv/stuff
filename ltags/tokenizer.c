@@ -165,11 +165,13 @@ struct Span *addFeatureToCurrentSpan(struct File *pf, const char *feature) {
 	
 	*pf->currentSpan->endOfFeatures = feature;
 	pf->currentSpan->endOfFeatures++;
+	return pf->currentSpan;
 }
 
 struct Span *startGenericSpan(struct File *pf, const char *start) {
 	struct Span *s = malloc(sizeof (struct Span));
-	s->path = pf->path;
+	//s->path = pf->path;
+	s->pathId = pf->pathId;
 	s->mtime = pf->mtime;
 	s->start = start - pf->contents;
 	s->tagsEnd = s->tags;

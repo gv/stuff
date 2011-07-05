@@ -180,6 +180,44 @@ void run(char *stmt) {
 }
 
 
+
+sqlite3_int64 getPathId(const char *path) {
+	// creates if not found
+	sqlite3_int64 res = 0;
+	int r;
+	sqlite3_stmt *stm;
+
+	ASSERTSQL(sqlite3_prepare_v2(db, "SELECT oid FROM paths WHERE path = ?", 
+			-1, &stm, 0));
+	ASSERTSQL(sqlite3_bind_text(stm, 1, path, -1, SQLITE_STATIC));
+	
+	r = sqlite3_step(stm);
+	if(r == SQLITE_ROW) {
+		res = sqlite3_column_int64(stm, 0);
+	} else if(r != SQLITE_DONE) {
+		debug("getPathId: %d", r);
+		exit(1);
+	}
+
+	ASSERTSQL(sqlite3_finalize(stm));
+	if(!res) {
+		// TODO LOCK
+		ASSERTSQL(sqlite3_prepare_v2(db, 
+				"INSERT INTO paths(path, status) VALUES(?, 0)", 
+				-1, &stm, 0));
+		ASSERTSQL(sqlite3_bind_text(stm, 1, path, -1, SQLITE_STATIC));
+		r = sqlite3_step(stm);
+		if(r != SQLITE_DONE) {
+			debug("Adding path '%s' not done (%d)", path, r);
+			exit(1);
+		}
+		ASSERTSQL(sqlite3_finalize(stm));
+		res = sqlite3_last_insert_rowid(db);
+	}
+	return res;
+}
+
+
 pthread_t parserThreads[4];
 void *files[5];
 queue_t fileQueue = QUEUE_INITIALIZER(files);
@@ -221,7 +259,13 @@ void updateFile(const char *path) {
 
 	
 	pf = malloc(sizeof(*pf));
+
+	/*
+		If we can't parse this, it's still probably a part of the project,
+		so we'd like its path to show up in results
+	*/
 	pf->path = strdup(path);
+	pf->pathId = getPathId(path);
 	if(!chooseLanguage(pf)) {
 		debug("No language detected for for %s", path);
 	}		
@@ -325,6 +369,15 @@ void *parserThread(void *unused) {
 
 */
 
+		
+		
+		
+		
+
+
+
+		
+	
 
 
 void update(const char **srcPaths) {
@@ -350,7 +403,7 @@ void update(const char **srcPaths) {
 		if(justCreated) {
 			ASSERTSQL(sqlite3_prepare_v2(db, 
 					"CREATE VIRTUAL TABLE spans USING fts3("
-					"path     VARCHAR(256), "
+					"pathId   INTEGER, "
 					"features VARCHAR(256), "
 					"weight   INTEGER, "
 					"mtime    INTEGER, "
@@ -365,6 +418,19 @@ void update(const char **srcPaths) {
 				debug("Table creation step: %d", r);
 			}
 			ASSERTSQL(sqlite3_finalize(stm));
+
+			ASSERTSQL(sqlite3_prepare_v2(db, 
+					"CREATE TABLE paths("
+					"path     VARCHAR(256), "
+					"status   INTEGER)",
+					-1, &stm, 0));
+
+			r = sqlite3_step(stm);
+			if(r != SQLITE_DONE) {
+				debug("Table creation step: %d", r);
+			}
+			ASSERTSQL(sqlite3_finalize(stm));
+
 		}
 		//#endif
 
@@ -395,12 +461,14 @@ void update(const char **srcPaths) {
 			ASSERTSQL(sqlite3_prepare_v2(db, 
 					"UPDATE spans SET status=1 WHERE path=?", -1, &stm, 0));
 			for(; *srcPaths; srcPaths++) {
+				char *givenPath = strdup(*srcPaths);
 				ASSERTSQL(sqlite3_reset(stm));
 				ASSERTSQL(sqlite3_bind_text(stm, 1, *srcPaths, -1, SQLITE_STATIC));
 				if(SQLITE_DONE != sqlite3_step(stm))
 					debug("Invalidating not done");
-				normalizePath(*srcPaths);
-				updateFile(realpath(*srcPaths, path));
+				normalizePath(givenPath);
+				updateFile(realpath(givenPath, path));
+				free(givenPath);
 			}
 		} else {
 			debug("Invalidating old entries...");
@@ -435,7 +503,7 @@ int readSpan(struct Span *s, sqlite3_stmt *stm) {
 	r = sqlite3_step(stm);
 	if(r != SQLITE_ROW)	
 		return 0;
-	s->path = sqlite3_column_text(stm, 0);
+	s->pathId = sqlite3_column_int64(stm, 0);
 	s->start = sqlite3_column_int(stm, 1);
 	s->end = sqlite3_column_int(stm, 2);
 	s->tagsText = (char*)sqlite3_column_text(stm, 3); // not const 
@@ -483,7 +551,7 @@ int checkTerm(struct Term *t, struct Span *s) {
 	if(TERM_POS & t->flags) {
 		if(t->pos >= s->start)
 			if(t->pos <= s->end)
-				if(!strcmp(t->path, s->path))
+				//if(!strcmp(t->path, s->path))
 					return 1;
 	} else {
 		struct Word *tag = &s->tags[0];
@@ -505,9 +573,9 @@ void startSearch(struct Term *t, sqlite3_stmt **stm) {
 	int r;
 	if(TERM_POS & t->flags) {
 		ASSERTSQL(sqlite3_prepare_v2(db, 
-				"SELECT path, start, end, tags " 
+				"SELECT pathId, start, end, tags " 
 				"FROM spans " 
-				"WHERE path = ? "
+				"WHERE pathId = ? "
 				"AND start <= ? "
 				"AND end >= ? "
 				"ORDER BY start DESC",
@@ -528,7 +596,7 @@ void startSearch(struct Term *t, sqlite3_stmt **stm) {
 		
 		if(!strlen(t->word)) {
 			ASSERTSQL(sqlite3_prepare_v2(db, 
-					"SELECT path, start, end, tags " 
+					"SELECT pathId, start, end, tags " 
 					"FROM spans ", 
 					-1, stm, 0));
 			return;
@@ -536,7 +604,7 @@ void startSearch(struct Term *t, sqlite3_stmt **stm) {
 		
 
 		ASSERTSQL(sqlite3_prepare_v2(db, 
-				"SELECT path, start, end, tags " 
+				"SELECT pathId, start, end, tags " 
 				"FROM spans " 
 				"WHERE tags MATCH ? ", 
 				-1, stm, 0));
@@ -607,6 +675,7 @@ int main(int argc, char **argv){
 
 	if(UPDATE == mode) {
 		if(!findDb()) {
+			strcpy(dbDirPath, wdPath);
 			strcpy(dbPath, wdPath);
 			strcat(dbPath, "/");
 			strcat(dbPath, dbName);
@@ -760,7 +829,6 @@ int main(int argc, char **argv){
 
 			while(readSpan(span = malloc(sizeof(*span)), indexTerm->stm)) {
 				span->tagsText = strdup(span->tagsText);
-				span->path = strdup(span->path);
 				span->parent = NULL;
 
 				if(&terms[0] == indexTerm) {
@@ -770,7 +838,7 @@ int main(int argc, char **argv){
 				} else {
 					struct Span *leaf = leaves;
 					while(leaf) {
-						if(!strcmp(span->path, leaf->path)) {
+						if(span->pathId == leaf->pathId) {
 							if(span->start < leaf->start && span->end > leaf->end) {
 								// span is outside
 								span->parent = leaf;
@@ -802,6 +870,7 @@ int main(int argc, char **argv){
 			if(SEARCH == mode) {
 				// Count lines to make output grep-like
 			
+				const char *absPath;
 				const char *path;
 				const char *contents;
 				char *contentsEnd;
@@ -809,11 +878,26 @@ int main(int argc, char **argv){
 				int lineNumber;
 				char pathFromWd[MAX_PATH];
 				const char *targetEnd, *bestLine = NULL;
-				path = getPathFrom(pathFromWd, span->path, wdPath);
+				sqlite3_stmt *stm;
+
+				ASSERTSQL(sqlite3_prepare_v2(db, "SELECT path FROM paths WHERE oid=?", 
+						-1, &stm, 0));
+				ASSERTSQL(sqlite3_bind_int64(stm, 1, span->pathId));
+				r = sqlite3_step(stm);
+				if(r == SQLITE_DONE) {
+					debug("NO PATH %d", span->pathId);
+					exit(1);
+				}
+				if(r != SQLITE_ROW) {
+					debug("readPath: %d", r);
+					exit(1);
+				}
+				absPath = sqlite3_column_text(stm, 0);
+				path = getPathFrom(pathFromWd, absPath, wdPath);
 				
 				// print the shortest path
-				if(strlen(span->path) <= strlen(path))
-					path = span->path;
+				if(strlen(absPath) <= strlen(path))
+					path = absPath;
 
 				contents = loadWhole(path, &contentsEnd);
 				if(!contents) {

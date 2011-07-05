@@ -21,10 +21,11 @@ void initStorageThread() {
 	int r;
 	ASSERTSQL(sqlite3_prepare_v2(db, 
 			"UPDATE spans SET status=0 WHERE " 
-			"path=? AND start=? AND end=? AND weight=? AND features=? AND tags MATCH ?",
+			"pathId=? AND start=? AND end=? AND weight=? AND features=? AND tags MATCH ?",
 			-1, &spanUpdateStm, 0));
 	ASSERTSQL(sqlite3_prepare_v2(db,
-			"INSERT INTO spans (path, start, end, weight, features, tags, mtime, status) "
+			"INSERT INTO spans "
+			"(pathId, start, end, weight, features, tags, mtime, status) "
 			"VALUES (?, ?, ?, ?, ?, ?, ?, 0)",
 			-1, &spanInsertStm, 0));
 }
@@ -34,7 +35,7 @@ void saveSpan(const struct Span *pSpan) {
 	sqlite3_stmt *stm;
 	char text[MAX_TAG_CNT * 32], *tail =  text, *nextTail = text;
 	const char **pft;
-	char *featuresText = NULL;
+	char *featuresText = "";
 	const struct Word *w;
 	int featuresTextLen = 0;
 
@@ -69,30 +70,30 @@ void saveSpan(const struct Span *pSpan) {
 	
 	stm = spanUpdateStm;
 	while(1) {
-		ASSERTSQL(sqlite3_reset(stm));
-		ASSERTSQL(sqlite3_bind_text(stm, 1, pSpan->path, -1, SQLITE_STATIC));
+		sqlite3_reset(stm);
+		ASSERTSQL(sqlite3_bind_int64(stm, 1, pSpan->pathId));
 		ASSERTSQL(sqlite3_bind_int(stm, 2, pSpan->start));
 		ASSERTSQL(sqlite3_bind_int(stm, 3, pSpan->end));
 		ASSERTSQL(sqlite3_bind_int(stm, 4, pSpan->weight));
-		if(featuresText)
-			ASSERTSQL(sqlite3_bind_text(stm, 5, featuresText, featuresTextLen, SQLITE_STATIC));
+		ASSERTSQL(sqlite3_bind_text(stm, 5, featuresText, 
+				featuresTextLen, SQLITE_STATIC));
 		ASSERTSQL(sqlite3_bind_text(stm, 6, text, -1, SQLITE_STATIC));
 
 		if(spanInsertStm == stm) {
-			ASSERTSQL(sqlite3_bind_int(stm, 5, pSpan->mtime));
+			ASSERTSQL(sqlite3_bind_int(stm, 7, pSpan->mtime));
 		}
 
-		// TODO LOCK
+		sqlite3_mutex_enter(sqlite3_db_mutex(db));
 
 		r = sqlite3_step(stm);
 		if(r != SQLITE_DONE) {
-			fprintf(stderr, "step: %d\n", r);
-			exit(1);
+			// TODO get rid of fts3
+			debug("save span: %d (%s)", r,  sqlite3_errmsg(db));
 		}
 
 		r = sqlite3_changes(db);
 		
-		// TODO UNLOCK
+		sqlite3_mutex_leave(sqlite3_db_mutex(db));
 
 		if(r)
 			break;
