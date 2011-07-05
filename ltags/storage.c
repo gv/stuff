@@ -35,7 +35,7 @@ void saveSpan(const struct Span *pSpan) {
 	sqlite3_stmt *stm;
 	char text[MAX_TAG_CNT * 32], *tail =  text, *nextTail = text;
 	const char **pft;
-	char *featuresText = "";
+	char *featuresText = NULL;
 	const struct Word *w;
 	int featuresTextLen = 0;
 
@@ -75,8 +75,9 @@ void saveSpan(const struct Span *pSpan) {
 		ASSERTSQL(sqlite3_bind_int(stm, 2, pSpan->start));
 		ASSERTSQL(sqlite3_bind_int(stm, 3, pSpan->end));
 		ASSERTSQL(sqlite3_bind_int(stm, 4, pSpan->weight));
-		ASSERTSQL(sqlite3_bind_text(stm, 5, featuresText, 
-				featuresTextLen, SQLITE_STATIC));
+		if(featuresText)
+			ASSERTSQL(sqlite3_bind_text(stm, 5, featuresText, 
+					featuresTextLen, SQLITE_STATIC));
 		ASSERTSQL(sqlite3_bind_text(stm, 6, text, -1, SQLITE_STATIC));
 
 		if(spanInsertStm == stm) {
