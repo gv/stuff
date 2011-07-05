@@ -496,7 +496,8 @@ int readSpan(struct Span *s, sqlite3_stmt *stm) {
 	s->pathId = sqlite3_column_int64(stm, 0);
 	s->start = sqlite3_column_int(stm, 1);
 	s->end = sqlite3_column_int(stm, 2);
-	s->tagsText = (char*)sqlite3_column_text(stm, 3); // not const 
+	s->tagsText = (char*)sqlite3_column_text(stm, 3); // not const
+	s->featuresText = (char*) sqlite3_column_text(stm, 4);
 	return 1;
 }
 
@@ -586,7 +587,7 @@ void startSearch(struct Term *t, sqlite3_stmt **stm) {
 		
 		if(!strlen(t->word)) {
 			ASSERTSQL(sqlite3_prepare_v2(db, 
-					"SELECT pathId, start, end, tags " 
+					"SELECT pathId, start, end, tags, features " 
 					"FROM spans ", 
 					-1, stm, 0));
 			return;
@@ -594,7 +595,7 @@ void startSearch(struct Term *t, sqlite3_stmt **stm) {
 		
 
 		ASSERTSQL(sqlite3_prepare_v2(db, 
-				"SELECT pathId, start, end, tags " 
+				"SELECT pathId, start, end, tags, features " 
 				"FROM spans " 
 				"WHERE tags MATCH ? ", 
 				-1, stm, 0));
@@ -687,6 +688,7 @@ void printSpan(struct Span *span, const struct Term *terms, const struct Term *l
 		targetEnd = target;
 
 	fwrite(targetEnd, 1, nextLine - targetEnd, stdout);
+	// hm, where does newline come from
 }
 
 #define MAX_COMPLETION_COUNT 100 // TODO implement
@@ -713,14 +715,15 @@ int main(int argc, char **argv){
 	int c, longOptIndex = 0;
 	char *srcPathArg = NULL;
 	int completionTargetIndex = 0;
+	int verbose = 0;
 
 	if(!getcwd(wdPath, sizeof dbPath - sizeof dbName - 2)) {
-		fprintf(stderr, "Can't getcwd");
+		fprintf(stderr, "Can't getcwd\n");
 		exit(1);
 	}
 	normalizePath(wdPath);
 
-	while(c = getopt_long(argc, argv, "Cul:", longOpts, &longOptIndex), c != -1) {
+	while(c = getopt_long(argc, argv, "Cvul:", longOpts, &longOptIndex), c != -1) {
 		switch(c) {
 		case 'C':
 			mode = COMPLETE;
@@ -744,7 +747,9 @@ int main(int argc, char **argv){
 			exit(0);
 			break;
 
-			
+		case 'v':
+			verbose = 1;
+			break;			
 		}
 	}
 
@@ -945,6 +950,16 @@ int main(int argc, char **argv){
 		while(span) {
 			if(SEARCH == mode) {
 				printSpan(span, terms, lastTerm);
+				if(verbose) {
+					printf("which is %s: %s\n", span->featuresText, span->tagsText);
+					puts("also:");
+					struct Span *other = span;
+					while(other = other->parent) {
+						printSpan(other, terms, lastTerm);
+						printf("which is %s: %s\n", other->featuresText, other->tagsText);
+					}
+					puts("---");
+				}
 			} else { // we need to complete prefix
 				struct Word *tag;
 				struct Span *s = span;
