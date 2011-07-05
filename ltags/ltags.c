@@ -370,16 +370,6 @@ void *parserThread(void *unused) {
 */
 
 		
-		
-		
-		
-
-
-
-		
-	
-
-
 void update(const char **srcPaths) {
 	int r;
 	char curPath[MAX_PATH];
@@ -611,6 +601,92 @@ void startSearch(struct Term *t, sqlite3_stmt **stm) {
 		
 		ASSERTSQL(sqlite3_bind_text(*stm, 1, ftsQuery, -1, SQLITE_STATIC));
 	}
+}
+
+void printSpan(struct Span *span, const struct Term *terms, const struct Term *lastTerm) {
+	// Count lines to make output grep-like
+	const char *absPath;
+	const char *path;
+	const char *contents;
+	char *contentsEnd;
+	const char *line, *target, *nextLine;
+	int lineNumber, r;
+	char pathFromWd[MAX_PATH];
+	const char *targetEnd, *bestLine = NULL;
+	sqlite3_stmt *stm;
+
+	ASSERTSQL(sqlite3_prepare_v2(db, "SELECT path FROM paths WHERE oid=?", 
+			-1, &stm, 0));
+	ASSERTSQL(sqlite3_bind_int64(stm, 1, span->pathId));
+	r = sqlite3_step(stm);
+	if(r == SQLITE_DONE) {
+		debug("NO PATH %d", span->pathId);
+		exit(1);
+	}
+	if(r != SQLITE_ROW) {
+		debug("readPath: %d", r);
+		return;
+	}
+	absPath = sqlite3_column_text(stm, 0);
+	path = getPathFrom(pathFromWd, absPath, wdPath);
+				
+	// print the shortest path
+	if(strlen(absPath) <= strlen(path))
+		path = absPath;
+
+	contents = loadWhole(path, &contentsEnd);
+	if(!contents) {
+		fprintf(stderr, "Can't load %s\n", path);
+		return;
+	}
+				
+	*contentsEnd = 0;
+	lineNumber = 1;
+	target = contents + span->start;
+	targetEnd = contents + span->end;
+	line = contents;
+	bestLine = contents;
+	do {
+		nextLine = memchr(line, '\n', contentsEnd - line);
+		if(!nextLine) {
+			nextLine = contentsEnd;
+			break;
+		} else 
+			nextLine++;
+					
+		if(nextLine > targetEnd)
+			break;
+					
+		if(nextLine > target) {
+			const struct Term *t = terms;
+			char *p;
+			for(; t < lastTerm; t++) {
+				if(!(t->flags & TERM_POS))
+					if(p = strstr(line, t->word))
+						if(p < nextLine)
+							break;
+			}
+			if(t < lastTerm)
+				break;
+		}
+		lineNumber++;
+		line = nextLine;
+	} while(1);
+			
+	printf("%s:%d:", path, lineNumber);
+	if(target >= line && target <= nextLine) {
+		fwrite(line, 1, target - line, stdout);
+		printf("<<");
+	} else 
+		target = line;
+
+	if(targetEnd >= line && targetEnd <= nextLine) {
+		fwrite(target, 1, targetEnd - target, stdout);
+		printf(">>");
+	} else 
+		targetEnd = target;
+
+	fwrite(targetEnd, 1, nextLine - targetEnd, stdout);
 }
 
 #define MAX_COMPLETION_COUNT 100 // TODO implement
@@ -868,90 +944,7 @@ int main(int argc, char **argv){
 		span = leaves;
 		while(span) {
 			if(SEARCH == mode) {
-				// Count lines to make output grep-like
-			
-				const char *absPath;
-				const char *path;
-				const char *contents;
-				char *contentsEnd;
-				const char *line, *target, *nextLine;
-				int lineNumber;
-				char pathFromWd[MAX_PATH];
-				const char *targetEnd, *bestLine = NULL;
-				sqlite3_stmt *stm;
-
-				ASSERTSQL(sqlite3_prepare_v2(db, "SELECT path FROM paths WHERE oid=?", 
-						-1, &stm, 0));
-				ASSERTSQL(sqlite3_bind_int64(stm, 1, span->pathId));
-				r = sqlite3_step(stm);
-				if(r == SQLITE_DONE) {
-					debug("NO PATH %d", span->pathId);
-					exit(1);
-				}
-				if(r != SQLITE_ROW) {
-					debug("readPath: %d", r);
-					exit(1);
-				}
-				absPath = sqlite3_column_text(stm, 0);
-				path = getPathFrom(pathFromWd, absPath, wdPath);
-				
-				// print the shortest path
-				if(strlen(absPath) <= strlen(path))
-					path = absPath;
-
-				contents = loadWhole(path, &contentsEnd);
-				if(!contents) {
-					fprintf(stderr, "Can't load %s\n", path);
-					continue;
-				}
-				
-				*contentsEnd = 0;
-				lineNumber = 1;
-				target = contents + span->start;
-				targetEnd = contents + span->end;
-				line = contents;
-				bestLine = contents;
-				do {
-					nextLine = memchr(line, '\n', contentsEnd - line);
-					if(!nextLine) {
-						nextLine = contentsEnd;
-						break;
-					} else 
-						nextLine++;
-					
-					if(nextLine > targetEnd)
-						break;
-					
-					if(nextLine > target) {
-						struct Term *t = terms;
-						char *p;
-						for(; t < lastTerm; t++) {
-							if(!(t->flags & TERM_POS))
-								if(p = strstr(line, t->word))
-									if(p < nextLine)
-										break;
-						}
-						if(t < lastTerm)
-							break;
-					}
-					lineNumber++;
-					line = nextLine;
-				} while(1);
-			
-				printf("%s:%d:", path, lineNumber);
-				if(target >= line && target <= nextLine) {
-					fwrite(line, 1, target - line, stdout);
-					printf("<<");
-				} else 
-					target = line;
-
-				if(targetEnd >= line && targetEnd <= nextLine) {
-					fwrite(target, 1, targetEnd - target, stdout);
-					printf(">>");
-				} else 
-					targetEnd = target;
-
-				fwrite(targetEnd, 1, nextLine - targetEnd, stdout);
+				printSpan(span, terms, lastTerm);
 			} else { // we need to complete prefix
 				struct Word *tag;
 				struct Span *s = span;
