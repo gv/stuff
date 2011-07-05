@@ -910,6 +910,7 @@ int main(int argc, char **argv){
 
 			while(readSpan(span = malloc(sizeof(*span)), indexTerm->stm)) {
 				span->tagsText = strdup(span->tagsText);
+				span->featuresText = strdup(span->featuresText);
 				span->parent = NULL;
 
 				if(&terms[0] == indexTerm) {
