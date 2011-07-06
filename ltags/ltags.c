@@ -523,30 +523,46 @@ struct Word *splitTags(struct Span *s) {
 #define TERM_POS 2
 #define TERM_INCOMPLETE 4
 
+/*
+	Search condition.
+*/
 struct Term {
-	char *arg, *argPos, *argEnd;
-	
 	int flags;
+	char *arg, *argPos, *argEnd;
+	sqlite3_stmt *stm;
+	
 	union {
-		char *word;
+		// Usual search word (or prefix, if TERM_INCOMPLETE)
+		struct {
+			char *word;
+			char *feature;
+		};
+
+		// Position in the source. 
+		// Must restrict results to bodies enclosing that position.
 		struct {
 			unsigned pos;
 			char *path;
 		};
 	};
-	sqlite3_stmt *stm;
 };
 
-
-int checkTerm(struct Term *t, struct Span *s) {
+int termAllowsSpan(struct Term *t, struct Span *s) {
 	if(TERM_POS & t->flags) {
 		if(t->pos >= s->start)
 			if(t->pos <= s->end)
 				//if(!strcmp(t->path, s->path))
+				// Now it's broken!
 					return 1;
 	} else {
-		struct Word *tag = &s->tags[0];
-		for(; tag < s->tagsEnd; tag++) {
+		struct Word *tag;
+
+		if(t->feature) {
+			if(!strstr(s->featuresText, t->feature))
+				return 0;
+		}
+
+		for(tag = splitTags(s); tag < s->tagsEnd; tag++) {
 			if(TERM_INCOMPLETE & t->flags) {
 				if(!strncmp(t->word, tag->start, strlen(t->word)))
 					return 1;
@@ -604,7 +620,8 @@ void startSearch(struct Term *t, sqlite3_stmt **stm) {
 	}
 }
 
-void printSpan(struct Span *span, const struct Term *terms, const struct Term *lastTerm) {
+void printSpan(struct Span *span, 
+	const struct Term *terms, const struct Term *lastTerm) {
 	// Count lines to make output grep-like
 	const char *absPath;
 	const char *path;
@@ -698,6 +715,13 @@ void printSpan(struct Span *span, const struct Term *terms, const struct Term *l
 #define COMPLETE 2
 #define UPDATE 3
 #define LSDEFS 4
+
+char *dupPart(const char *start, const char *end) {
+	char *r = malloc(end - start + 1);
+	memcpy(r, start, end - start);
+	r[end - start] = 0;
+	return r;
+}
 
 int main(int argc, char **argv){
 	int r;
@@ -832,9 +856,10 @@ int main(int argc, char **argv){
 			static const char punctuation[] = ":;,`~!()-=\\| ";
 			//static const char nonBreakable[] = " .";
 			char *e = argv[optind], *s; 
+			char *feature = NULL;
 			
-			// path/name:1234 is a character number which must be inside resulting span 
 			if(s = strrchr(e, ':')) {
+				// path/name:1234 is a character number which must be inside resulting span 
 				char *numEnd;
 				lastTerm->pos = strtol(s + 1, &numEnd, 10);
 				if(0 == *numEnd) {
@@ -845,6 +870,13 @@ int main(int argc, char **argv){
 					lastTerm->flags = TERM_POS;
 					lastTerm++;
 					continue;
+				}
+
+				// also, d:getUser will get you spans tagged "getUser" having feature "d",
+				// which should mean "definition"
+				if(s - e) {
+					feature = dupPart(e, s);
+					e = s + 1;
 				}
 			} 
 			
@@ -865,9 +897,15 @@ int main(int argc, char **argv){
 					lastTerm->argEnd = e;
 					memcpy(lastTerm->word, s, e - s);
 					lastTerm->word[e - s] = 0;
+					if(feature) {
+						lastTerm->feature = feature;
+						feature = NULL;
+					}
+
 					lastTerm++;
 					if('*' == *e) 
 						e++;
+
 				}
 			} while(e - s);
 
@@ -909,9 +947,12 @@ int main(int argc, char **argv){
 			startSearch(indexTerm, &indexTerm->stm);
 
 			while(readSpan(span = malloc(sizeof(*span)), indexTerm->stm)) {
+				span->parent = NULL;
 				span->tagsText = strdup(span->tagsText);
 				span->featuresText = strdup(span->featuresText);
-				span->parent = NULL;
+
+				if(!termAllowsSpan(indexTerm, span))
+					continue;
 
 				if(&terms[0] == indexTerm) {
 					span->particular = betterLeaves;
@@ -951,10 +992,12 @@ int main(int argc, char **argv){
 		while(span) {
 			if(SEARCH == mode) {
 				printSpan(span, terms, lastTerm);
+
 				if(verbose) {
-					printf("which is %s: %s\n", span->featuresText, span->tagsText);
-					puts("also:");
 					struct Span *other = span;
+					printf("which is %s: %s\n", span->featuresText, span->tagsText);
+					if(other->parent)
+						puts("also:");
 					while(other = other->parent) {
 						printSpan(other, terms, lastTerm);
 						printf("which is %s: %s\n", other->featuresText, other->tagsText);

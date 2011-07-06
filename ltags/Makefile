@@ -9,6 +9,7 @@ ifeq ($(OS), Windows_NT)
 	CCLINK = cl
 	CFLAGS += /Zi
 	CFLAGS += /Iext/pthread
+	CFLAGS += /Ox
 	O = /Fo
 	OB = /Fo$(B)
 	X = .exe
@@ -17,6 +18,7 @@ else
 	CC = gcc -c
 	CCLINK = gcc
 	CFLAGS += -g
+	CFLAGS += -O5
 	O = -o 
 	OB = -o $(B)
 	F = -
@@ -27,29 +29,29 @@ endif
 all: ltags$X
 
 $Bltags.o: ltags.c queue.h tokenizer.h storage.h
-	$(CC) $(CFLAGS) $FO5 ltags.c $O$@
+	$(CC) $(CFLAGS) ltags.c $O$@
 
 $Bjava.o: java.c java_res.h tokenizer.c storage.h
-	$(CC) $(CFLAGS) $FO5 java.c $O$@
+	$(CC) $(CFLAGS) java.c $O$@
 
 $Bjs.o: js.c tokenizer.h
-	$(CC) $(CFLAGS) $FO5 js.c $O$@
+	$(CC) $(CFLAGS) js.c $O$@
 
 $Btokenizer.o: tokenizer.c tokenizer.h storage.h
-	$(CC) $(CFLAGS) $FO5 tokenizer.c $O$@
+	$(CC) $(CFLAGS) tokenizer.c $O$@
 
 $Bstorage.o: storage.c storage.h
-	$(CC) $(CFLAGS) $FO5 storage.c $O$@
+	$(CC) $(CFLAGS) storage.c $O$@
 
 $Bchooselang.o: chooselang.c
-	$(CC) $(CFLAGS) $FO4 chooselang.c $O$@
+	$(CC) $(CFLAGS) chooselang.c $O$@
 
 $Butil.o: util.c
-	$(CC) $(CFLAGS) $FO4 util.c $O$@
+	$(CC) $(CFLAGS) util.c $O$@
 
 # no shared cache, we're using one connection only
 $Bsqlite3.o: ext/sqlite/sqlite3.c
-	$(CC) $(CFLAGS) $FO4 \
+	$(CC) $(CFLAGS) \
 	$FDSQLITE_OMIT_LOAD_EXTENSION=1 \
 	$FDSQLITE_OMIT_DEPRECATED=1 \
 	$FDSQLITE_OMIT_UTF16=1 \
