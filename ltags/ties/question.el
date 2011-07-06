@@ -18,7 +18,7 @@
   )
 
 
-(defun question-display-results-page ()
+(defun question-display-results-page (query)
   (compilation-start (concat "qn " query)
 					 'grep-mode))
 

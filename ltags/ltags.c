@@ -328,15 +328,17 @@ void *parserThread(void *unused) {
 			break;
 		
 		startGenericSpan(pf, pf->contents);
-		addTagToCurrentSpan(pf, F_FEATURE, F_FEATURE + 1);
+		addFeatureToCurrentSpan(pf, F_FEATURE);
 
 		assert(strchr(pf->path, '/'));
-		ws = we = strrchr(pf->path, 0);
+		ws = we = strchr(pf->path, 0);
 		while(--ws) {
 			if(!(CHAR_TOKENMIDDLE & classifyChar(*ws))) {
 				
-				if(we - ws > 1)
+				if(we - ws > 1) {
+					debug(ws + 1);
 					addTagToCurrentSpan(pf, ws+1, we);
+				}
 				if('/' == *ws)
 					break;
 				we = ws;
@@ -1002,7 +1004,7 @@ int main(int argc, char **argv){
 						printSpan(other, terms, lastTerm);
 						printf("which is %s: %s\n", other->featuresText, other->tagsText);
 					}
-					puts("---");
+					puts("");
 				}
 			} else { // we need to complete prefix
 				struct Word *tag;
