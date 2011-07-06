@@ -17,21 +17,24 @@
   
   )
 
+
+(defun question-display-results-page ()
+  (compilation-start (concat "qn " query)
+					 'grep-mode))
+
+
+(local-set-key [M-.] 'question-eponimous)
+(local-set-key [M-\\] 'question-eponimous)
+(global-set-key [M-.] 'question-eponimous)
+(global-set-key [M-\\] 'question-eponimous)
+(global-set-key [M-right] 'question-eponimous)
+(local-set-key [M-right] 'question-eponimous)
 (defun question-eponimous ()  (interactive)
   (let (query)
 	(define-key minibuffer-local-completion-map " " nil)
 	(setq query (completing-read "Question: " 'question-complete))
-	(compilation-start (concat "qn " query)
-					   'grep-mode)))
+	(question-display-results-page query)))
 
-(global-set-key [M-.] 'question-eponimous)
-(global-set-key [M-\\] 'question-eponimous)
-(global-set-key [M-right] 'question-eponimous)
-(global-set-key [M-next] 'question-printdef)
-(local-set-key [M-.] 'question-eponimous)
-(local-set-key [M-\\] 'question-eponimous)
-(local-set-key [M-right] 'question-eponimous)
-(local-set-key [M-next] 'question-printdef)
 
 (defun question-here () (interactive)
   (message (shell-command-to-string 
@@ -60,6 +63,8 @@
   (if (looking-at gtags-symbol-regexp)
       (gtags-match-string 0) nil))
 
+(global-set-key [M-next] 'question-printdef)
+(local-set-key [M-next] 'question-printdef)
 (defun question-printdef () (interactive)
   (let ((token (gtags-current-token))
 		(m))
@@ -70,3 +75,9 @@
 	  (message m)
 	  )))
 
+
+(global-set-key [M-prior] 'question-search-pointed-word)
+(local-set-key [M-prior] 'question-search-pointed-word)
+(defun question-search-pointed-word () (interactive)
+  (let ((token (gtags-current-token)))
+	(question-display-results-page token)))
