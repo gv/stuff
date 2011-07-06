@@ -61,6 +61,12 @@
       (gtags-match-string 0) nil))
 
 (defun question-printdef () (interactive)
-  (message (shell-command-to-string
-			(format "qn d:%s" (gtags-current-token)))))
+  (let ((token (gtags-current-token))
+		(m))
+	(setq m (shell-command-to-string (format "qn d:%s" token)))
+	(setq m (replace-regexp-in-string "[ \r\n]+$" "" m))
+	(if (zerop (length m))
+		(message (format "%s: no definitions found" token))
+	  (message m)
+	  )))
 
