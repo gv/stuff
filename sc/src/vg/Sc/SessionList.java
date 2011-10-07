@@ -105,6 +105,34 @@ public class SessionList extends Activity
 		return super.onKeyDown(keyCode, event);
 	}
 
+	private Point average(int[] v) {
+		float x = 0, y = 0;
+		int size = v.length * 2 / 3;
+		for(int i = 0; i < size;) {
+			x += v[i++];
+			y += v[i++];
+		}
+		size /= 2;
+		return new Point((int)(x/size), (int)(y/size)); 
+	}
+
+	private void drawArrow(Canvas c, 
+		float startX, float startY, float tipX, float tipY) {
+		Paint yellow = new Paint();
+		yellow.setColor(0x88FFFF00);
+		yellow.setStyle(Paint.Style.STROKE);
+		yellow.setStrokeWidth(6);
+
+		c.drawLine(startX, startY, tipX, tipY, yellow);
+		float angle = (float)Math.atan(((startY - tipY)/(tipX - startX)));
+		float a = 10, d = .3f;
+		c.drawLine(tipX, tipY, (float)(tipX + Math.sin(angle + d) * a), 
+			(float)(tipY + Math.cos(angle + d) * a), yellow);
+		c.drawLine(tipX, tipY, (float)(tipX + Math.sin(angle - d) * a), 
+			(float)(tipY + Math.cos(angle - d) * a), yellow);
+	}
+
+
 	@Override
     public void onCreate(Bundle savedInstanceState) {
 		mCameras = new ArrayList<NetworkNode.Status>();
@@ -186,6 +214,24 @@ public class SessionList extends Activity
 								int r = blob[iSize] + 3;
 								c.drawCircle(x, y, r, green);
 							}
+
+							
+							if(mCurPos.mVisionResult != null) {
+								Point refWeightCenter = average(blob);
+								Point curWeightCenter = average(mCurPos.mVisionResult);
+								c.drawLine(viewWidth / 2, viewHeight / 2 - 15, 
+									viewWidth / 2, viewHeight / 2 + 15, red);
+								c.drawLine(viewWidth / 2 - 15, viewHeight / 2, 
+									viewWidth / 2 + 15, viewHeight / 2, red);
+								float tipX = viewWidth / 2 - framePxHeight * 
+									(float)(curWeightCenter.y - refWeightCenter.y);
+								float tipY = viewHeight / 2 + framePxWidth *
+									(float)(curWeightCenter.x - refWeightCenter.x);
+								drawArrow(c, (float)viewWidth / 2, (float)viewHeight / 2, 
+									tipX, tipY);
+
+							}
+							
 						}
 					}
 					
