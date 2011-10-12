@@ -64,8 +64,8 @@ static void processJavaWord(struct File *pf) {
 	case CLASS_:
 	case INTERFACE_:
 		//debug("class");
-		addTagToCurrentSpan(pf, C_FEATURE, C_FEATURE + 1);
-		addTagToCurrentSpan(pf, D_FEATURE, D_FEATURE + 1);
+		addFeatureToCurrentSpan(pf, C_FEATURE);
+		addFeatureToCurrentSpan(pf, D_FEATURE);
 		return;
 	}
 	
@@ -94,11 +94,11 @@ static void processJavaNonword(struct File *pf, const char *p) {
 			break;
 
 		if(spanHasFeature(pf->currentSpan, C_FEATURE)) {
-			addTagToCurrentSpan(pf, B_FEATURE, B_FEATURE + 1);
+			addFeatureToCurrentSpan(pf, B_FEATURE);
 		} else if(pf->currentSpan->parent) {
 			if(spanHasFeature(pf->currentSpan->parent, C_FEATURE)) {
 				// method
-				addTagToCurrentSpan(pf, B_FEATURE, B_FEATURE + 1);
+				addFeatureToCurrentSpan(pf, B_FEATURE);
 			}
 		}
 		body = findSpanWithFeature(pf->currentSpan, B_FEATURE);

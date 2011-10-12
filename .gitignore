@@ -16,3 +16,4 @@ ws
 *.ilk
 *.obj
 *.sqlite*
+local.properties

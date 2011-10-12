@@ -180,6 +180,44 @@ void run(char *stmt) {
 }
 
 
+
+sqlite3_int64 getPathId(const char *path) {
+	// creates if not found
+	sqlite3_int64 res = 0;
+	int r;
+	sqlite3_stmt *stm;
+
+	ASSERTSQL(sqlite3_prepare_v2(db, "SELECT oid FROM paths WHERE path = ?", 
+			-1, &stm, 0));
+	ASSERTSQL(sqlite3_bind_text(stm, 1, path, -1, SQLITE_STATIC));
+	
+	r = sqlite3_step(stm);
+	if(r == SQLITE_ROW) {
+		res = sqlite3_column_int64(stm, 0);
+	} else if(r != SQLITE_DONE) {
+		debug("getPathId: %d", r);
+		exit(1);
+	}
+
+	ASSERTSQL(sqlite3_finalize(stm));
+	if(!res) {
+		// TODO LOCK
+		ASSERTSQL(sqlite3_prepare_v2(db, 
+				"INSERT INTO paths(path, status) VALUES(?, 0)", 
+				-1, &stm, 0));
+		ASSERTSQL(sqlite3_bind_text(stm, 1, path, -1, SQLITE_STATIC));
+		r = sqlite3_step(stm);
+		if(r != SQLITE_DONE) {
+			debug("Adding path '%s' not done (%d)", path, r);
+			exit(1);
+		}
+		ASSERTSQL(sqlite3_finalize(stm));
+		res = sqlite3_last_insert_rowid(db);
+	}
+	return res;
+}
+
+
 pthread_t parserThreads[4];
 void *files[5];
 queue_t fileQueue = QUEUE_INITIALIZER(files);
@@ -221,7 +259,13 @@ void updateFile(const char *path) {
 
 	
 	pf = malloc(sizeof(*pf));
+
+	/*
+		If we can't parse this, it's still probably a part of the project,
+		so we'd like its path to show up in results
+	*/
 	pf->path = strdup(path);
+	pf->pathId = getPathId(path);
 	if(!chooseLanguage(pf)) {
 		debug("No language detected for for %s", path);
 	}		
@@ -284,15 +328,17 @@ void *parserThread(void *unused) {
 			break;
 		
 		startGenericSpan(pf, pf->contents);
-		addTagToCurrentSpan(pf, F_FEATURE, F_FEATURE + 1);
+		addFeatureToCurrentSpan(pf, F_FEATURE);
 
 		assert(strchr(pf->path, '/'));
-		ws = we = strrchr(pf->path, 0);
+		ws = we = strchr(pf->path, 0);
 		while(--ws) {
 			if(!(CHAR_TOKENMIDDLE & classifyChar(*ws))) {
 				
-				if(we - ws > 1)
+				if(we - ws > 1) {
+					debug(ws + 1);
 					addTagToCurrentSpan(pf, ws+1, we);
+				}
 				if('/' == *ws)
 					break;
 				we = ws;
@@ -325,8 +371,7 @@ void *parserThread(void *unused) {
 
 */
 
-
-
+		
 void update(const char **srcPaths) {
 	int r;
 	char curPath[MAX_PATH];
@@ -350,13 +395,14 @@ void update(const char **srcPaths) {
 		if(justCreated) {
 			ASSERTSQL(sqlite3_prepare_v2(db, 
 					"CREATE VIRTUAL TABLE spans USING fts3("
-					"path     VARCHAR(256), "
+					"pathId   INTEGER, "
 					"features VARCHAR(256), "
-					"mtime  INTEGER, "
-					"start  INTEGER, "
-					"end    INTEGER, "
-					"status INTEGER, "
-					"tags   TEXT)",
+					"weight   INTEGER, "
+					"mtime    INTEGER, "
+					"start    INTEGER, "
+					"end      INTEGER, "
+					"status   INTEGER, "
+					"tags     TEXT)",
 					-1, &stm, 0));
 
 			r = sqlite3_step(stm);
@@ -364,6 +410,19 @@ void update(const char **srcPaths) {
 				debug("Table creation step: %d", r);
 			}
 			ASSERTSQL(sqlite3_finalize(stm));
+
+			ASSERTSQL(sqlite3_prepare_v2(db, 
+					"CREATE TABLE paths("
+					"path     VARCHAR(256), "
+					"status   INTEGER)",
+					-1, &stm, 0));
+
+			r = sqlite3_step(stm);
+			if(r != SQLITE_DONE) {
+				debug("Table creation step: %d", r);
+			}
+			ASSERTSQL(sqlite3_finalize(stm));
+
 		}
 		//#endif
 
@@ -394,12 +453,14 @@ void update(const char **srcPaths) {
 			ASSERTSQL(sqlite3_prepare_v2(db, 
 					"UPDATE spans SET status=1 WHERE path=?", -1, &stm, 0));
 			for(; *srcPaths; srcPaths++) {
+				char *givenPath = strdup(*srcPaths);
 				ASSERTSQL(sqlite3_reset(stm));
 				ASSERTSQL(sqlite3_bind_text(stm, 1, *srcPaths, -1, SQLITE_STATIC));
 				if(SQLITE_DONE != sqlite3_step(stm))
 					debug("Invalidating not done");
-				normalizePath(*srcPaths);
-				updateFile(realpath(*srcPaths, path));
+				normalizePath(givenPath);
+				updateFile(realpath(givenPath, path));
+				free(givenPath);
 			}
 		} else {
 			debug("Invalidating old entries...");
@@ -434,10 +495,11 @@ int readSpan(struct Span *s, sqlite3_stmt *stm) {
 	r = sqlite3_step(stm);
 	if(r != SQLITE_ROW)	
 		return 0;
-	s->path = sqlite3_column_text(stm, 0);
+	s->pathId = sqlite3_column_int64(stm, 0);
 	s->start = sqlite3_column_int(stm, 1);
 	s->end = sqlite3_column_int(stm, 2);
-	s->tagsText = (char*)sqlite3_column_text(stm, 3); // not const 
+	s->tagsText = (char*)sqlite3_column_text(stm, 3); // not const
+	s->featuresText = (char*) sqlite3_column_text(stm, 4);
 	return 1;
 }
 
@@ -463,30 +525,46 @@ struct Word *splitTags(struct Span *s) {
 #define TERM_POS 2
 #define TERM_INCOMPLETE 4
 
+/*
+	Search condition.
+*/
 struct Term {
-	char *arg, *argPos, *argEnd;
-	
 	int flags;
+	char *arg, *argPos, *argEnd;
+	sqlite3_stmt *stm;
+	
 	union {
-		char *word;
+		// Usual search word (or prefix, if TERM_INCOMPLETE)
+		struct {
+			char *word;
+			char *feature;
+		};
+
+		// Position in the source. 
+		// Must restrict results to bodies enclosing that position.
 		struct {
 			unsigned pos;
 			char *path;
 		};
 	};
-	sqlite3_stmt *stm;
 };
 
-
-int checkTerm(struct Term *t, struct Span *s) {
+int termAllowsSpan(struct Term *t, struct Span *s) {
 	if(TERM_POS & t->flags) {
 		if(t->pos >= s->start)
 			if(t->pos <= s->end)
-				if(!strcmp(t->path, s->path))
+				//if(!strcmp(t->path, s->path))
+				// Now it's broken!
 					return 1;
 	} else {
-		struct Word *tag = &s->tags[0];
-		for(; tag < s->tagsEnd; tag++) {
+		struct Word *tag;
+
+		if(t->feature) {
+			if(!strstr(s->featuresText, t->feature))
+				return 0;
+		}
+
+		for(tag = splitTags(s); tag < s->tagsEnd; tag++) {
 			if(TERM_INCOMPLETE & t->flags) {
 				if(!strncmp(t->word, tag->start, strlen(t->word)))
 					return 1;
@@ -504,9 +582,9 @@ void startSearch(struct Term *t, sqlite3_stmt **stm) {
 	int r;
 	if(TERM_POS & t->flags) {
 		ASSERTSQL(sqlite3_prepare_v2(db, 
-				"SELECT path, start, end, tags " 
+				"SELECT pathId, start, end, tags " 
 				"FROM spans " 
-				"WHERE path = ? "
+				"WHERE pathId = ? "
 				"AND start <= ? "
 				"AND end >= ? "
 				"ORDER BY start DESC",
@@ -527,7 +605,7 @@ void startSearch(struct Term *t, sqlite3_stmt **stm) {
 		
 		if(!strlen(t->word)) {
 			ASSERTSQL(sqlite3_prepare_v2(db, 
-					"SELECT path, start, end, tags " 
+					"SELECT pathId, start, end, tags, features " 
 					"FROM spans ", 
 					-1, stm, 0));
 			return;
@@ -535,13 +613,101 @@ void startSearch(struct Term *t, sqlite3_stmt **stm) {
 		
 
 		ASSERTSQL(sqlite3_prepare_v2(db, 
-				"SELECT path, start, end, tags " 
+				"SELECT pathId, start, end, tags, features " 
 				"FROM spans " 
 				"WHERE tags MATCH ? ", 
 				-1, stm, 0));
 		
 		ASSERTSQL(sqlite3_bind_text(*stm, 1, ftsQuery, -1, SQLITE_STATIC));
 	}
+}
+
+void printSpan(struct Span *span, 
+	const struct Term *terms, const struct Term *lastTerm) {
+	// Count lines to make output grep-like
+	const char *absPath;
+	const char *path;
+	const char *contents;
+	char *contentsEnd;
+	const char *line, *target, *nextLine;
+	int lineNumber, r;
+	char pathFromWd[MAX_PATH];
+	const char *targetEnd, *bestLine = NULL;
+	sqlite3_stmt *stm;
+
+	ASSERTSQL(sqlite3_prepare_v2(db, "SELECT path FROM paths WHERE oid=?", 
+			-1, &stm, 0));
+	ASSERTSQL(sqlite3_bind_int64(stm, 1, span->pathId));
+	r = sqlite3_step(stm);
+	if(r == SQLITE_DONE) {
+		debug("NO PATH %d", span->pathId);
+		exit(1);
+	}
+	if(r != SQLITE_ROW) {
+		debug("readPath: %d", r);
+		return;
+	}
+	absPath = sqlite3_column_text(stm, 0);
+	path = getPathFrom(pathFromWd, absPath, wdPath);
+				
+	// print the shortest path
+	if(strlen(absPath) <= strlen(path))
+		path = absPath;
+
+	contents = loadWhole(path, &contentsEnd);
+	if(!contents) {
+		fprintf(stderr, "Can't load %s\n", path);
+		return;
+	}
+				
+	*contentsEnd = 0;
+	lineNumber = 1;
+	target = contents + span->start;
+	targetEnd = contents + span->end;
+	line = contents;
+	bestLine = contents;
+	do {
+		nextLine = memchr(line, '\n', contentsEnd - line);
+		if(!nextLine) {
+			nextLine = contentsEnd;
+			break;
+		} else 
+			nextLine++;
+					
+		if(nextLine > targetEnd)
+			break;
+					
+		if(nextLine > target) {
+			const struct Term *t = terms;
+			char *p;
+			for(; t < lastTerm; t++) {
+				if(!(t->flags & TERM_POS))
+					if(p = strstr(line, t->word))
+						if(p < nextLine)
+							break;
+			}
+			if(t < lastTerm)
+				break;
+		}
+		lineNumber++;
+		line = nextLine;
+	} while(1);
+			
+	printf("%s:%d:", path, lineNumber);
+	if(target >= line && target <= nextLine) {
+		fwrite(line, 1, target - line, stdout);
+		printf("<<");
+	} else 
+		target = line;
+
+	if(targetEnd >= line && targetEnd <= nextLine) {
+		fwrite(target, 1, targetEnd - target, stdout);
+		printf(">>");
+	} else 
+		targetEnd = target;
+
+	fwrite(targetEnd, 1, nextLine - targetEnd, stdout);
+	// hm, where does newline come from
 }
 
 #define MAX_COMPLETION_COUNT 100 // TODO implement
@@ -551,6 +717,13 @@ void startSearch(struct Term *t, sqlite3_stmt **stm) {
 #define COMPLETE 2
 #define UPDATE 3
 #define LSDEFS 4
+
+char *dupPart(const char *start, const char *end) {
+	char *r = malloc(end - start + 1);
+	memcpy(r, start, end - start);
+	r[end - start] = 0;
+	return r;
+}
 
 int main(int argc, char **argv){
 	int r;
@@ -568,14 +741,15 @@ int main(int argc, char **argv){
 	int c, longOptIndex = 0;
 	char *srcPathArg = NULL;
 	int completionTargetIndex = 0;
+	int verbose = 0;
 
 	if(!getcwd(wdPath, sizeof dbPath - sizeof dbName - 2)) {
-		fprintf(stderr, "Can't getcwd");
+		fprintf(stderr, "Can't getcwd\n");
 		exit(1);
 	}
 	normalizePath(wdPath);
 
-	while(c = getopt_long(argc, argv, "Cul:", longOpts, &longOptIndex), c != -1) {
+	while(c = getopt_long(argc, argv, "Cvul:", longOpts, &longOptIndex), c != -1) {
 		switch(c) {
 		case 'C':
 			mode = COMPLETE;
@@ -599,13 +773,16 @@ int main(int argc, char **argv){
 			exit(0);
 			break;
 
-			
+		case 'v':
+			verbose = 1;
+			break;			
 		}
 	}
 
 
 	if(UPDATE == mode) {
 		if(!findDb()) {
+			strcpy(dbDirPath, wdPath);
 			strcpy(dbPath, wdPath);
 			strcat(dbPath, "/");
 			strcat(dbPath, dbName);
@@ -681,9 +858,10 @@ int main(int argc, char **argv){
 			static const char punctuation[] = ":;,`~!()-=\\| ";
 			//static const char nonBreakable[] = " .";
 			char *e = argv[optind], *s; 
+			char *feature = NULL;
 			
-			// path/name:1234 is a character number which must be inside resulting span 
 			if(s = strrchr(e, ':')) {
+				// path/name:1234 is a character number which must be inside resulting span 
 				char *numEnd;
 				lastTerm->pos = strtol(s + 1, &numEnd, 10);
 				if(0 == *numEnd) {
@@ -694,6 +872,13 @@ int main(int argc, char **argv){
 					lastTerm->flags = TERM_POS;
 					lastTerm++;
 					continue;
+				}
+
+				// also, d:getUser will get you spans tagged "getUser" having feature "d",
+				// which should mean "definition"
+				if(s - e) {
+					feature = dupPart(e, s);
+					e = s + 1;
 				}
 			} 
 			
@@ -714,9 +899,15 @@ int main(int argc, char **argv){
 					lastTerm->argEnd = e;
 					memcpy(lastTerm->word, s, e - s);
 					lastTerm->word[e - s] = 0;
+					if(feature) {
+						lastTerm->feature = feature;
+						feature = NULL;
+					}
+
 					lastTerm++;
 					if('*' == *e) 
 						e++;
+
 				}
 			} while(e - s);
 
@@ -758,9 +949,12 @@ int main(int argc, char **argv){
 			startSearch(indexTerm, &indexTerm->stm);
 
 			while(readSpan(span = malloc(sizeof(*span)), indexTerm->stm)) {
-				span->tagsText = strdup(span->tagsText);
-				span->path = strdup(span->path);
 				span->parent = NULL;
+				span->tagsText = strdup(span->tagsText);
+				span->featuresText = strdup(span->featuresText);
+
+				if(!termAllowsSpan(indexTerm, span))
+					continue;
 
 				if(&terms[0] == indexTerm) {
 					span->particular = betterLeaves;
@@ -769,7 +963,7 @@ int main(int argc, char **argv){
 				} else {
 					struct Span *leaf = leaves;
 					while(leaf) {
-						if(!strcmp(span->path, leaf->path)) {
+						if(span->pathId == leaf->pathId) {
 							if(span->start < leaf->start && span->end > leaf->end) {
 								// span is outside
 								span->parent = leaf;
@@ -799,74 +993,19 @@ int main(int argc, char **argv){
 		span = leaves;
 		while(span) {
 			if(SEARCH == mode) {
-				// Count lines to make output grep-like
-			
-				const char *path;
-				const char *contents;
-				char *contentsEnd;
-				const char *line, *target, *nextLine;
-				int lineNumber;
-				char pathFromWd[MAX_PATH];
-				const char *targetEnd, *bestLine = NULL;
-				path = getPathFrom(pathFromWd, span->path, wdPath);
-				
-				// print the shortest path
-				if(strlen(span->path) <= strlen(path))
-					path = span->path;
+				printSpan(span, terms, lastTerm);
 
-				contents = loadWhole(path, &contentsEnd);
-				if(!contents) {
-					fprintf(stderr, "Can't load %s\n", path);
-					continue;
-				}
-				
-				*contentsEnd = 0;
-				lineNumber = 1;
-				target = contents + span->start;
-				targetEnd = contents + span->end;
-				line = contents;
-				bestLine = contents;
-				do {
-					nextLine = memchr(line, '\n', contentsEnd - line);
-					if(!nextLine) {
-						nextLine = contentsEnd;
-						break;
-					} else 
-						nextLine++;
-					
-					if(nextLine > targetEnd)
-						break;
-					
-					if(nextLine > target) {
-						struct Term *t = terms;
-						char *p;
-						for(; t < lastTerm; t++) {
-							if(!(t->flags & TERM_POS))
-								if(p = strstr(line, t->word))
-									if(p < nextLine)
-										break;
-						}
-						if(t < lastTerm)
-							break;
+				if(verbose) {
+					struct Span *other = span;
+					printf("which is %s: %s\n", span->featuresText, span->tagsText);
+					if(other->parent)
+						puts("also:");
+					while(other = other->parent) {
+						printSpan(other, terms, lastTerm);
+						printf("which is %s: %s\n", other->featuresText, other->tagsText);
 					}
-					lineNumber++;
-					line = nextLine;
-				} while(1);
-			
-				printf("%s:%d:", path, lineNumber);
-				if(target >= line && target <= nextLine) {
-					fwrite(line, 1, target - line, stdout);
-					printf("<<");
-				} else 
-					target = line;
-
-				if(targetEnd >= line && targetEnd <= nextLine) {
-					fwrite(target, 1, targetEnd - target, stdout);
-					printf(">>");
-				} else 
-					targetEnd = target;
-
-				fwrite(targetEnd, 1, nextLine - targetEnd, stdout);
+					puts("");
+				}
 			} else { // we need to complete prefix
 				struct Word *tag;
 				struct Span *s = span;

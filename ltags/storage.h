@@ -1,4 +1,5 @@
 #define MAX_TAG_CNT 256
+#define MAX_FEATURE_CNT 256
 
 #define ASSERTSQL(expr_M) do{																						\
 		r = expr_M; if(r != SQLITE_OK) {																		\
@@ -12,14 +13,17 @@ struct Word {
 
 struct Span {
 	struct Word tags[MAX_TAG_CNT], *tagsEnd;
+	const char *features[MAX_FEATURE_CNT], **endOfFeatures;
 	int start, end;
 	int mtime;
-	const char *path;
+	int weight;
+	//const char *path;
+	unsigned long long pathId;
 	
 	struct Span *parent;
 	void *particular;
 
-	char *tagsText;
+	char *tagsText, *featuresText;
 };
 
 void 

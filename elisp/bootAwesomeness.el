@@ -206,6 +206,7 @@
 
 ; Set file types.
 (add-to-list 'auto-mode-alist '("\\.ks\\'" . java-mode))
+(add-to-list 'auto-mode-alist '("\\.cs\\'" . java-mode))
 (add-to-list 'auto-mode-alist '("\\.h\\'" . c++-mode))
 ;(setq javascript-mode 'java-mode)
 (add-to-list 'auto-mode-alist '("\\.js\\'" . java-mode))
