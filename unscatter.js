@@ -42,7 +42,7 @@ var playlistTypeNames = [
 	'ITPlaylistKindRadioTuner'
 ];
 
-var vidExts = ['avi', 'flv'];
+var vidExts = ['avi', 'flv', 'wmv', 'vob'];
 
 function trace(x) {
 	DEBUG && print('* ' + x);
@@ -157,6 +157,12 @@ function run() {
 				break;
 			var classNameRecPath = "HKCR\\." + suffix + "\\";
 			className = sh.RegRead(classNameRecPath);
+
+			if(!className) {
+				print("No class for ." + suffix);
+				//sh.RegWrite(classNameRecPath, className, 'REG_SZ');
+			}
+			
 		} while(className);
 	}		
 	
@@ -221,11 +227,18 @@ function run() {
 		
 		var files = [];
 
-		var vidExtPattern = new RegExp("\\.(" + vidExts.join('|') + ")$");
+		var vidExtPattern = new RegExp("\\.(" + vidExts.join('|') + ")$", "i");
 		// Assume no directory is named Album.avi . 
-		if(path.match(vidExtPattern)) {
+		var matched = path.match(vidExtPattern);
+		if(matched) {
 			// It's a video, convert to mp4
-			var outputPath = path.replace(vidExtPattern, '.mp4');
+			if("vob" == matched[1].toLowerCase()) {
+				var dvdTrackNum  = 1;
+			} else {
+				dvdTrackNum = 0;
+			}
+
+			var outputPath = path.replace(vidExtPattern, dvdTrackNum + '.mp4');
 			if(outputPath.indexOf('http://') >= 0) { // nonlocal
 				outputPath = outputPath.replace(new RegExp('[:/&]+', 'g'), '_');
 			}
@@ -245,34 +258,46 @@ function run() {
 				fileOpts += ' -sub "' + subPath.replace(new RegExp(',', 'g'), "\\,") + 
 					'" -subcp windows-1251';
 			}
-			fileOpts +=	' "' + path + '"';
-			
+
+			if(dvdTrackNum) {
+				fileOpts += " -dvd-device \"" + fs.GetParentFolderName(path) + '"';
+			} else {
+				fileOpts +=	' "' + path + '"';
+			}
+
 			if(needToPrintMencoderArgs) {
 				output += fileOpts;
 				continue;
 			} else {
-				var cmdLine = mencoderPath + mencoderOpts + fileOpts;
-				trace(cmdLine);
-				var exitCode = sh.Run(cmdLine, 5, true);
-				trace(exitCode);
-				if(!exitCode)
-					converted = true;
+				do {
+					var converted = false;
+					var cmdLine = mencoderPath + mencoderOpts + fileOpts;
+					if(dvdTrackNum) 
+						cmdLine += " dvd://" + dvdTrackNum;
+					trace(cmdLine);
+					var exitCode = sh.Run(cmdLine, 5, true);
+					trace(exitCode);
+					if(!exitCode)
+						converted = true;
 
-				if(!converted) {
-					var vlcPath = "d:\\Programs\\vlc-1.1.0-git-20090710-2203\\vlc.exe";
-					var cmdLine = vlcPath + 
-						" -vvv --sout=#transcode{vcodec=mp4v,vb=1024,scale=1," +
-						"height=320,width=480,acodec=mp4a,ab=128,channels=2,soverlay}" + 
-						":duplicate{dst=std{access=file,mux=mp4,dst=" + 
-						outputTempPath + "}} --run-time 30 " + path + " vlc://quit";
-					sh.Run(cmdLine, 5, true);
-					converted = true;
-				}
+					if(!converted) {
+						if(dvdTrackNum)
+							break;
+						var vlcPath = "d:\\Programs\\vlc-1.1.0-git-20090710-2203\\vlc.exe";
+						var cmdLine = vlcPath + 
+							" -vvv --sout=#transcode{vcodec=mp4v,vb=1024,scale=1," +
+							"height=320,width=480,acodec=mp4a,ab=128,channels=2,soverlay}" + 
+							":duplicate{dst=std{access=file,mux=mp4,dst=" + 
+							outputTempPath + "}} --run-time 30 " + path + " vlc://quit";
+						sh.Run(cmdLine, 5, true);
+						converted = true;
+					}
 
-				if(converted) {
-					fs.MoveFile(outputTempPath, outputPath);
-					files.push({path: outputPath, name: outputPath});
-				}
+					if(converted) {
+						fs.MoveFile(outputTempPath, outputPath);
+						files.push({path: outputPath, name: outputPath});
+					}
+				} while(dvdTrackNum++);
 			}
 		} else { // it's a directory with music
 			var dirPath = path;
