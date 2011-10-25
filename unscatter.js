@@ -126,6 +126,11 @@ function set(file, propName, val) {
 	}
 }
 
+function quoteArg(p) {
+	return '"' + p.replace(new RegExp('"', 'g'), '\\"') + '"';
+}
+
+
 
 //
 //  MAIN PROGRAM
@@ -211,6 +216,15 @@ function run() {
 
 	var fs = new ActiveXObject('Scripting.FileSystemObject'), 
 		args = WScript.Arguments.Unnamed;
+
+	function firstExistingPath() {
+		for(var i = 0; i < arguments.length; i++) {
+			if(fs.FileExists(arguments[i]))
+				return arguments[i];
+		}
+	}
+		
+
 	
 	//
 	//   *** ARG LOOP ***
@@ -224,6 +238,7 @@ function run() {
 		var vidExtPattern = new RegExp("\\.(" + vidExts.join('|') + ")$");
 		// Assume no directory is named Album.avi . 
 		if(path.match(vidExtPattern)) {
+			//path = path.replace(new RegExp("\\\\", "g"), "/");
 			// It's a video, convert to mp4
 			var outputPath = path.replace(vidExtPattern, '.mp4');
 			if(outputPath.indexOf('http://') >= 0) { // nonlocal
@@ -231,8 +246,9 @@ function run() {
 			}
 
 			var converted = false;
-			var outputTempPath = outputPath+ '-incomplete.mp4'
-			var mencoderPath = "d:\\programs\\MPlayer-p4-svn-29355\\mencoder.exe";
+			var outputTempPath = outputPath+ '-incomplete.mp4';
+			//var mencoderPath = "d:\\programs\\MPlayer-p4-svn-29355\\mencoder.exe";
+			var mencoderPath = "mencoder";
 			var mencoderOpts = ' -vf scale=480:-10,harddup -lavfopts format=mp4 ' + 
 				'-faacopts mpeg=4:object=2:raw:br=128 -oac faac -ovc x264 -sws 9 ' + 
 				'-x264encopts nocabac:level_idc=30:bframes=0:global_header:threads=auto:' + 
@@ -257,15 +273,21 @@ function run() {
 				trace(exitCode);
 				if(!exitCode)
 					converted = true;
-
+				
 				if(!converted) {
-					var vlcPath = "d:\\Programs\\vlc-1.1.0-git-20090710-2203\\vlc.exe";
-					var cmdLine = vlcPath + 
-						" -vvv --sout=#transcode{vcodec=mp4v,vb=1024,scale=1," +
-						"height=320,width=480,acodec=mp4a,ab=128,channels=2,soverlay}" + 
-						":duplicate{dst=std{access=file,mux=mp4,dst=" + 
-						outputTempPath + "}} --run-time 30 " + path + " vlc://quit";
-					sh.Run(cmdLine, 5, true);
+					var vlcPath = firstExistingPath(
+						"c:\\Program Files\\VideoLAN\\VLC\\vlc.exe",
+						"d:\\Programs\\vlc-1.1.0-git-20090710-2203\\vlc.exe") || "vlc";
+					var cmdLine = quoteArg(vlcPath) +
+						" -vvv " + quoteArg("--sout=#transcode{vcodec=mp4v,vb=1024,scale=1," +
+							"height=320,width=480,acodec=mp4a,ab=128,channels=2,soverlay}" + 
+							":duplicate{dst=std{access=file,mux=mp4,dst=" + 
+							outputTempPath + "}}") + 
+						//" --run-time 30" + 
+						" " + quoteArg(path) + " vlc://quit";
+					trace(cmdLine);
+					var exitCode = sh.Run(cmdLine, 5, true);
+					trace(exitCode);
 					converted = true;
 				}
 
