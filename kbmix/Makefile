@@ -23,4 +23,5 @@ endif
 #   Rules go here
 
 kbmix$X: kbmix.c
-	cl $^ winmm.lib user32.lib
+	-taskkill /f /im $@ 
+	cl $^ winmm.lib user32.lib gdi32.lib

@@ -23,9 +23,8 @@ MIXERCONTROL control;
 
 HWND w;
 
-
-	MIXERCONTROLDETAILS details;
-	MIXERCONTROLDETAILS_UNSIGNED volume;
+MIXERCONTROLDETAILS details;
+MIXERCONTROLDETAILS_UNSIGNED volume;
 
 int adjustVolume(int how) {
 	MMRESULT r;
@@ -62,15 +61,56 @@ int adjustVolume(int how) {
 	return 0;
 }
 
+int showUi(int really) {
+	ShowWindow(w, really);
+	if(really) {
+		SetWindowPos(w ,       // handle to window
+			HWND_TOPMOST,  // placement-order handle
+			0,  // horizontal position
+			0,  // vertical position
+			0,  // width
+			0,  // height
+			SWP_SHOWWINDOW | SWP_NOSIZE | SWP_NOMOVE // window-positioning options
+		);		
+		KillTimer(w, 1);
+		SetTimer(w, 1, 1000, NULL);
+		InvalidateRect(w, NULL, TRUE);
+	}
+	return 0;
+}
+
+char uiMsg[256];
+
 static LRESULT CALLBACK 
 handleEveryWindowMessage(HWND w, UINT m, WPARAM wParam,	LPARAM lParam) {
+	PAINTSTRUCT paints;
+	HDC c;
+
 	switch(m) {
+	case WM_KEYDOWN:
+		debug("key %d", wParam);
+		return 0;
+
+	case WM_PAINT:
+		c = BeginPaint(w, &paints);
+		TextOut(c, 10, 3, uiMsg, strlen(uiMsg));
+		EndPaint(w, &paints);
+		return 0;
+		
 	case WM_HOTKEY:
-		return adjustVolume(wParam);
+		adjustVolume(wParam);
+		sprintf(uiMsg, "Volume: %d%%", volume.dwValue / (MAX_VOLUME/100));
+		showUi(1);
+		return 0;
+
+	case WM_TIMER:
+		showUi(0);
+		return 0;
 	}
 	return DefWindowProc(w, m, wParam, lParam);
 }
 
+HWND hiddenParentWindow;
 
 int startUi() {
 	WNDCLASS wc;
@@ -91,10 +131,20 @@ int startUi() {
 
 	SystemParametersInfo(SPI_GETWORKAREA, 0, &r, 0);
 
+	hiddenParentWindow = CreateWindow(_T("kbmixWindowClass"), 
+		"Keyboard-mix user interface hidden parent window", 
+		WS_POPUP | WS_BORDER,
+		r.right - 210, r.bottom - 35, 200, 20, 
+		NULL, NULL, GetModuleHandle(0), NULL);
+	if (!hiddenParentWindow) {
+		debug("no window");
+		goto fail;
+	}
+
 	w = CreateWindow(_T("kbmixWindowClass"), "Keyboard-mix user interface", 
 		WS_POPUP | WS_BORDER,
-		r.right - 310, r.bottom - 55, 300, 45, 
-		NULL, NULL, GetModuleHandle(0), NULL);
+		r.right - 210, r.bottom - 35, 200, 20, 
+		hiddenParentWindow, NULL, GetModuleHandle(0), NULL);
 	if (!w) {
 		debug("no window");
 		goto fail;
@@ -105,7 +155,17 @@ int startUi() {
 		goto fail;
 	}
 
+	if(!RegisterHotKey(w, KBMIX_LOUDER, MOD_WIN, VK_ADD)) {
+		fprintf(stderr, "No hotkey\n");
+		goto fail;
+	}
+
 	if(!RegisterHotKey(w, KBMIX_QUIETER, MOD_WIN, VK_OEM_MINUS)) {
+		fprintf(stderr, "No hotkey\n");
+		goto fail;
+	}
+
+	if(!RegisterHotKey(w, KBMIX_QUIETER, MOD_WIN, VK_SUBTRACT)) {
 		fprintf(stderr, "No hotkey\n");
 		goto fail;
 	}
