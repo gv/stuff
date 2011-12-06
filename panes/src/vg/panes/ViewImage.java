@@ -67,21 +67,8 @@ import android.graphics.PixelFormat;
 
 import android.graphics.Rect;
 
-//
-
-// This activity can display a whole picture and navigate them in a specific
-// gallery. It has two modes: normal mode and slide show mode. In normal mode
-// the user view one image at a time, and can click "previous" and "next"
-// button to see the previous or next image. In slide show mode it shows one
-// image after another, with some transition effect.
 public class ViewImage extends NoSearchActivity implements View.OnClickListener {
-    private static final String PREF_SLIDESHOW_REPEAT =
-            "pref_gallery_slideshow_repeat_key";
-    private static final String PREF_SHUFFLE_SLIDESHOW =
-            "pref_gallery_slideshow_shuffle_key";
     private static final String STATE_URI = "uri";
-    private static final String STATE_SLIDESHOW = "slideshow";
-    private static final String EXTRA_SLIDESHOW = "slideshow";
     private static final String TAG = "ViewImage";
 
     private ImageGetter mGetter;
@@ -91,7 +78,6 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 
     // Choices for what adjacents to load.
     private static final int[] sOrderAdjacents = new int[] {0, 1, -1};
-    private static final int[] sOrderSlideshow = new int[] {0};
 
     final GetterHandler mHandler = new GetterHandler();
 
@@ -133,7 +119,7 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
     public static final String KEY_IMAGE_LIST = "image_list";
     private static final String STATE_SHOW_CONTROLS = "show_controls";
 
-    IImageList mAllImages;
+	IImageList mAllImages;
 
     private ImageManager.ImageListParam mParam;
 
@@ -396,21 +382,7 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
     public boolean onCreateOptionsMenu(Menu menu) {
         super.onCreateOptionsMenu(menu);
 
-				/* MenuItem item = menu.add(Menu.NONE, Menu.NONE,
-                MenuHelper.POSITION_SLIDESHOW,
-                R.string.slide_show);
-        item.setOnMenuItemClickListener(
-                new MenuItem.OnMenuItemClickListener() {
-            public boolean onMenuItemClick(MenuItem item) {
-                setMode(MODE_SLIDESHOW);
-                mLastSlideShowImage = mCurrentPosition;
-                loadNextImage(mCurrentPosition, 0, true);
-                return true;
-            }
-        });
-        item.setIcon(android.R.drawable.ic_menu_slideshow);
-
-        mImageMenuRunnable = MenuHelper.addImageMenuItems(
+				/* mImageMenuRunnable = MenuHelper.addImageMenuItems(
                 menu,
                 MenuHelper.INCLUDE_ALL,
                 ViewImage.this,
@@ -508,9 +480,6 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
             mImageView.setImageRotateBitmapResetBase(
                     new RotateBitmap(b, image.getDegreesRotated()), true);
 						
-						//mGraphicInfoView.setImageDrawable(
-						//	new DrawableImageInfo(bitmap));
-
             updateZoomButtonsEnabled();
         }
 
@@ -611,6 +580,13 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 				mImageView.getImageViewMatrix().mapRect(bar);
 				c.drawRect(bar, gp);
 			}
+
+			Paint wp = new Paint();
+			wp.setColor(0xFFFFFFFF);
+			RectF thresh = new RectF(0, getEnergyHeight(mBmp.maxSepEnergy) - 1,
+				mBmp.mFirstHorizProj.length, getEnergyHeight(mBmp.maxSepEnergy) + 1);
+			c.drawRect(thresh, wp);
+			
 			Log.d(TAG, "draw");
 		}
 
@@ -680,14 +656,11 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 
         mParam = getIntent().getParcelableExtra(KEY_IMAGE_LIST);
 
-        boolean slideshow;
         if (instanceState != null) {
             mSavedUri = instanceState.getParcelable(STATE_URI);
-            slideshow = instanceState.getBoolean(STATE_SLIDESHOW, false);
             mShowControls = instanceState.getBoolean(STATE_SHOW_CONTROLS, true);
         } else {
             mSavedUri = getIntent().getData();
-            slideshow = intent.getBooleanExtra(EXTRA_SLIDESHOW, false);
         }
 
         // We only show action icons for URIs that we know we can share and
@@ -712,17 +685,13 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
         }
 				*/
 
-        if (slideshow) {
-            setMode(MODE_SLIDESHOW);
-        } else {
-            if (mFullScreenInNormalMode) {
-                getWindow().addFlags(
-                        WindowManager.LayoutParams.FLAG_FULLSCREEN);
-            }
-            if (mShowActionIcons) {
-                mActionIconPanel.setVisibility(View.VISIBLE);
-            }
-        }
+				if (mFullScreenInNormalMode) {
+					getWindow().addFlags(
+						WindowManager.LayoutParams.FLAG_FULLSCREEN);
+				}
+				if (mShowActionIcons) {
+					mActionIconPanel.setVisibility(View.VISIBLE);
+				}
 
         setupOnScreenControls(findViewById(R.id.rootLayout), mImageView);
     }
@@ -734,7 +703,6 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
         View panel = mActionIconPanel;
 				/*
 				panel.findViewById(R.id.setas).setVisibility(View.VISIBLE);
-				panel.findViewById(R.id.play).setVisibility(View.GONE);
 				*/
     }
 
@@ -768,185 +736,40 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 
         Window win = getWindow();
         mMode = mode;
-        if (mode == MODE_SLIDESHOW) {
-            slideshowPanel.setVisibility(View.VISIBLE);
-            normalPanel.setVisibility(View.GONE);
+				slideshowPanel.setVisibility(View.GONE);
+				normalPanel.setVisibility(View.VISIBLE);
 
-            win.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN
-                    | WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+				win.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+				if (mFullScreenInNormalMode) {
+					win.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
+				} else {
+					win.clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
+				}
 
-            mImageView.clear();
-            mActionIconPanel.setVisibility(View.GONE);
+				if (mGetter != null) {
+					mGetter.cancelCurrent();
+				}
 
-            slideshowPanel.getRootView().requestLayout();
+				if (mShowActionIcons) {
+					Animation animation = new AlphaAnimation(0F, 1F);
+					animation.setDuration(500);
+					mActionIconPanel.setAnimation(animation);
+					mActionIconPanel.setVisibility(View.VISIBLE);
+				}
 
-            // The preferences we want to read:
-            //   mUseShuffleOrder
-            //   mSlideShowLoop
-            //   mAnimationIndex
-            //   mSlideShowInterval
+				ImageViewTouchBase dst = mImageView;
+				for (ImageViewTouchBase ivt : mSlideShowImageViews) {
+					ivt.clear();
+				}
 
-            mUseShuffleOrder = mPrefs.getBoolean(PREF_SHUFFLE_SLIDESHOW, false);
-            mSlideShowLoop = mPrefs.getBoolean(PREF_SLIDESHOW_REPEAT, false);
-            mAnimationIndex = getPreferencesInteger(
-                    mPrefs, "pref_gallery_slideshow_transition_key", 0);
-            mSlideShowInterval = getPreferencesInteger(
-                    mPrefs, "pref_gallery_slideshow_interval_key", 3) * 1000;
-        } else {
-            slideshowPanel.setVisibility(View.GONE);
-            normalPanel.setVisibility(View.VISIBLE);
+				mShuffleOrder = null;
 
-            win.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-            if (mFullScreenInNormalMode) {
-                win.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
-            } else {
-                win.clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
-            }
+				// mGetter null is a proxy for being paused
+				if (mGetter != null) {
+					setImage(mCurrentPosition, true);
+				}
+		}
 
-            if (mGetter != null) {
-                mGetter.cancelCurrent();
-            }
-
-            if (mShowActionIcons) {
-                Animation animation = new AlphaAnimation(0F, 1F);
-                animation.setDuration(500);
-                mActionIconPanel.setAnimation(animation);
-                mActionIconPanel.setVisibility(View.VISIBLE);
-            }
-
-            ImageViewTouchBase dst = mImageView;
-            for (ImageViewTouchBase ivt : mSlideShowImageViews) {
-                ivt.clear();
-            }
-
-            mShuffleOrder = null;
-
-            // mGetter null is a proxy for being paused
-            if (mGetter != null) {
-                setImage(mCurrentPosition, true);
-            }
-        }
-    }
-
-    private void generateShuffleOrder() {
-        if (mShuffleOrder == null
-                || mShuffleOrder.length != mAllImages.getCount()) {
-            mShuffleOrder = new int[mAllImages.getCount()];
-            for (int i = 0, n = mShuffleOrder.length; i < n; i++) {
-                mShuffleOrder[i] = i;
-            }
-        }
-
-        for (int i = mShuffleOrder.length - 1; i >= 0; i--) {
-            int r = mRandom.nextInt(i + 1);
-            if (r != i) {
-                int tmp = mShuffleOrder[r];
-                mShuffleOrder[r] = mShuffleOrder[i];
-                mShuffleOrder[i] = tmp;
-            }
-        }
-    }
-
-    private void loadNextImage(final int requestedPos, final long delay,
-                               final boolean firstCall) {
-        if (firstCall && mUseShuffleOrder) {
-            generateShuffleOrder();
-        }
-
-        final long targetDisplayTime = System.currentTimeMillis() + delay;
-
-        ImageGetterCallback cb = new ImageGetterCallback() {
-            public void completed() {
-            }
-
-            public boolean wantsThumbnail(int pos, int offset) {
-                return true;
-            }
-
-            public boolean wantsFullImage(int pos, int offset) {
-                return false;
-            }
-
-            public int [] loadOrder() {
-                return sOrderSlideshow;
-            }
-
-            public int fullImageSizeToUse(int pos, int offset) {
-                return 480; // TODO compute this
-            }
-
-            public void imageLoaded(final int pos, final int offset,
-                    final RotateBitmap bitmap, final boolean isThumb) {
-                long timeRemaining = Math.max(0,
-                        targetDisplayTime - System.currentTimeMillis());
-                mHandler.postDelayedGetterCallback(new Runnable() {
-                    public void run() {
-                        if (mMode == MODE_NORMAL) {
-                            return;
-                        }
-
-                        ImageViewTouchBase oldView =
-                                mSlideShowImageViews[mSlideShowImageCurrent];
-
-                        if (++mSlideShowImageCurrent
-                                == mSlideShowImageViews.length) {
-                            mSlideShowImageCurrent = 0;
-                        }
-
-                        ImageViewTouchBase newView =
-                                mSlideShowImageViews[mSlideShowImageCurrent];
-                        newView.setVisibility(View.VISIBLE);
-                        newView.setImageRotateBitmapResetBase(bitmap, true);
-                        newView.bringToFront();
-
-                        int animation = 0;
-
-                        if (mAnimationIndex == -1) {
-                            int n = mRandom.nextInt(
-                                    mSlideShowInAnimation.length);
-                            animation = n;
-                        } else {
-                            animation = mAnimationIndex;
-                        }
-
-                        Animation aIn = mSlideShowInAnimation[animation];
-                        newView.startAnimation(aIn);
-                        newView.setVisibility(View.VISIBLE);
-
-                        Animation aOut = mSlideShowOutAnimation[animation];
-                        oldView.setVisibility(View.INVISIBLE);
-                        oldView.startAnimation(aOut);
-
-                        mCurrentPosition = requestedPos;
-
-                        if (mCurrentPosition == mLastSlideShowImage
-                                && !firstCall) {
-                            if (mSlideShowLoop) {
-                                if (mUseShuffleOrder) {
-                                    generateShuffleOrder();
-                                }
-                            } else {
-                                setMode(MODE_NORMAL);
-                                return;
-                            }
-                        }
-
-                        loadNextImage(
-                                (mCurrentPosition + 1) % mAllImages.getCount(),
-                                mSlideShowInterval, false);
-                    }
-                }, timeRemaining);
-            }
-        };
-        // Could be null if we're stopping a slide show in the course of pausing
-        if (mGetter != null) {
-            int pos = requestedPos;
-            if (mShuffleOrder != null) {
-                pos = mShuffleOrder[pos];
-            }
-            mGetter.setPosition(pos, cb, mAllImages, mHandler);
-        }
-    }
 
     private void makeGetter() {
         mGetter = new ImageGetter(getContentResolver());
@@ -985,7 +808,6 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
         super.onSaveInstanceState(b);
         b.putParcelable(STATE_URI,
                 mAllImages.getImageAt(mCurrentPosition).fullSizeImageUri());
-        b.putBoolean(STATE_SLIDESHOW, mMode == MODE_SLIDESHOW);
     }
 
     @Override
@@ -1014,12 +836,9 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
             makeGetter();
         }
 
-        if (mMode == MODE_SLIDESHOW) {
-            loadNextImage(mCurrentPosition, 0, true);
-        } else {  // MODE_NORMAL
-            setImage(mCurrentPosition, mShowControls);
-            mShowControls = false;
-        }
+
+				setImage(mCurrentPosition, mShowControls);
+				mShowControls = false;
     }
 
     @Override
@@ -1068,17 +887,6 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
                     ? R.string.no_way_to_share_image
                     : R.string.no_way_to_share_video,
                     Toast.LENGTH_SHORT).show();
-        }
-    }
-
-    private void startPlayVideoActivity() {
-        IImage image = mAllImages.getImageAt(mCurrentPosition);
-        Intent intent = new Intent(
-                Intent.ACTION_VIEW, image.fullSizeImageUri());
-        try {
-            startActivity(intent);
-        } catch (android.content.ActivityNotFoundException ex) {
-            Log.e(TAG, "Couldn't view video " + image.fullSizeImageUri(), ex);
         }
     }
 
@@ -1184,7 +992,8 @@ class ImageViewTouch extends ImageViewTouchBase {
 
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
-        if (mViewImage.mPaused) return false;
+			if (mViewImage.mPaused) return false;
+			Log.d("Pwer", String.format("e: %d", keyCode));
 
         // Don't respond to arrow keys if trackball scrolling is not enabled
         if (!mEnableTrackballScroll) {

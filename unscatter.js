@@ -42,7 +42,7 @@ var playlistTypeNames = [
 	'ITPlaylistKindRadioTuner'
 ];
 
-var vidExts = ['avi', 'flv', 'wmv', 'vob'];
+var vidExts = ['avi', 'flv', 'wmv', 'vob', 'mkv'];
 
 function trace(x) {
 	DEBUG && print('* ' + x);

@@ -40,7 +40,6 @@ public class SessionList extends Activity
 	ServiceConnection mUpnpSvcConn;
 	Camera mCam;
 	SurfaceHolder mSfcHl;
-	int mViewFinderHeight = 0;
 	View mOverlay;
 
 	class Position {
@@ -124,7 +123,7 @@ public class SessionList extends Activity
 		yellow.setStrokeWidth(6);
 
 		c.drawLine(startX, startY, tipX, tipY, yellow);
-		float angle = (float)Math.atan(((startY - tipY)/(tipX - startX)));
+		float angle = (float)Math.atan(((startY - tipY)/(startX - tipX)));
 		float a = 10, d = .3f;
 		c.drawLine(tipX, tipY, (float)(tipX + Math.sin(angle + d) * a), 
 			(float)(tipY + Math.cos(angle + d) * a), yellow);
@@ -132,6 +131,15 @@ public class SessionList extends Activity
 			(float)(tipY + Math.cos(angle - d) * a), yellow);
 	}
 
+	private float mViewFinderHeight, mViewFinderWidth, mPreviewWidth, mPreviewHeight;
+
+	private float screenX(int previewX, int previewY) {
+		return mViewFinderWidth - mViewFinderWidth / mPreviewHeight * previewY;
+	}
+
+	private float screenY(int previewX, int previewY) {
+		return mViewFinderHeight / mPreviewWidth * previewX;
+	}
 
 	@Override
     public void onCreate(Bundle savedInstanceState) {
@@ -148,8 +156,6 @@ public class SessionList extends Activity
 		hl.addCallback(this);
 		hl.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
 		
-		mViewFinderHeight = 200;//findViewById(R.id.over).getHeight();
-		Log.d(TAG, "h=" + mViewFinderHeight);
 		mOverlay = findViewById(R.id.over);
 		mOverlay.setBackgroundDrawable(new Drawable() {
 				public int getOpacity() {
@@ -167,7 +173,9 @@ public class SessionList extends Activity
 					levelLine.setStrokeWidth(6);
 					
 					float viewWidth = mOverlay.getWidth();
+					mViewFinderWidth = viewWidth;
 					float viewHeight = mOverlay.getHeight();
+					mViewFinderHeight = viewHeight;
 
 					if(Math.abs(mAccY) >= Math.abs(mAccX)) {
 						float ratio = mAccX / mAccY;
@@ -189,7 +197,9 @@ public class SessionList extends Activity
 					// preview X axis goes from bottom to top
 					// preview Y axis goes from left to right
 					float pvWidth = mCam.getParameters().getPreviewSize().width;
+					mPreviewWidth = pvWidth;
 					float pvHeight = mCam.getParameters().getPreviewSize().height;
+					mPreviewHeight = pvHeight;
 
 					//Log.d(TAG, "overlay: " + viewWidth + "x" + viewHeight + " / " + 
 					//	pvWidth + "x" + pvHeight + " " + iSize/2);
@@ -209,8 +219,8 @@ public class SessionList extends Activity
 							for(; iSize < blob.length; iSize++) {
 								int px = blob[i++];
 								int py = blob[i++];
-								int y = (int)(framePxWidth * (float)px);
-								int x = (int)(viewWidth - framePxHeight * (float)py);
+								int y = (int)screenY(px, py);
+								int x = (int)screenX(px, py);
 								int r = blob[iSize] + 3;
 								c.drawCircle(x, y, r, green);
 							}
@@ -229,6 +239,17 @@ public class SessionList extends Activity
 									(float)(curWeightCenter.x - refWeightCenter.x);
 								drawArrow(c, (float)viewWidth / 2, (float)viewHeight / 2, 
 									tipX, tipY);
+
+								Paint rwcPaint = new Paint(green);
+								rwcPaint.setStrokeWidth(8);
+								c.drawCircle(screenX(refWeightCenter.x, refWeightCenter.y),
+									screenY(refWeightCenter.x, refWeightCenter.y), 11, rwcPaint);
+								
+								Paint wcPaint = new Paint(red);
+								wcPaint.setStrokeWidth(8);
+								c.drawCircle(screenX(curWeightCenter.x, curWeightCenter.y),
+									screenY(curWeightCenter.x, curWeightCenter.y), 11, wcPaint);
+								
 
 							}
 							

@@ -93,7 +93,7 @@ handleEveryWindowMessage(HWND w, UINT m, WPARAM wParam,	LPARAM lParam) {
 
 	case WM_PAINT:
 		c = BeginPaint(w, &paints);
-		TextOut(c, 10, 3, uiMsg, strlen(uiMsg));
+		TextOut(c, 10, 1, uiMsg, strlen(uiMsg));
 		EndPaint(w, &paints);
 		return 0;
 		
@@ -241,6 +241,9 @@ int main() {
 
 	if(startUi())
 		return 1;
+	
+	sprintf(uiMsg, "kb volume control");
+	showUi(1);
 
 	return doUi();
 }

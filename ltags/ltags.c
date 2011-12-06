@@ -26,6 +26,8 @@
 # endif
 #endif
 
+#define QUESTIONABLE "1"
+
 char *strChrOrEnd(const char *str, char c) {
 	char *r = strchr(str, c);
 	if(r)
@@ -451,11 +453,12 @@ void update(const char **srcPaths) {
 			run("BEGIN");
 
 			ASSERTSQL(sqlite3_prepare_v2(db, 
-					"UPDATE spans SET status=1 WHERE path=?", -1, &stm, 0));
+					"UPDATE spans SET status=" QUESTIONABLE " WHERE pathId=?", 
+					-1, &stm, 0));
 			for(; *srcPaths; srcPaths++) {
 				char *givenPath = strdup(*srcPaths);
 				ASSERTSQL(sqlite3_reset(stm));
-				ASSERTSQL(sqlite3_bind_text(stm, 1, *srcPaths, -1, SQLITE_STATIC));
+				ASSERTSQL(sqlite3_bind_int(stm, 1, getPathId(*srcPaths)));
 				if(SQLITE_DONE != sqlite3_step(stm))
 					debug("Invalidating not done");
 				normalizePath(givenPath);
@@ -464,7 +467,7 @@ void update(const char **srcPaths) {
 			}
 		} else {
 			debug("Invalidating old entries...");
-			run("UPDATE spans SET status=1"); // 1 means "questionable"
+			run("UPDATE spans SET status=1"); 
 			run("BEGIN");
 
 			strcpy(curPath, dbDirPath);

@@ -9,7 +9,7 @@ ifeq ($(OS), Windows_NT)
 	CCLINK = cl
 	CFLAGS += /Zi
 	CFLAGS += /Iext/pthread
-	CFLAGS += /Ox
+#	CFLAGS += /Ox
 	O = /Fo
 	OB = /Fo$(B)
 	X = .exe
@@ -98,3 +98,5 @@ ltags$X: $(OBJECTS)
 	gcc -lm -lpthread $^ -o $@
 endif
 
+clean:
+	rm -rf build ltags$X ltags.ilk ltags.pdb
