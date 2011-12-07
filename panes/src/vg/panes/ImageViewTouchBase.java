@@ -407,6 +407,8 @@ abstract class ImageViewTouchBase extends ImageView {
     }
 
 	private void showRect(Rect r) {
-		
+		float scale = Math.min((float)mThisWidth / (r.right - r.left),
+			(float)mThisHeight / (r.bottom - r.top));
+		zoomTo(scale, (r.left + r.right) / 2, (r.top + r.bottom) / 2); 
 	}
 }
