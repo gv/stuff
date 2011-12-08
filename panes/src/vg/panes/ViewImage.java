@@ -561,16 +561,6 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 		}
 
 		public void draw(Canvas c) {
-			Paint p = new Paint();
-			p.setColor(0x77FF0000);
-			p.setStyle(Paint.Style.STROKE);
-
-			for(Rect r: mBmp.mPanes) {
-				RectF displayedRect = new RectF(r);
-				mImageView.getImageViewMatrix().mapRect(displayedRect);
-				c.drawRoundRect(displayedRect, 2, 2, p);
-			}
-
 			Paint gp = new Paint();
 			gp.setColor(0x77FF00FF);
 
@@ -585,8 +575,20 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 			wp.setColor(0xFFFFFFFF);
 			RectF thresh = new RectF(0, getEnergyHeight(mBmp.maxSepEnergy) - 1,
 				mBmp.mFirstHorizProj.length, getEnergyHeight(mBmp.maxSepEnergy) + 1);
+			mImageView.getImageViewMatrix().mapRect(thresh);
 			c.drawRect(thresh, wp);
 			
+			Paint p = new Paint();
+			p.setColor(0xE0FF0000);
+			p.setStyle(Paint.Style.STROKE);
+			p.setStrokeWidth(7);
+
+			for(Rect r: mBmp.mPanes) {
+				RectF displayedRect = new RectF(r);
+				mImageView.getImageViewMatrix().mapRect(displayedRect);
+				c.drawRoundRect(displayedRect, 2, 2, p);
+			}
+
 			Log.d(TAG, "draw");
 		}
 

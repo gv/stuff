@@ -132,7 +132,7 @@ public class RotateBitmap {
 		energy[0] = 0;
 			
 		mFirstHorizProj = null;
-		findPanes(energy, w, new Rect(0, 0, w, h), true);
+		findPanes(energy, w, new Rect(0, 0, w, h), true, 0);
 		
 		for(Rect r: mPanes) {
 			Log.d(TAG, String.format("pane: %d, %d, %d, %d", 
@@ -144,9 +144,10 @@ public class RotateBitmap {
 	final int MIN_SEP_DIM = 3;
 	final int MIN_PANE_DIM = 20;
 
-	private void findPanes(int[] energy, int w, Rect r, boolean vertical) {
-		Log.d(TAG, String.format("searching: %d, %d, %d, %d", 
-				r.left, r.top, r.right, r.bottom));
+	private void findPanes(int[] energy, int w, Rect r, boolean vertical, int count) {
+		Log.d(TAG, String.format("searching: %d, %d, %d, %d, %s", 
+				r.left, r.top, r.right, r.bottom, 
+				vertical ? "separating vertically" : "separating horizontally"));
 
 		int projection[] = new int[vertical ? (r.right - r.left) : (r.bottom - r.top)];
 
@@ -172,43 +173,59 @@ public class RotateBitmap {
 		maxSepEnergy = (int)(sum / projection.length / 4);
 		Log.d(TAG, String.format("Max separator energy: %d", maxSepEnergy));
 		
-		int sepRight = 0,
-			paneRight = projection.length - 1;
+		int paneRight = projection.length, len = MIN_SEP_DIM;
+		ArrayList<Rect> found = new ArrayList<Rect> ();
 
-		for(int i = projection.length - 1; i >= 0; i--) {
-			int e = projection[i], len = 0; 
-
-			if(i == 0)
+		for(int i = projection.length - 1; i >= -1; i--) {
+			int e;
+			if(i == -1)
 				e = maxSepEnergy;
+			else 
+				e = projection[i]; 
 
 			while(e <= maxSepEnergy && (len < MIN_SEP_DIM || i > 0)) {
-				len++, i--;
+				len++; 
+				i--;
 				if(i >= 0)
 					e = projection[i];
 			}
 
 			if(len >= MIN_SEP_DIM) {
-				// A valid separator
+				// i is at rightmost "picture"
+				// i + len is at rightmost "no picture"
+				// paneRight is at rightmost "picture we just found"
 				Log.d(TAG, String.format("Separator found: %d, %d", i, len));
 				if(paneRight - i - len >= MIN_PANE_DIM) {
-					// A big enough pane
-					if(vertical) 
-						findPanes(energy, w, new Rect(
-								r.left + i + len,
+					if(vertical) {
+						found.add(new Rect(
+								r.left + i + len + 2,
 								r.top, 
 								r.left + paneRight,
-								r.bottom), false);
-					else
-						findPanes(energy, w, new Rect(
+								r.bottom));
+					} else {
+						found.add(new Rect(
 								r.left,
-								r.top + sepRight,
+								r.top + i + len,
 								r.right, 
-								r.top + paneRight), true);
+								r.top + paneRight));
+					}
+						}
+					paneRight = i;
 				}
-				paneRight = i;
+				len = 0;
 			}
+			
+		if(found.size() == 1)
+			count++;
+
+		if(2 == count) {
+			mPanes.add(found.get(0));
+			return;
 		}
 
+		for(Rect foundRect: found) {
+			findPanes(energy, w, foundRect, !vertical, count);
+		}
 	}
 }
 
