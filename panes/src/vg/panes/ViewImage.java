@@ -44,6 +44,8 @@ import android.widget.ZoomButtonsController;
 
 import java.util.Random;
 import java.util.ArrayList;
+import java.util.List;
+import java.util.Arrays;
 
 import android.content.Context;
 import android.graphics.Canvas;
@@ -532,6 +534,9 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 						// the supp matrix when the full bitmap is loaded.
 						mImageView.setImageRotateBitmapResetBase(bitmap, isThumb);
 						updateZoomButtonsEnabled();
+
+						if(mPaneNum >= 0) 
+							mImageView.showRect(mPanes.get(mPaneNum));
 					}
 				}
 
@@ -548,10 +553,14 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 				}
 
 				public void panesDetectionComplete(Rect[] panes, RotateBitmap bitmap) {
-					mGraphicInfoView.invalidate();
+					mPanes = Arrays.asList(panes);
+					setPaneNum(0);
+					mGraphicInfoView.setVisibility(View.GONE);
 				}
 			};
 
+		mPaneNum = -1;
+		
 		// Could be null if we're stopping a slide show in the course of pausing
 		if (mGetter != null) {
 			mGetter.setPosition(pos, cb, mAllImages, mHandler);
@@ -560,8 +569,27 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 		scheduleDismissOnScreenControls();
 	}
 
+	public int mPaneNum = -1;
+
+	public void setPaneNum(int n) {
+		if(n == mPaneNum)
+			return;
+		
+		if(n >= mPanes.size())
+			return;
+
+		if(n < 0) {
+			mImageView.showRect(new Rect(0, 0, mBmp.getWidth(), mBmp.getHeight()));
+			mPaneNum = -1;
+			return;
+		}
+
+		mImageView.showRect(mPanes.get(n));
+		mPaneNum = n;
+	}
+
 	ImageView mGraphicInfoView;
-	ArrayList<Rect> mPanes;
+	List<Rect> mPanes;
 	Rect mDetectionArea;
 	RotateBitmap mBmp;
 	
@@ -614,8 +642,10 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 			detectionAreaPaint.setStyle(Paint.Style.STROKE);
 			detectionAreaPaint.setStrokeWidth(7);
 
+			Log.d(TAG, String.format("det: %s",  mDetectionArea.toString()));
 			displayedRect = new RectF(mDetectionArea);
 			mImageView.getImageViewMatrix().mapRect(displayedRect);
+			Log.d(TAG, String.format("dis: %s",  displayedRect.toString()));
 			c.drawRoundRect(displayedRect, 2, 2, detectionAreaPaint);
 			
 			Log.d(TAG, "draw");
@@ -832,9 +862,6 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 		mImageView.clear();
 		mCache.clear();
 
-		for (ImageViewTouchBase iv : mSlideShowImageViews) {
-			iv.clear();
-		}
 	}
 
 	private void startShareMediaActivity(IImage image) {
@@ -957,7 +984,6 @@ class ImageViewTouch extends ImageViewTouchBase {
 	@Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
 		if (mViewImage.mPaused) return false;
-		Log.d("Pwer", String.format("e: %d", keyCode));
 
 		// Don't respond to arrow keys if trackball scrolling is not enabled
 		if (!mEnableTrackballScroll) {
@@ -1018,6 +1044,14 @@ class ImageViewTouch extends ImageViewTouchBase {
 				//MenuHelper.deletePhoto(
 				//        mViewImage, mViewImage.mDeletePhotoRunnable);
 				break;
+				
+			case KeyEvent.KEYCODE_SEARCH:
+				mViewImage.setPaneNum(mViewImage.mPaneNum + 1);
+				break;
+
+			case KeyEvent.KEYCODE_BACK:
+				mViewImage.setPaneNum(mViewImage.mPaneNum - 1);
+				break;
 			}
 		} finally {
 			if (nextImagePos >= 0
@@ -1031,6 +1065,7 @@ class ImageViewTouch extends ImageViewTouchBase {
 			}
 		}
 
+		Log.d("Pwer", String.format("e: %d", keyCode));
 		return super.onKeyDown(keyCode, event);
 	}
 }

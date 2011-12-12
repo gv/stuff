@@ -26,6 +26,9 @@ import android.provider.MediaStore;
 import android.graphics.Rect;
 import android.util.Log;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+
 /*
  * Here's the loading strategy.  For any given image, load the thumbnail
  * into memory and post a callback to display the resulting bitmap.
@@ -215,11 +218,11 @@ class ImageGetter {
 					RotateBitmap rb = new RotateBitmap(b,
 						image.getDegreesRotated());
 
-					findPanes(rb);
-
 					Runnable cb = callback(mCurrentPosition, offset,
 						false, rb, mCurrentSerial);
 					mHandler.postGetterCallback(cb);
+
+					findPanes(rb);
 				}
 
 			}
@@ -262,6 +265,24 @@ class ImageGetter {
 			
 			mFirstHorizProj = null;
 			findPanes(rb, energy, w, new Rect(0, 0, w, h), true, 0);
+			
+			Collections.sort(mPanes, new Comparator<Rect>() {
+					public int compare(Rect l, Rect r) {
+						if(l.bottom < r.top)
+							return -1;
+
+						if(r.bottom < l.top)
+							return 1;
+						
+						if(l.left < r.left)
+							return -1;
+
+						if(r.left > r.left)
+							return 1;
+						
+						return 0;
+					}
+				});
 
 			mHandler.postGetterCallback(panesDetectionCompleteCallback(
 					mPanes.toArray(new Rect[1]), rb));
@@ -340,7 +361,7 @@ class ImageGetter {
 						} else {
 							found.add(new Rect(
 									r.left,
-									r.top + i + len,
+									r.top + i + len + 2,
 									r.right, 
 									r.top + paneRight));
 						}
