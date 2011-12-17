@@ -52,9 +52,6 @@ public class ImageManager {
     private static final Uri THUMB_URI
             = Images.Thumbnails.EXTERNAL_CONTENT_URI;
 
-    private static final Uri VIDEO_STORAGE_URI =
-            Uri.parse("content://media/external/video/media");
-
     // ImageListParam specifies all the parameters we need to create an image
     // list (we also need a ContentResolver).
     public static class ImageListParam implements Parcelable {
@@ -269,7 +266,6 @@ public class ImageManager {
         return degree;
     }
 
-    // This is the factory function to create an image list.
     public static IImageList makeImageList(ContentResolver cr,
             ImageListParam param) {
         DataLocation location = param.mLocation;
@@ -296,17 +292,15 @@ public class ImageManager {
         if (haveSdCard && location != DataLocation.INTERNAL) {
             if ((inclusion & INCLUDE_IMAGES) != 0) {
                 l.add(new ImageList(cr, STORAGE_URI, sort, bucketId));
+								Log.d(TAG, "adding " + bucketId);
             }
         }
         if (location == DataLocation.INTERNAL || location == DataLocation.ALL) {
             if ((inclusion & INCLUDE_IMAGES) != 0) {
                 l.add(new ImageList(cr,
-                        Images.Media.INTERNAL_CONTENT_URI, sort, bucketId));
+										Images.Media.INTERNAL_CONTENT_URI, sort, bucketId));
+								Log.d(TAG, "adding " + bucketId);
             }
-            /*if ((inclusion & INCLUDE_DRM_IMAGES) != 0) {
-                l.add(new DrmImageList(
-                        cr, DrmStore.Images.CONTENT_URI, sort, bucketId));
-												}*/
         }
 
         // Optimization: If some of the lists are empty, remove them.
@@ -335,17 +329,7 @@ public class ImageManager {
             int sort) {
         String uriString = (uri != null) ? uri.toString() : "";
 
-        // TODO: we need to figure out whether we're viewing
-        // DRM images in a better way.  Is there a constant
-        // for content://drm somewhere??
-
-        if (uriString.startsWith("content://drm")) {
-            return makeImageList(cr, DataLocation.ALL, INCLUDE_DRM_IMAGES, sort,
-                    null);
-        } else if (uriString.startsWith("content://media/external/video")) {
-            return makeImageList(cr, DataLocation.EXTERNAL, INCLUDE_VIDEOS,
-                    sort, null);
-        } else if (isSingleImageMode(uriString)) {
+				if (isSingleImageMode(uriString)) {
             return makeSingleImageList(cr, uri);
         } else {
             String bucketId = uri.getQueryParameter("bucketId");

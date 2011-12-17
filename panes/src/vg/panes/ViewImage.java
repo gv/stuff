@@ -14,6 +14,18 @@
  * limitations under the License.
  */
 
+/*
+	TODO
+	----
+
+	DirectoryImageList;
+	optimize memory usage somehow;
+	pinch zoom;
+	fling;
+	
+*/
+
+
 package vg.panes;
 
 import android.app.Activity;
@@ -44,6 +56,8 @@ import android.widget.ZoomButtonsController;
 
 import java.util.Random;
 import java.util.ArrayList;
+import java.util.List;
+import java.util.Arrays;
 
 import android.content.Context;
 import android.graphics.Canvas;
@@ -532,6 +546,9 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 						// the supp matrix when the full bitmap is loaded.
 						mImageView.setImageRotateBitmapResetBase(bitmap, isThumb);
 						updateZoomButtonsEnabled();
+
+						if(mPaneNum >= 0) 
+							mImageView.showRect(mPanes.get(mPaneNum));
 					}
 				}
 
@@ -548,10 +565,14 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 				}
 
 				public void panesDetectionComplete(Rect[] panes, RotateBitmap bitmap) {
-					mGraphicInfoView.invalidate();
+					mPanes = Arrays.asList(panes);
+					setPaneNum(0);
+					mGraphicInfoView.setVisibility(View.GONE);
 				}
 			};
 
+		mPaneNum = -1;
+		
 		// Could be null if we're stopping a slide show in the course of pausing
 		if (mGetter != null) {
 			mGetter.setPosition(pos, cb, mAllImages, mHandler);
@@ -560,8 +581,27 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 		scheduleDismissOnScreenControls();
 	}
 
+	public int mPaneNum = -1;
+
+	public void setPaneNum(int n) {
+		if(n == mPaneNum)
+			return;
+		
+		if(n >= mPanes.size())
+			return;
+
+		if(n < 0) {
+			mImageView.showRect(new Rect(0, 0, mBmp.getWidth(), mBmp.getHeight()));
+			mPaneNum = -1;
+			return;
+		}
+
+		mImageView.showRect(mPanes.get(n));
+		mPaneNum = n;
+	}
+
 	ImageView mGraphicInfoView;
-	ArrayList<Rect> mPanes;
+	List<Rect> mPanes;
 	Rect mDetectionArea;
 	RotateBitmap mBmp;
 	
@@ -614,8 +654,10 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 			detectionAreaPaint.setStyle(Paint.Style.STROKE);
 			detectionAreaPaint.setStrokeWidth(7);
 
+			Log.d(TAG, String.format("det: %s",  mDetectionArea.toString()));
 			displayedRect = new RectF(mDetectionArea);
 			mImageView.getImageViewMatrix().mapRect(displayedRect);
+			Log.d(TAG, String.format("dis: %s",  displayedRect.toString()));
 			c.drawRoundRect(displayedRect, 2, 2, detectionAreaPaint);
 			
 			Log.d(TAG, "draw");
@@ -734,25 +776,23 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 		mGetter = new ImageGetter(getContentResolver());
 	}
 
-	private IImageList buildImageListFromUri(Uri uri) {
-		String sortOrder = mPrefs.getString(
-			"pref_gallery_sort_key", "descending");
-		int sort = sortOrder.equals("ascending")
-			? ImageManager.SORT_ASCENDING
-			: ImageManager.SORT_DESCENDING;
-		return ImageManager.makeImageList(getContentResolver(), uri, sort);
-	}
-
 	private boolean init(Uri uri) {
 		if (uri == null) return false;
-		mAllImages = (mParam == null)
-			? buildImageListFromUri(uri)
-			: ImageManager.makeImageList(getContentResolver(), mParam);
+		if(mParam != null) {
+			mAllImages = ImageManager.makeImageList(getContentResolver(), mParam);
+		} else {
+			// common case
+			mAllImages = ImageManager.makeImageList(
+				getContentResolver(), uri, ImageManager.SORT_ASCENDING);
+		}
 
 		// DEBUG PRINT
 		for(int i = mAllImages.getCount() - 1; i >= 0; i--) {
-			Log.d(TAG, "mAllImages: " + mAllImages.getImageAt(i).fullSizeImageUri());
+			IImage m = mAllImages.getImageAt(i);
+			Log.d(TAG, "mAllImages: " + m.fullSizeImageUri() + " " + 
+				m.getDataPath());
 		}
+		// END 
 				
 		IImage image = mAllImages.getImageForUri(uri);
 		if (image == null) return false;
@@ -832,9 +872,6 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 		mImageView.clear();
 		mCache.clear();
 
-		for (ImageViewTouchBase iv : mSlideShowImageViews) {
-			iv.clear();
-		}
 	}
 
 	private void startShareMediaActivity(IImage image) {
@@ -932,6 +969,7 @@ class ImageViewTouch extends ImageViewTouchBase {
 
 	public ImageViewTouch(Context context) {
 		super(context);
+		setBackgroundColor(0xFFE8E8E8);
 		mViewImage = (ViewImage) context;
 	}
 
@@ -957,80 +995,38 @@ class ImageViewTouch extends ImageViewTouchBase {
 	@Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
 		if (mViewImage.mPaused) return false;
-		Log.d("Pwer", String.format("e: %d", keyCode));
-
-		// Don't respond to arrow keys if trackball scrolling is not enabled
-		if (!mEnableTrackballScroll) {
-			if ((keyCode >= KeyEvent.KEYCODE_DPAD_UP)
-				&& (keyCode <= KeyEvent.KEYCODE_DPAD_RIGHT)) {
-				return super.onKeyDown(keyCode, event);
-			}
-		}
 
 		int current = mViewImage.mCurrentPosition;
 
 		int nextImagePos = -2; // default no next image
 		try {
 			switch (keyCode) {
-			case KeyEvent.KEYCODE_DPAD_CENTER: {
-				if (mViewImage.isPickIntent()) {
-					IImage img = mViewImage.mAllImages
-						.getImageAt(mViewImage.mCurrentPosition);
-					mViewImage.setResult(ViewImage.RESULT_OK,
-						new Intent().setData(img.fullSizeImageUri()));
-					mViewImage.finish();
-				}
-				break;
-			}
-			case KeyEvent.KEYCODE_DPAD_LEFT: {
-				if (getScale() <= 1F && event.getEventTime()
-					>= mNextChangePositionTime) {
-					nextImagePos = current - 1;
-					mNextChangePositionTime = event.getEventTime() + 500;
-				} else {
-					panBy(PAN_RATE, 0);
-					center(true, false);
-				}
-				return true;
-			}
-			case KeyEvent.KEYCODE_DPAD_RIGHT: {
-				if (getScale() <= 1F && event.getEventTime()
-					>= mNextChangePositionTime) {
+			case KeyEvent.KEYCODE_DPAD_DOWN: 
+			case KeyEvent.KEYCODE_DPAD_LEFT: 
+			case KeyEvent.KEYCODE_DPAD_CENTER: 
+			case KeyEvent.KEYCODE_SEARCH:
+				if(mViewImage.mPaneNum == mViewImage.mPanes.size() - 1)
 					nextImagePos = current + 1;
-					mNextChangePositionTime = event.getEventTime() + 500;
-				} else {
-					panBy(-PAN_RATE, 0);
-					center(true, false);
-				}
+				mViewImage.setPaneNum(mViewImage.mPaneNum + 1);
 				return true;
-			}
-			case KeyEvent.KEYCODE_DPAD_UP: {
-				panBy(0, PAN_RATE);
-				center(false, true);
+
+			case KeyEvent.KEYCODE_DPAD_UP: 
+			case KeyEvent.KEYCODE_DPAD_RIGHT: 
+			case KeyEvent.KEYCODE_BACK:
+				mViewImage.setPaneNum(mViewImage.mPaneNum - 1);
 				return true;
-			}
-			case KeyEvent.KEYCODE_DPAD_DOWN: {
-				panBy(0, -PAN_RATE);
-				center(false, true);
-				return true;
-			}
-			case KeyEvent.KEYCODE_DEL:
-				//MenuHelper.deletePhoto(
-				//        mViewImage, mViewImage.mDeletePhotoRunnable);
-				break;
 			}
 		} finally {
 			if (nextImagePos >= 0
 				&& nextImagePos < mViewImage.mAllImages.getCount()) {
 				synchronized (mViewImage) {
-					mViewImage.setMode(ViewImage.MODE_NORMAL);
 					mViewImage.setImage(nextImagePos, true);
 				}
-			} else if (nextImagePos != -2) {
-				center(true, true);
-			}
+			} 
 		}
 
+		Log.d("Sending keypress to ImageViewTouch.onKeyDown", 
+			String.format("e: %d", keyCode));
 		return super.onKeyDown(keyCode, event);
 	}
 }

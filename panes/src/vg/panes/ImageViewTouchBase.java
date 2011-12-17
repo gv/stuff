@@ -27,6 +27,8 @@ import android.view.KeyEvent;
 import android.widget.ImageView;
 
 import android.graphics.Rect;
+import android.graphics.PointF;
+import android.util.Log;
 
 abstract class ImageViewTouchBase extends ImageView {
     @SuppressWarnings("unused")
@@ -101,6 +103,7 @@ abstract class ImageViewTouchBase extends ImageView {
         return super.onKeyDown(keyCode, event);
     }
 
+	/*
     @Override
     public boolean onKeyUp(int keyCode, KeyEvent event) {
         if (keyCode == KeyEvent.KEYCODE_BACK && event.isTracking()
@@ -114,6 +117,7 @@ abstract class ImageViewTouchBase extends ImageView {
         }
         return super.onKeyUp(keyCode, event);
     }
+	*/
 
     protected Handler mHandler = new Handler();
 
@@ -406,9 +410,49 @@ abstract class ImageViewTouchBase extends ImageView {
         setImageMatrix(getImageViewMatrix());
     }
 
-	private void showRect(Rect r) {
-		float scale = Math.min((float)mThisWidth / (r.right - r.left),
-			(float)mThisHeight / (r.bottom - r.top));
-		zoomTo(scale, (r.left + r.right) / 2, (r.top + r.bottom) / 2); 
+	private long motionStartTime, motionEndTime = 0;
+	private PointF startTrans, transInc, translation = new PointF(0, 0);
+	private float startScale, scaleInc;
+
+	public void showRect(Rect r) {
+		int duration = 300;
+		RectF target = new RectF(r);
+		mBaseMatrix.mapRect(target);
+
+		startScale = getScale();
+		float targetScale = Math.min(
+			(float)mThisWidth / (target.right - target.left),
+			(float)mThisHeight / (target.bottom - target.top));
+		scaleInc = (targetScale - startScale) / duration;
+
+		//Log.d(TAG, String.format("z: %f > %f %f %f %f",
+		//		scale, s.top, s.left, s.bottom, s.right));
+
+		startTrans = new PointF(translation.x, translation.y);
+		transInc = new PointF(
+			((mThisWidth - target.right - target.left)/2 - startTrans.x) / duration,
+			((mThisHeight - target.top - target.bottom) /2 - startTrans.y) / duration);
+
+		motionStartTime = System.currentTimeMillis();
+		motionEndTime = motionStartTime + duration;
+
+		mHandler.post(new Runnable() { 
+				public void run() {
+					long t = System.currentTimeMillis();
+					if(t > motionEndTime)
+						t = motionEndTime;
+
+					float scale = startScale + scaleInc * (t - motionStartTime);
+					mSuppMatrix.reset();
+					translation.x = startTrans.x + transInc.x * (t - motionStartTime);
+					translation.y = startTrans.y + transInc.y * (t - motionStartTime);
+					mSuppMatrix.setTranslate(translation.x, translation.y);
+					mSuppMatrix.postScale(scale, scale, mThisWidth /2, mThisHeight/2);
+					setImageMatrix(getImageViewMatrix());
+
+					if(t < motionEndTime)
+						mHandler.post(this);
+				}
+			});
 	}
 }
