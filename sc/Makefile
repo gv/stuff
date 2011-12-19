@@ -28,3 +28,38 @@ $(classfiles): demo.java src/vg/Sc/NetworkNode.java
 
 clean:
 	rm -r vg
+
+
+# demo
+
+B=bin/
+
+ifeq ($(OS), Windows_NT)
+	CC = cl /c
+	CCLINK = cl
+	CFLAGS += /Zi
+	CFLAGS += /Iext/pthread
+#	CFLAGS += /Ox
+	O = /Fo
+	OB = /Fo$(B)
+	X = .exe
+	F = /
+else 
+	CC = gcc -c
+	CCLINK = gcc
+	CFLAGS += -g
+	CFLAGS += -O5
+	O = -o 
+	OB = -o $(B)
+	F = -
+endif
+
+process.exe: $Bprocess.o opencv_core231d.lib opencv_highgui231d.lib
+	link /DEBUG $^ 
+
+CV_INCLUDES += /Iopencv/opencv/modules/core/include
+CV_INCLUDES += /Iopencv/opencv/modules/highgui/include
+
+$Bprocess.o: process.cpp
+	$(CC) /Zi /EHsc $(CV_INCLUDES) $^ $O$@
+

@@ -20,9 +20,10 @@
 
 	DirectoryImageList;
 	optimize memory usage somehow;
+	draw some header with info;
+	move "next" and "prev" buttons out of an image;
 	pinch zoom;
 	fling;
-	
 */
 
 
