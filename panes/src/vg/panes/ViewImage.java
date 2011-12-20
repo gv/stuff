@@ -83,6 +83,8 @@ import android.graphics.PixelFormat;
 import android.graphics.Rect;
 
 public class ViewImage extends NoSearchActivity implements View.OnClickListener {
+	public static final String KEY_IMAGE_LIST = "image_list";
+	private static final String STATE_SHOW_CONTROLS = "show_controls";
 	private static final String STATE_URI = "uri";
 	private static final String TAG = "ViewImage";
 
@@ -96,20 +98,9 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 
 	final GetterHandler mHandler = new GetterHandler();
 
-	private final Random mRandom = new Random(System.currentTimeMillis());
-	private int [] mShuffleOrder = null;
-	private boolean mUseShuffleOrder = false;
-	private boolean mSlideShowLoop = false;
-
-	static final int MODE_NORMAL = 1;
-	private int mMode = MODE_NORMAL;
-
-	private boolean mFullScreenInNormalMode;
 	private boolean mShowActionIcons;
 	private View mActionIconPanel;
 
-	private int mSlideShowInterval;
-	private int mLastSlideShowImage;
 	int mCurrentPosition = 0;
 
 	// represents which style animation to use
@@ -119,27 +110,9 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 
 	private SharedPreferences mPrefs;
 
-	private View mNextImageView;
-	private View mPrevImageView;
-	private final Animation mHideNextImageViewAnimation =
-		new AlphaAnimation(1F, 0F);
-	private final Animation mHidePrevImageViewAnimation =
-		new AlphaAnimation(1F, 0F);
-	private final Animation mShowNextImageViewAnimation =
-		new AlphaAnimation(0F, 1F);
-	private final Animation mShowPrevImageViewAnimation =
-		new AlphaAnimation(0F, 1F);
-
-	public static final String KEY_IMAGE_LIST = "image_list";
-	private static final String STATE_SHOW_CONTROLS = "show_controls";
-
 	IImageList mAllImages;
 
 	private ImageManager.ImageListParam mParam;
-
-	private int mSlideShowImageCurrent = 0;
-	private final ImageViewTouchBase [] mSlideShowImageViews =
-		new ImageViewTouchBase[2];
 
 	GestureDetector mGestureDetector;
 	private ZoomButtonsController mZoomButtonsController;
@@ -155,38 +128,6 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 			}
     };
 
-	private void updateNextPrevControls() {
-		boolean showPrev = mCurrentPosition > 0;
-		boolean showNext = mCurrentPosition < mAllImages.getCount() - 1;
-
-		boolean prevIsVisible = mPrevImageView.getVisibility() == View.VISIBLE;
-		boolean nextIsVisible = mNextImageView.getVisibility() == View.VISIBLE;
-
-		if (showPrev && !prevIsVisible) {
-			Animation a = mShowPrevImageViewAnimation;
-			a.setDuration(500);
-			mPrevImageView.startAnimation(a);
-			mPrevImageView.setVisibility(View.VISIBLE);
-		} else if (!showPrev && prevIsVisible) {
-			Animation a = mHidePrevImageViewAnimation;
-			a.setDuration(500);
-			mPrevImageView.startAnimation(a);
-			mPrevImageView.setVisibility(View.GONE);
-		}
-
-		if (showNext && !nextIsVisible) {
-			Animation a = mShowNextImageViewAnimation;
-			a.setDuration(500);
-			mNextImageView.startAnimation(a);
-			mNextImageView.setVisibility(View.VISIBLE);
-		} else if (!showNext && nextIsVisible) {
-			Animation a = mHideNextImageViewAnimation;
-			a.setDuration(500);
-			mNextImageView.startAnimation(a);
-			mNextImageView.setVisibility(View.GONE);
-		}
-	}
-
 	private void hideOnScreenControls() {
 		if (mShowActionIcons
 			&& mActionIconPanel.getVisibility() == View.VISIBLE) {
@@ -194,20 +135,6 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 			animation.setDuration(500);
 			mActionIconPanel.startAnimation(animation);
 			mActionIconPanel.setVisibility(View.INVISIBLE);
-		}
-
-		if (mNextImageView.getVisibility() == View.VISIBLE) {
-			Animation a = mHideNextImageViewAnimation;
-			a.setDuration(500);
-			mNextImageView.startAnimation(a);
-			mNextImageView.setVisibility(View.INVISIBLE);
-		}
-
-		if (mPrevImageView.getVisibility() == View.VISIBLE) {
-			Animation a = mHidePrevImageViewAnimation;
-			a.setDuration(500);
-			mPrevImageView.startAnimation(a);
-			mPrevImageView.setVisibility(View.INVISIBLE);
 		}
 
 		mZoomButtonsController.setVisible(false);
@@ -226,15 +153,10 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 				});
 			return;
 		}
-		updateNextPrevControls();
 
 		IImage image = mAllImages.getImageAt(mCurrentPosition);
-		/*if (image instanceof VideoObject) {
-			mZoomButtonsController.setVisible(false);
-			} else {*/
 		updateZoomButtonsEnabled();
 		mZoomButtonsController.setVisible(true);
-		//}
 
 		if (mShowActionIcons
 			&& mActionIconPanel.getVisibility() != View.VISIBLE) {
@@ -277,12 +199,6 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 	}
 
 	private void setupOnScreenControls(View rootView, View ownerView) {
-		mNextImageView = rootView.findViewById(R.id.next_image);
-		mPrevImageView = rootView.findViewById(R.id.prev_image);
-
-		mNextImageView.setOnClickListener(this);
-		mPrevImageView.setOnClickListener(this);
-
 		setupZoomButtonController(ownerView);
 		setupOnTouchListeners(rootView);
 	}
@@ -337,13 +253,11 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 				}
 			};
 
-		mNextImageView.setOnTouchListener(buttonListener);
-		mPrevImageView.setOnTouchListener(buttonListener);
 		rootView.setOnTouchListener(rootListener);
 	}
 
-	private class MyGestureListener extends
-																		GestureDetector.SimpleOnGestureListener {
+	private class MyGestureListener 
+		extends	GestureDetector.SimpleOnGestureListener {
 
 		@Override
 			public boolean onScroll(MotionEvent e1, MotionEvent e2,
@@ -359,7 +273,8 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 		@Override
 			public boolean onSingleTapUp(MotionEvent e) {
 			if (mPaused) return false;
-			setMode(MODE_NORMAL);
+
+
 			return true;
 		}
 
@@ -396,92 +311,20 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
     public boolean onCreateOptionsMenu(Menu menu) {
 		super.onCreateOptionsMenu(menu);
 
-		/* mImageMenuRunnable = MenuHelper.addImageMenuItems(
-			 menu,
-			 MenuHelper.INCLUDE_ALL,
-			 ViewImage.this,
-			 mHandler,
-			 mDeletePhotoRunnable,
-			 new MenuHelper.MenuInvoker() {
-			 public void run(final MenuHelper.MenuCallback cb) {
-			 if (mPaused) return;
-			 setMode(MODE_NORMAL);
-
-			 IImage image = mAllImages.getImageAt(mCurrentPosition);
-			 Uri uri = image.fullSizeImageUri();
-			 cb.run(uri, image);
-
-			 // We might have deleted all images in the callback, so
-			 // call setImage() only if we still have some images.
-			 if (mAllImages.getCount() > 0) {
-			 mImageView.clear();
-			 setImage(mCurrentPosition, false);
-			 }
-			 }
-			 });
-
-			 item = menu.add(Menu.NONE, Menu.NONE,
-			 MenuHelper.POSITION_GALLERY_SETTING, R.string.camerasettings);
-			 item.setOnMenuItemClickListener(
-			 new MenuItem.OnMenuItemClickListener() {
-			 public boolean onMenuItemClick(MenuItem item) {
-			 Intent preferences = new Intent();
-			 preferences.setClass(ViewImage.this, GallerySettings.class);
-			 startActivity(preferences);
-			 return true;
-			 }
-			 });
-			 item.setAlphabeticShortcut('p');
-			 item.setIcon(android.R.drawable.ic_menu_preferences);
-		*/
 		return true;
 	}
 
-	protected Runnable mDeletePhotoRunnable = new Runnable() {
-			public void run() {
-				mAllImages.removeImageAt(mCurrentPosition);
-				if (mAllImages.getCount() == 0) {
-					finish();
-					return;
-				} else {
-					if (mCurrentPosition == mAllImages.getCount()) {
-						mCurrentPosition -= 1;
-					}
-				}
-				mImageView.clear();
-				mCache.clear();  // Because the position number is changed.
-				setImage(mCurrentPosition, true);
-			}
-    };
-
 	@Override
     public boolean onPrepareOptionsMenu(Menu menu) {
-
 		super.onPrepareOptionsMenu(menu);
 		if (mPaused) return false;
 
-		setMode(MODE_NORMAL);
-		IImage image = mAllImages.getImageAt(mCurrentPosition);
-
-		/*if (mImageMenuRunnable != null) {
-			mImageMenuRunnable.gettingReadyToOpen(menu, image);
-			}
-
-			Uri uri = mAllImages.getImageAt(mCurrentPosition).fullSizeImageUri();
-			MenuHelper.enableShareMenuItem(menu, MenuHelper.isWhiteListUri(uri));
-
-			MenuHelper.enableShowOnMapMenuItem(menu, MenuHelper.hasLatLngData(image));
-		*/
 		return true;
 	}
 
 	@Override
     public boolean onMenuItemSelected(int featureId, MenuItem item) {
 		boolean b = super.onMenuItemSelected(featureId, item);
-		/*if (mImageMenuRunnable != null) {
-			mImageMenuRunnable.aboutToCall(item,
-			mAllImages.getImageAt(mCurrentPosition));
-			}*/
 		return b;
 	}
 
@@ -489,7 +332,6 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 		mCurrentPosition = pos;
 
 		mBmp = null;
-		mGraphicInfoView.setVisibility(View.GONE);
 		mPanes = new ArrayList<Rect>();
 
 		Bitmap b = mCache.getBitmap(pos);
@@ -556,7 +398,6 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 				public void detectingPanes(Rect area, RotateBitmap bitmap) {
 					mBmp = bitmap;
 					mDetectionArea = area;
-					mGraphicInfoView.setVisibility(View.VISIBLE);
 					mGraphicInfoView.invalidate();
 				}	
 						
@@ -568,7 +409,6 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 				public void panesDetectionComplete(Rect[] panes, RotateBitmap bitmap) {
 					mPanes = Arrays.asList(panes);
 					setPaneNum(0);
-					mGraphicInfoView.setVisibility(View.GONE);
 				}
 			};
 
@@ -607,36 +447,9 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 	RotateBitmap mBmp;
 	
 	class DrawableImageInfo extends android.graphics.drawable.Drawable {
-		/*
-			int getEnergyHeight(int e) {
-			return e * mBmp.getBitmap().getHeight() 
-			/ RotateBitmap.MAX_ENERGY;
-			}
-		*/
-
 		public void draw(Canvas c) {
 			if(null == mBmp)
 				return;
-			/*
-				Paint gp = new Paint();
-				gp.setColor(0x77FF00FF);
-
-				for(int i = 0; i < mBmp.mFirstHorizProj.length; i++) {
-				RectF bar  = new RectF(i, 0, i + 1, 
-				getEnergyHeight(mBmp.mFirstHorizProj[i])); 
-				mImageView.getImageViewMatrix().mapRect(bar);
-				c.drawRect(bar, gp);
-				}
-			*/
-
-			/*
-				Paint wp = new Paint();
-				wp.setColor(0xFFFFFFFF);
-				RectF thresh = new RectF(0, getEnergyHeight(mBmp.maxSepEnergy) - 1,
-				mBmp.mFirstHorizProj.length, getEnergyHeight(mBmp.maxSepEnergy) + 1);
-				mImageView.getImageViewMatrix().mapRect(thresh);
-				c.drawRect(thresh, wp);
-			*/
 			
 			Paint p = new Paint();
 			p.setColor(0xE0FF0000);
@@ -683,8 +496,6 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 		super.onCreate(instanceState);
 
 		Intent intent = getIntent();
-		mFullScreenInNormalMode = intent.getBooleanExtra(
-			MediaStore.EXTRA_FULL_SCREEN, true);
 		mShowActionIcons = intent.getBooleanExtra(
 			MediaStore.EXTRA_SHOW_ACTION_ICONS, true);
 
@@ -717,24 +528,9 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 			mSavedUri = getIntent().getData();
 		}
 
-		// We only show action icons for URIs that we know we can share and
-		// delete. Although we get read permission (for the images) from
-		// applications like MMS, we cannot pass the permission to other
-		// activities due to the current framework design.
-		/*if (!MenuHelper.isWhiteListUri(mSavedUri)) {
-			mShowActionIcons = false;
-			}*/
+		getWindow().addFlags(
+			WindowManager.LayoutParams.FLAG_FULLSCREEN);
 
-		if (mShowActionIcons) {
-			View view = mActionIconPanel.findViewById(R.id.nextPane);
-			view.setVisibility(View.VISIBLE);
-			view.setOnClickListener(this);
-		}
-
-		if (mFullScreenInNormalMode) {
-			getWindow().addFlags(
-				WindowManager.LayoutParams.FLAG_FULLSCREEN);
-		}
 		if (mShowActionIcons) {
 			mActionIconPanel.setVisibility(View.VISIBLE);
 		}
@@ -752,26 +548,6 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 			return defaultValue;
 		}
 	}
-
-	void setMode(int mode) {
-		if (mMode == mode) {
-			return;
-		}
-		View normalPanel = findViewById(R.id.abs);
-
-		Window win = getWindow();
-		mMode = mode;
-		normalPanel.setVisibility(View.VISIBLE);
-
-		win.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-		win.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
-
-		// mGetter null is a proxy for being paused
-		if (mGetter != null) {
-			setImage(mCurrentPosition, true);
-		}
-	}
-
 
 	private void makeGetter() {
 		mGetter = new ImageGetter(getContentResolver());
@@ -798,7 +574,6 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 		IImage image = mAllImages.getImageForUri(uri);
 		if (image == null) return false;
 		mCurrentPosition = mAllImages.getImageIndex(image);
-		mLastSlideShowImage = mCurrentPosition;
 		return true;
 	}
 
@@ -875,50 +650,8 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 
 	}
 
-	private void startShareMediaActivity(IImage image) {
-		boolean isVideo = false;//image instanceof VideoObject;
-		Intent intent = new Intent();
-		intent.setAction(Intent.ACTION_SEND);
-		intent.setType(image.getMimeType());
-		intent.putExtra(Intent.EXTRA_STREAM, image.fullSizeImageUri());
-		try {
-			startActivity(Intent.createChooser(intent, getText(
-						isVideo ? R.string.sendVideo : R.string.sendImage)));
-		} catch (android.content.ActivityNotFoundException ex) {
-			Toast.makeText(this, isVideo
-				? R.string.no_way_to_share_image
-				: R.string.no_way_to_share_video,
-				Toast.LENGTH_SHORT).show();
-		}
-	}
-
 	public void onClick(View v) {
 		switch (v.getId()) {
-			/*
-				case R.id.discard:
-				//MenuHelper.deletePhoto(this, mDeletePhotoRunnable);
-				break;
-				/*case R.id.share: {
-				IImage image = mAllImages.getImageAt(mCurrentPosition);
-				if (!MenuHelper.isWhiteListUri(image.fullSizeImageUri())) {
-				return;
-				}
-				startShareMediaActivity(image);
-				break;
-				}
-				case R.id.setas: {
-				IImage image = mAllImages.getImageAt(mCurrentPosition);
-				Intent intent = Util.createSetAsIntent(image);
-				try {
-				startActivity(Intent.createChooser(
-				intent, getText(R.string.setImage)));
-				} catch (android.content.ActivityNotFoundException ex) {
-				Toast.makeText(this, R.string.no_way_to_share_video,
-				Toast.LENGTH_SHORT).show();
-				}
-				break;
-				}
-			*/
 		case R.id.next_image:
 			moveNextOrPrevious(1);
 			break;
@@ -936,41 +669,15 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 		}
 	}
 
-	@Override
-    protected void onActivityResult(int requestCode, int resultCode,
-			Intent data) {
-		/*switch (requestCode) {
-			case MenuHelper.RESULT_COMMON_MENU_CROP:
-			if (resultCode == RESULT_OK) {
-			// The CropImage activity passes back the Uri of the
-			// cropped image as the Action rather than the Data.
-			mSavedUri = Uri.parse(data.getAction());
-
-			// if onStart() runs before, then set the returned
-			// image as currentImage.
-			if (mAllImages != null) {
-			IImage image = mAllImages.getImageForUri(mSavedUri);
-			// image could be null if SD card is removed.
-			if (image == null) {
-			finish();
-			} else {
-			mCurrentPosition = mAllImages.getImageIndex(image);
-			setImage(mCurrentPosition, false);
-			}
-			}
-			}
-			break;
-			}*/
-	}
 }
 
+// This is made external class to be initialized in XML layout description
 class ImageViewTouch extends ImageViewTouchBase {
 	private final ViewImage mViewImage;
 	private boolean mEnableTrackballScroll;
 
 	public ImageViewTouch(Context context) {
 		super(context);
-		setBackgroundColor(0xFFE8E8E8);
 		mViewImage = (ViewImage) context;
 	}
 
@@ -1003,7 +710,7 @@ class ImageViewTouch extends ImageViewTouchBase {
 		try {
 			switch (keyCode) {
 			case KeyEvent.KEYCODE_DPAD_DOWN: 
-			case KeyEvent.KEYCODE_DPAD_LEFT: 
+			case KeyEvent.KEYCODE_DPAD_RIGHT: 
 			case KeyEvent.KEYCODE_DPAD_CENTER: 
 			case KeyEvent.KEYCODE_SEARCH:
 				if(mViewImage.mPaneNum == mViewImage.mPanes.size() - 1)
@@ -1012,7 +719,7 @@ class ImageViewTouch extends ImageViewTouchBase {
 				return true;
 
 			case KeyEvent.KEYCODE_DPAD_UP: 
-			case KeyEvent.KEYCODE_DPAD_RIGHT: 
+			case KeyEvent.KEYCODE_DPAD_LEFT: 
 			case KeyEvent.KEYCODE_BACK:
 				mViewImage.setPaneNum(mViewImage.mPaneNum - 1);
 				return true;

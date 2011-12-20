@@ -23,7 +23,7 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent">
         <vg.panes.ImageViewTouch android:id="@+id/image"
-                    android:background="#FF000000"
+                    android:background="#FFe8e8e8"
                     android:focusableInTouchMode="true"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent" />
@@ -32,42 +32,16 @@
                     android:focusableInTouchMode="false"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent" />
+		<Button android:id="@+id/next_image"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:visibility="gone"
+				android:text="Next" />
+		<Button android:id="@+id/prev_image"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:visibility="gone"
+				android:text="Prev" />
     </AbsoluteLayout>
-    <ImageView android:id="@+id/prev_image"
-            android:clickable="true"
-            android:focusable="false"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_alignParentLeft="true"
-            android:layout_centerVertical="true"
-            android:visibility="invisible"
-            android:src="@drawable/btn_camera_arrow_left"
-    />
-
-    <ImageView android:id="@+id/next_image"
-            android:clickable="true"
-            android:focusable="false"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_alignParentRight="true"
-            android:layout_centerVertical="true"
-            android:visibility="invisible"
-            android:src="@drawable/btn_camera_arrow_right"
-    />
-
-    <vg.panes.EvenlySpacedLayout
-            android:visibility="gone"
-            android:id="@+id/action_icon_panel"
-            android:layout_marginTop="20dp"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content">
-        <vg.panes.ActionMenuButton
-                android:id="@+id/nextPane"
-                android:visibility="gone"
-                android:drawableTop="@drawable/ic_menu_share"
-                android:text="@string/camera_share"
-                style="@style/OnscreenActionIcon"
-        />
-    </vg.panes.EvenlySpacedLayout>
 </RelativeLayout>
 
