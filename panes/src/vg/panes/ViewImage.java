@@ -671,24 +671,24 @@ class ImageViewTouch extends ImageViewTouchBase {
 
 		RectF head = new RectF(0, -50, mBitmapDisplayed.getWidth(), 0);
 		getImageViewMatrix().mapRect(head);
+		
+		int headHeight = getHeight() / 12;
 
 		if(head.bottom <= 1) {
 			head = new RectF(0, mBitmapDisplayed.getHeight(),
 				mBitmapDisplayed.getWidth(), mBitmapDisplayed.getHeight() + 50);
 			getImageViewMatrix().mapRect(head);
-			if(head.bottom < head.top + 50)
-				head.bottom = head.top + 50;
+			head.bottom = head.top + headHeight;
 		} else {
-			if(head.top > head.bottom - 50)
-				head.top = head.bottom - 50;
+			head.top = head.bottom - headHeight;
 		}
 
 		Paint headBgPaint = new Paint();
-		headBgPaint.setColor(0xFF606060);
+		headBgPaint.setColor(0xFFe0e0e0);
 		c.drawRect(head, headBgPaint);
 
 		Paint headTextPaint = new Paint();
-		headTextPaint.setColor(0xFFDDFFDD);
+		headTextPaint.setColor(0xFF336644);
 		if(mPath != null) {
 			c.drawText(mPath, head.left, head.bottom, headTextPaint);
 		}
