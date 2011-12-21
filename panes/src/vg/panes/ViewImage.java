@@ -102,11 +102,6 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 
 	int mCurrentPosition = 0;
 
-	// represents which style animation to use
-	private int mAnimationIndex;
-	private Animation [] mSlideShowInAnimation;
-	private Animation [] mSlideShowOutAnimation;
-
 	private SharedPreferences mPrefs;
 
 	IImageList mAllImages;
@@ -314,16 +309,14 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 
 	void setImage(int pos, boolean showControls) {
 		mCurrentPosition = pos;
+		IImage image = mAllImages.getImageAt(pos);
+		final String path = image.getDataPath();
 
-		mBmp = null;
-		mPanes = new ArrayList<Rect>();
-
-		Bitmap b = mCache.getBitmap(pos);
-		if (b != null) {
-			IImage image = mAllImages.getImageAt(pos);
+		Bitmap cachedThumb = mCache.getBitmap(pos);
+		if (cachedThumb != null) {
 			mImageView.setImageRotateBitmapResetBase(
-				new RotateBitmap(b, image.getDegreesRotated()), true);
-						
+				new RotateBitmap(cachedThumb, image.getDegreesRotated()), true);
+			mImageView.mPath = path;
 			updateZoomButtonsEnabled();
 		}
 
@@ -372,31 +365,33 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 						// reset the supp matrix for then thumb bitmap, and keep
 						// the supp matrix when the full bitmap is loaded.
 						mImageView.setImageRotateBitmapResetBase(bitmap, isThumb);
+						mImageView.mPath = path;
 						updateZoomButtonsEnabled();
 
-						if(mPaneNum >= 0) 
-							mImageView.showRect(mPanes.get(mPaneNum));
+						//if(mPaneNum >= 0) 
+						//	mImageView.showRect(mPanes.get(mPaneNum));
 					}
 				}
 
 				public void detectingPanes(Rect area, RotateBitmap bitmap) {
-					mBmp = bitmap;
-					mDetectionArea = area;
-					mGraphicInfoView.invalidate();
+					mImageView.mDrawDebugInfo = true;
+					mImageView.mDetectionArea = area;
+					mImageView.invalidate();
 				}	
 						
 				public void paneDetected(Rect pane, RotateBitmap bitmap) {
-					mPanes.add(pane);
-					mGraphicInfoView.invalidate();
+					mImageView.mPanes.add(pane);
+					mImageView.invalidate();
 				}
 
 				public void panesDetectionComplete(Rect[] panes, RotateBitmap bitmap) {
-					mPanes = Arrays.asList(panes);
-					setPaneNum(0);
+					mImageView.mDrawDebugInfo = false;
+					mImageView.mPanes = Arrays.asList(panes);
+					mImageView.setPaneNum(0);
 				}
 			};
 
-		mPaneNum = -1;
+		//mPaneNum = -1;
 		
 		// Could be null if we're stopping a slide show in the course of pausing
 		if (mGetter != null) {
@@ -405,75 +400,6 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 		if (showControls) showOnScreenControls();
 		scheduleDismissOnScreenControls();
 	}
-
-	public int mPaneNum = -1;
-
-	public void setPaneNum(int n) {
-		if(n == mPaneNum)
-			return;
-		
-		if(n >= mPanes.size())
-			return;
-
-		if(n < 0) {
-			mImageView.showRect(new Rect(0, 0, mBmp.getWidth(), mBmp.getHeight()));
-			mPaneNum = -1;
-			return;
-		}
-
-		mImageView.showRect(mPanes.get(n));
-		mPaneNum = n;
-	}
-
-	ImageView mGraphicInfoView;
-	List<Rect> mPanes;
-	Rect mDetectionArea;
-	RotateBitmap mBmp;
-	
-	class DrawableImageInfo extends android.graphics.drawable.Drawable {
-		public void draw(Canvas c) {
-			if(null == mBmp)
-				return;
-			
-			Paint p = new Paint();
-			p.setColor(0xE0FF0000);
-			p.setStyle(Paint.Style.STROKE);
-			p.setStrokeWidth(7);
-
-			RectF displayedRect;
-			for(Rect r: mPanes) {
-				displayedRect = new RectF(r);
-				mImageView.getImageViewMatrix().mapRect(displayedRect);
-				c.drawRoundRect(displayedRect, 2, 2, p);
-			}
-
-			Paint detectionAreaPaint = new Paint();
-			detectionAreaPaint.setColor(0xE000FFFF);
-			detectionAreaPaint.setStyle(Paint.Style.STROKE);
-			detectionAreaPaint.setStrokeWidth(7);
-
-			Log.d(TAG, String.format("det: %s",  mDetectionArea.toString()));
-			displayedRect = new RectF(mDetectionArea);
-			mImageView.getImageViewMatrix().mapRect(displayedRect);
-			Log.d(TAG, String.format("dis: %s",  displayedRect.toString()));
-			c.drawRoundRect(displayedRect, 2, 2, detectionAreaPaint);
-			
-			Log.d(TAG, "draw");
-		}
-
-		public void setColorFilter(ColorFilter cf) {
-
-		}
-
-		public int getOpacity() {
-			return PixelFormat.TRANSLUCENT;
-		}
-
-		public void setAlpha(int a) {
-		}
-	}
-
-	
 
 	@Override
     public void onCreate(Bundle instanceState) {
@@ -494,12 +420,7 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 		mCache = new BitmapCache(3);
 		mImageView.setRecycler(mCache);
 
-		mGraphicInfoView = (ImageView) findViewById(R.id.over);
-		mGraphicInfoView.setImageDrawable(new DrawableImageInfo());
-
 		makeGetter();
-
-		mAnimationIndex = -1;
 
 		mParam = getIntent().getParcelableExtra(KEY_IMAGE_LIST);
 
@@ -653,6 +574,30 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 class ImageViewTouch extends ImageViewTouchBase {
 	private final ViewImage mViewImage;
 	private boolean mEnableTrackballScroll;
+	public int mPaneNum = -1;
+	public List<Rect> mPanes = new ArrayList<Rect>();
+	public Rect mDetectionArea;
+	public boolean mDrawDebugInfo = false;
+	public String mPath;
+
+	public void setPaneNum(int n) {
+		if(n == mPaneNum)
+			return;
+		
+		if(n >= mPanes.size())
+			return;
+
+		if(n < 0) {
+			showRect(new Rect(0, 0, mBitmapDisplayed.getWidth(), 
+					mBitmapDisplayed.getHeight()));
+			mPaneNum = -1;
+			return;
+		}
+
+		showRect(mPanes.get(n));
+		mPaneNum = n;
+	}
+
 
 	public ImageViewTouch(Context context) {
 		super(context);
@@ -691,15 +636,17 @@ class ImageViewTouch extends ImageViewTouchBase {
 			case KeyEvent.KEYCODE_DPAD_RIGHT: 
 			case KeyEvent.KEYCODE_DPAD_CENTER: 
 			case KeyEvent.KEYCODE_SEARCH:
-				if(mViewImage.mPaneNum == mViewImage.mPanes.size() - 1)
+				if(mPaneNum == mPanes.size() - 1)
 					nextImagePos = current + 1;
-				mViewImage.setPaneNum(mViewImage.mPaneNum + 1);
+				setPaneNum(mPaneNum + 1);
 				return true;
 
 			case KeyEvent.KEYCODE_DPAD_UP: 
 			case KeyEvent.KEYCODE_DPAD_LEFT: 
 			case KeyEvent.KEYCODE_BACK:
-				mViewImage.setPaneNum(mViewImage.mPaneNum - 1);
+				if(mPaneNum == -1)
+					nextImagePos = current - 1;
+				setPaneNum(mPaneNum - 1);
 				return true;
 			}
 		} finally {
@@ -721,6 +668,7 @@ class ImageViewTouch extends ImageViewTouchBase {
 	
 		if(mBitmapDisplayed.getBitmap() == null)
 			return;
+
 		RectF head = new RectF(0, -50, mBitmapDisplayed.getWidth(), 0);
 		getImageViewMatrix().mapRect(head);
 
@@ -741,7 +689,39 @@ class ImageViewTouch extends ImageViewTouchBase {
 
 		Paint headTextPaint = new Paint();
 		headTextPaint.setColor(0xFFDDFFDD);
-		c.drawText("text will go here", head.left, head.bottom, headTextPaint);
+		if(mPath != null) {
+			c.drawText(mPath, head.left, head.bottom, headTextPaint);
+		}
+
+		if(!mDrawDebugInfo)
+			return;
+		Paint p = new Paint();
+		p.setColor(0xE0FF0000);
+		p.setStyle(Paint.Style.STROKE);
+		p.setStrokeWidth(7);
+
+		RectF displayedRect;
+		for(Rect r: mPanes) {
+			displayedRect = new RectF(r);
+			getImageViewMatrix().mapRect(displayedRect);
+			c.drawRoundRect(displayedRect, 2, 2, p);
+		}
+
+		if(mDetectionArea != null) {
+			Paint detectionAreaPaint = new Paint();
+			detectionAreaPaint.setColor(0xE000FFFF);
+			detectionAreaPaint.setStyle(Paint.Style.STROKE);
+			detectionAreaPaint.setStrokeWidth(7);
+			
+			displayedRect = new RectF(mDetectionArea);
+			getImageViewMatrix().mapRect(displayedRect);
+			c.drawRoundRect(displayedRect, 2, 2, detectionAreaPaint);
+		}
+	}
+
+	public void setImageRotateBitmapResetBase(RotateBitmap b, boolean isThumb) {
+		mPanes = new ArrayList<Rect>();
+		super.setImageRotateBitmapResetBase(b, isThumb);
 	}
 }
 

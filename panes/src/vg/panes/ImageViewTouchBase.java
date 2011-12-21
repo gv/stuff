@@ -412,15 +412,15 @@ abstract class ImageViewTouchBase extends ImageView {
 
 	private long motionStartTime, motionEndTime = 0;
 	private PointF startTrans, transInc, translation = new PointF(0, 0);
-	private float startScale, scaleInc;
+	private float startScale, scaleInc, targetScale;
 
 	public void showRect(Rect r) {
-		int duration = 300;
+		final int duration = 300;
 		RectF target = new RectF(r);
 		mBaseMatrix.mapRect(target);
 
 		startScale = getScale();
-		float targetScale = Math.min(
+		targetScale = Math.min(
 			(float)mThisWidth / (target.right - target.left),
 			(float)mThisHeight / (target.bottom - target.top));
 		scaleInc = (targetScale - startScale) / duration;
@@ -442,7 +442,11 @@ abstract class ImageViewTouchBase extends ImageView {
 					if(t > motionEndTime)
 						t = motionEndTime;
 
-					float scale = startScale + scaleInc * (t - motionStartTime);
+					double phase = Math.PI * (t - motionStartTime)/duration ;
+					double amp = Math.max(Math.abs(targetScale - startScale)/4, 0.5f);
+
+					float scale = startScale + scaleInc * (t - motionStartTime) - 
+						(float)(amp*Math.sin(phase));
 					mSuppMatrix.reset();
 					translation.x = startTrans.x + transInc.x * (t - motionStartTime);
 					translation.y = startTrans.y + transInc.y * (t - motionStartTime);

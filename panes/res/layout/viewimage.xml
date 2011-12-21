@@ -23,13 +23,8 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent">
         <vg.panes.ImageViewTouch android:id="@+id/image"
-                    android:background="#FFe8e8e8"
+                    android:background="#FF383838"
                     android:focusableInTouchMode="true"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent" />
-        <ImageView android:id="@+id/over"
-                    android:background="#00000000"
-                    android:focusableInTouchMode="false"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent" />
 		<Button android:id="@+id/next_image"
