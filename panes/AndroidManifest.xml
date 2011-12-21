@@ -3,9 +3,9 @@
       package="vg.panes"
       android:versionCode="1"
       android:versionName="1.0">
-    <application android:label="_Panes" android:icon="@drawable/icon">
+    <application android:label="Panes" android:icon="@drawable/icon">
         <activity android:name="MainScreen"
-                  android:label="Panes">
+                  android:label="_Panes">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

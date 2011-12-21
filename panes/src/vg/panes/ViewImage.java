@@ -99,7 +99,6 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 	final GetterHandler mHandler = new GetterHandler();
 
 	private boolean mShowActionIcons;
-	private View mActionIconPanel;
 
 	int mCurrentPosition = 0;
 
@@ -129,14 +128,6 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
     };
 
 	private void hideOnScreenControls() {
-		if (mShowActionIcons
-			&& mActionIconPanel.getVisibility() == View.VISIBLE) {
-			Animation animation = new AlphaAnimation(1, 0);
-			animation.setDuration(500);
-			mActionIconPanel.startAnimation(animation);
-			mActionIconPanel.setVisibility(View.INVISIBLE);
-		}
-
 		mZoomButtonsController.setVisible(false);
 	}
 
@@ -145,7 +136,7 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 		// If the view has not been attached to the window yet, the
 		// zoomButtonControls will not able to show up. So delay it until the
 		// view has attached to window.
-		if (mActionIconPanel.getWindowToken() == null) {
+		/*if (mActionIconPanel.getWindowToken() == null) {
 			mHandler.postGetterCallback(new Runnable() {
 					public void run() {
 						showOnScreenControls();
@@ -153,18 +144,11 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 				});
 			return;
 		}
+		*/
 
 		IImage image = mAllImages.getImageAt(mCurrentPosition);
 		updateZoomButtonsEnabled();
 		mZoomButtonsController.setVisible(true);
-
-		if (mShowActionIcons
-			&& mActionIconPanel.getVisibility() != View.VISIBLE) {
-			Animation animation = new AlphaAnimation(0, 1);
-			animation.setDuration(500);
-			mActionIconPanel.startAnimation(animation);
-			mActionIconPanel.setVisibility(View.VISIBLE);
-		}
 	}
 
 	@Override
@@ -517,8 +501,6 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 
 		mAnimationIndex = -1;
 
-		mActionIconPanel = findViewById(R.id.action_icon_panel);
-
 		mParam = getIntent().getParcelableExtra(KEY_IMAGE_LIST);
 
 		if (instanceState != null) {
@@ -530,10 +512,6 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 
 		getWindow().addFlags(
 			WindowManager.LayoutParams.FLAG_FULLSCREEN);
-
-		if (mShowActionIcons) {
-			mActionIconPanel.setVisibility(View.VISIBLE);
-		}
 
 		setupOnScreenControls(findViewById(R.id.rootLayout), mImageView);
 	}
@@ -736,6 +714,34 @@ class ImageViewTouch extends ImageViewTouchBase {
 		Log.d("Sending keypress to ImageViewTouch.onKeyDown", 
 			String.format("e: %d", keyCode));
 		return super.onKeyDown(keyCode, event);
+	}
+
+	protected void onDraw(Canvas c) {
+		super.onDraw(c);
+	
+		if(mBitmapDisplayed.getBitmap() == null)
+			return;
+		RectF head = new RectF(0, -50, mBitmapDisplayed.getWidth(), 0);
+		getImageViewMatrix().mapRect(head);
+
+		if(head.bottom <= 1) {
+			head = new RectF(0, mBitmapDisplayed.getHeight(),
+				mBitmapDisplayed.getWidth(), mBitmapDisplayed.getHeight() + 50);
+			getImageViewMatrix().mapRect(head);
+			if(head.bottom < head.top + 50)
+				head.bottom = head.top + 50;
+		} else {
+			if(head.top > head.bottom - 50)
+				head.top = head.bottom - 50;
+		}
+
+		Paint headBgPaint = new Paint();
+		headBgPaint.setColor(0xFF606060);
+		c.drawRect(head, headBgPaint);
+
+		Paint headTextPaint = new Paint();
+		headTextPaint.setColor(0xFFDDFFDD);
+		c.drawText("text will go here", head.left, head.bottom, headTextPaint);
 	}
 }
 
