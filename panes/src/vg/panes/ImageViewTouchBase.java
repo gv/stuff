@@ -183,6 +183,10 @@ abstract class ImageViewTouchBase extends ImageView {
         mMaxZoom = maxZoom();
     }
 
+	protected int getHeadHeight() {
+		return getWidth() / 10;
+	}
+
     // Center as much as possible in one or both axis.  Centering is
     // defined as follows:  if the image is scaled down below the
     // view's dimensions then center it (literally).  If the image
@@ -201,6 +205,8 @@ abstract class ImageViewTouchBase extends ImageView {
 
         m.mapRect(rect);
 
+				int headHeight = getHeadHeight();
+				rect.top -= headHeight;
         float height = rect.height();
         float width  = rect.width();
 
@@ -208,6 +214,8 @@ abstract class ImageViewTouchBase extends ImageView {
 
         if (vertical) {
             int viewHeight = getHeight();
+						rect.bottom += headHeight;
+
             if (height < viewHeight) {
                 deltaY = (viewHeight - height) / 2 - rect.top;
             } else if (rect.top > 0) {
@@ -256,7 +264,7 @@ abstract class ImageViewTouchBase extends ImageView {
         return getValue(matrix, Matrix.MSCALE_X);
     }
 
-    protected float getScale() {
+   public float getScale() {
         return getScale(mSuppMatrix);
     }
 

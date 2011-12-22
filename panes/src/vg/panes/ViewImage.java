@@ -79,7 +79,7 @@ import android.widget.ImageView;
 import android.graphics.ColorFilter;
 import android.graphics.PixelFormat;
 
-
+import android.graphics.Matrix;
 import android.graphics.Rect;
 
 public class ViewImage extends NoSearchActivity implements View.OnClickListener {
@@ -221,7 +221,55 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 			};
 
 		OnTouchListener rootListener = new OnTouchListener() {
+				private float prevDistance = 0;
 				public boolean onTouch(View v, MotionEvent event) {
+					String names[] = { "DOWN" , "UP" , "MOVE" , "CANCEL" , "OUTSIDE" ,
+														 "POINTER_DOWN" , "POINTER_UP" , "7?" , "8?" , "9?" };
+					StringBuilder sb = new StringBuilder();
+					int action = event.getAction();
+					int actionCode = action & MotionEvent.ACTION_MASK;
+					sb.append("event ACTION_" ).append(names[actionCode]);
+					if (actionCode == MotionEvent.ACTION_POINTER_DOWN
+						|| actionCode == MotionEvent.ACTION_POINTER_UP) {
+						sb.append("(pid " ).append(
+							action >> MotionEvent.ACTION_POINTER_ID_SHIFT);
+						sb.append(")" );
+					}
+					sb.append("[" );
+					for (int i = 0; i < event.getPointerCount(); i++) {
+						sb.append("#" ).append(i);
+						sb.append("(pid " ).append(event.getPointerId(i));
+						sb.append(")=" ).append((int) event.getX(i));
+						sb.append("," ).append((int) event.getY(i));
+						if (i + 1 < event.getPointerCount())
+							sb.append(";" );
+					}
+					sb.append("]" );
+					Log.d(TAG, sb.toString());
+
+					if(event.getPointerCount() >= 2) {
+						float distance = (float)Math.sqrt(
+							Math.pow(event.getX(1) - event.getX(0), 2) + 
+							Math.pow(event.getY(1) - event.getY(0), 2));
+						
+						if(prevDistance != 0) {
+							Matrix m = mImageView.mSuppMatrix;
+							float scaleMultiplier = distance/prevDistance;
+							float minScaleMultiplier = 1/mImageView.getScale();
+							if(scaleMultiplier < minScaleMultiplier)
+								scaleMultiplier = minScaleMultiplier;
+							m.postScale(scaleMultiplier, scaleMultiplier,
+								event.getX(0), event.getY(0));
+							mImageView.setImageMatrix(mImageView.getImageViewMatrix());
+							mImageView.center(true, true);
+						}
+						
+						prevDistance = distance;
+						return true;
+					} 
+					
+					prevDistance = 0;
+					
 					buttonListener.onTouch(v, event);
 					mGestureDetector.onTouchEvent(event);
 
@@ -268,14 +316,7 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 		@Override
 			public boolean onDoubleTap(MotionEvent e) {
 			if (mPaused) return false;
-			ImageViewTouch imageView = mImageView;
 
-			// Switch between the original scale and 3x scale.
-			if (imageView.getScale() > 2F) {
-				mImageView.zoomTo(1f);
-			} else {
-				mImageView.zoomToPoint(3f, e.getX(), e.getY());
-			}
 			return true;
 		}
 	}
@@ -672,7 +713,7 @@ class ImageViewTouch extends ImageViewTouchBase {
 		RectF head = new RectF(0, -50, mBitmapDisplayed.getWidth(), 0);
 		getImageViewMatrix().mapRect(head);
 		
-		int headHeight = getHeight() / 12;
+		int headHeight = getHeadHeight();
 
 		if(head.bottom <= 1) {
 			head = new RectF(0, mBitmapDisplayed.getHeight(),
@@ -682,6 +723,11 @@ class ImageViewTouch extends ImageViewTouchBase {
 		} else {
 			head.top = head.bottom - headHeight;
 		}
+
+		head.top += 3;
+		head.bottom -= 3;
+		head.left += 3;
+		head.right -= 3;
 
 		Paint headBgPaint = new Paint();
 		headBgPaint.setColor(0xFFe0e0e0);
