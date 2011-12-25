@@ -27,12 +27,12 @@
                     android:focusableInTouchMode="true"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent" />
-		<Button android:id="@+id/next_image"
+		<Button android:id="@+id/next_image_btn"
 				android:layout_width="wrap_content"
 				android:layout_height="wrap_content"
 				android:visibility="gone"
 				android:text="Next" />
-		<Button android:id="@+id/prev_image"
+		<Button android:id="@+id/prev_image_btn"
 				android:layout_width="wrap_content"
 				android:layout_height="wrap_content"
 				android:visibility="gone"

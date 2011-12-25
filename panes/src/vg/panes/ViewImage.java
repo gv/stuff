@@ -592,10 +592,10 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 
 	public void onClick(View v) {
 		switch (v.getId()) {
-		case R.id.next_image:
+		case R.id.next_image_btn:
 			moveNextOrPrevious(1);
 			break;
-		case R.id.prev_image:
+		case R.id.prev_image_btn:
 			moveNextOrPrevious(-1);
 			break;
 		}
@@ -609,6 +609,19 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 		}
 	}
 
+	public void updatePrevAndNextButtons(RectF head) {
+		Rect current = new Rect();
+		View nextBtn = findViewById(R.id.next_image_btn);
+		nextBtn.setVisibility(View.VISIBLE);
+		nextBtn.getHitRect(current);
+		nextBtn.offsetLeftAndRight((int)head.left - current.left);
+		nextBtn.offsetTopAndBottom((int)head.top - current.top);
+		View prevBtn = findViewById(R.id.prev_image_btn);
+		prevBtn.setVisibility(View.VISIBLE);
+		prevBtn.getHitRect(current);
+		prevBtn.offsetLeftAndRight((int)head.right - current.right);
+		prevBtn.offsetTopAndBottom((int)head.top - current.top);
+	}
 }
 
 // This is made external class to be initialized in XML layout description
@@ -728,6 +741,8 @@ class ImageViewTouch extends ImageViewTouchBase {
 		head.bottom -= 3;
 		head.left += 3;
 		head.right -= 3;
+
+		mViewImage.updatePrevAndNextButtons(head);
 
 		Paint headBgPaint = new Paint();
 		headBgPaint.setColor(0xFFe0e0e0);
