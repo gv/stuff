@@ -291,9 +291,7 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 				float distanceX, float distanceY) {
 			if (mPaused) return false;
 			ImageViewTouch imageView = mImageView;
-			if (imageView.getScale() > 1F) {
-				imageView.postTranslateCenter(-distanceX, -distanceY);
-			}
+			imageView.postTranslateCenter(-distanceX, -distanceY);
 			return true;
 		}
 
