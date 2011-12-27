@@ -184,7 +184,7 @@ abstract class ImageViewTouchBase extends ImageView {
     }
 
 	protected int getHeadHeight() {
-		return getWidth() / 10;
+		return getHeight() / 8;
 	}
 
     // Center as much as possible in one or both axis.  Centering is
@@ -418,9 +418,16 @@ abstract class ImageViewTouchBase extends ImageView {
         setImageMatrix(getImageViewMatrix());
     }
 
+	// every translation is a vector in "after mBaseMatrix" coordinates
+	// it goes from screen center to the center of displayed part
 	private long motionStartTime, motionEndTime = 0;
 	private PointF startTrans, transInc, translation = new PointF(0, 0);
-	private float startScale, scaleInc, targetScale;
+	private float startScale, scaleInc, targetScale, friction = 0;
+
+	public void nudge(float vx, float vy) {
+		motionStartTime = 0;
+
+	}
 
 	public void showRect(Rect r) {
 		final int duration = 300;
@@ -433,13 +440,13 @@ abstract class ImageViewTouchBase extends ImageView {
 			(float)mThisHeight / (target.bottom - target.top));
 		scaleInc = (targetScale - startScale) / duration;
 
-		//Log.d(TAG, String.format("z: %f > %f %f %f %f",
-		//		scale, s.top, s.left, s.bottom, s.right));
-
 		startTrans = new PointF(translation.x, translation.y);
+		PointF targetTrans = new PointF(
+			(mThisWidth - target.right - target.left)/2,
+			(mThisHeight - target.top - target.bottom)/2);
 		transInc = new PointF(
-			((mThisWidth - target.right - target.left)/2 - startTrans.x) / duration,
-			((mThisHeight - target.top - target.bottom) /2 - startTrans.y) / duration);
+			(targetTrans.x - startTrans.x) / duration,
+			(targetTrans.y - startTrans.y) / duration);
 
 		motionStartTime = System.currentTimeMillis();
 		motionEndTime = motionStartTime + duration;

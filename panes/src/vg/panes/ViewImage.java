@@ -295,6 +295,13 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 			return true;
 		}
 
+		@Override public boolean onFling(MotionEvent down, MotionEvent up, 
+			float vx, float vy) {
+			if(mPaused) return false;
+
+			return true;
+		}
+
 		@Override
 			public boolean onSingleTapUp(MotionEvent e) {
 			if (mPaused) return false;
@@ -630,7 +637,7 @@ class ImageViewTouch extends ImageViewTouchBase {
 	public List<Rect> mPanes = new ArrayList<Rect>();
 	public Rect mDetectionArea;
 	public boolean mDrawDebugInfo = false;
-	public String mPath;
+	public String mTitle, mSubTitle;
 
 	public void setPaneNum(int n) {
 		if(n == mPaneNum)
