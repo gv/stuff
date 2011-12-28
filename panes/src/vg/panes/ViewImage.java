@@ -20,10 +20,6 @@
 
 	DirectoryImageList;
 	optimize memory usage somehow;
-	draw some header with info;
-	move "next" and "prev" buttons out of an image;
-	pinch zoom;
-	fling;
 */
 
 
@@ -614,18 +610,22 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 		}
 	}
 
-	public void updatePrevAndNextButtons(RectF head) {
+	public Rect updatePrevAndNextButtons(RectF head) {
 		Rect current = new Rect();
-		View nextBtn = findViewById(R.id.next_image_btn);
-		nextBtn.setVisibility(View.VISIBLE);
-		nextBtn.getHitRect(current);
-		nextBtn.offsetLeftAndRight((int)head.left - current.left);
-		nextBtn.offsetTopAndBottom((int)head.top - current.top);
+		Rect freeSpace = new Rect((int)head.top, 0, (int)head.bottom, 0);
 		View prevBtn = findViewById(R.id.prev_image_btn);
 		prevBtn.setVisibility(View.VISIBLE);
 		prevBtn.getHitRect(current);
-		prevBtn.offsetLeftAndRight((int)head.right - current.right);
+		prevBtn.offsetLeftAndRight((int)head.left - current.left);
 		prevBtn.offsetTopAndBottom((int)head.top - current.top);
+		freeSpace.left = current.right;
+		View nextBtn = findViewById(R.id.next_image_btn);
+		nextBtn.setVisibility(View.VISIBLE);
+		nextBtn.getHitRect(current);
+		nextBtn.offsetLeftAndRight((int)head.right - current.right);
+		nextBtn.offsetTopAndBottom((int)head.top - current.top);
+		freeSpace.right = current.left;
+		return freeSpace;
 	}
 }
 
@@ -742,21 +742,21 @@ class ImageViewTouch extends ImageViewTouchBase {
 			head.top = head.bottom - headHeight;
 		}
 
-		head.top += 3;
-		head.bottom -= 3;
-		head.left += 3;
-		head.right -= 3;
+		head.inset(0, 2);
 
-		mViewImage.updatePrevAndNextButtons(head);
+		Rect titleSpace = mViewImage.updatePrevAndNextButtons(head);
 
 		Paint headBgPaint = new Paint();
-		headBgPaint.setColor(0xFFe0e0e0);
-		c.drawRect(head, headBgPaint);
+		headBgPaint.setColor(0xFF256725);
+		c.drawRoundRect(head, 3, 3, headBgPaint);
 
-		Paint headTextPaint = new Paint();
-		headTextPaint.setColor(0xFF336644);
+		Paint titlePaint = new Paint();
+		titlePaint.setColor(0xFFf3f3d1);
+		titlePaint.setAntiAlias(true);
+		int titleHeight = (int)head.height() / 2;
+		titlePaint.setTextSize(titleHeight - 5);
 		if(mTitle != null) {
-			c.drawText(mTitle, head.left, head.bottom, headTextPaint);
+			c.drawText(mTitle, freeSpace.left, freeSpace.top + titleHeight, titlePaint);
 		}
 
 		if(!mDrawDebugInfo)

@@ -436,7 +436,6 @@ abstract class ImageViewTouchBase extends ImageView {
 		inverseSupp.mapPoints(centerPos);
 		startTrans = new PointF(mThisWidth/2 - centerPos[0], 
 			 mThisHeight/2 - centerPos[1]);
-		Log.d(TAG, "start: " + startTrans.x + ", " + startTrans.y);
 	}
 
 	public void nudge(float vx, float vy) {
@@ -445,7 +444,6 @@ abstract class ImageViewTouchBase extends ImageView {
 		transInc = new PointF(vx/1000/startScale, vy/1000/startScale);
 		targetScale = startScale;
 		friction = 0.0005f;
-		Log.d(TAG, "nudge: " + transInc.x  + ", " + transInc.y);
 		mWideningAmplitude = 0.1;
 		move();
 	}

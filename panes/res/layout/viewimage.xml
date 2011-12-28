@@ -23,7 +23,7 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent">
         <vg.panes.ImageViewTouch android:id="@+id/image"
-                    android:background="#FF383838"
+                    android:background="#FFe1f1f1"
                     android:focusableInTouchMode="true"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent" />
