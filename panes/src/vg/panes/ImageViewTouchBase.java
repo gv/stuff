@@ -421,26 +421,44 @@ abstract class ImageViewTouchBase extends ImageView {
 	// every translation is a vector in "after mBaseMatrix" coordinates
 	// it goes from screen center to the center of displayed part
 	private long motionStartTime, motionEndTime = 0;
-	private PointF startTrans, transInc, translation = new PointF(0, 0);
-	private float startScale, scaleInc, targetScale, friction = 0;
+	private PointF startTrans, transInc;
+	private float startScale, scaleInc, targetScale, friction;
+	private double mWideningAmplitude;
+	final int duration = 333;
+
+	private void stop() {
+		motionStartTime = System.currentTimeMillis();
+		startScale = getScale();
+
+		Matrix inverseSupp = new Matrix();
+		mSuppMatrix.invert(inverseSupp);
+		float[] centerPos = {mThisWidth/2, mThisHeight/2};
+		inverseSupp.mapPoints(centerPos);
+		startTrans = new PointF(mThisWidth/2 - centerPos[0], 
+			 mThisHeight/2 - centerPos[1]);
+		Log.d(TAG, "start: " + startTrans.x + ", " + startTrans.y);
+	}
 
 	public void nudge(float vx, float vy) {
-		motionStartTime = 0;
-
+		stop();
+		motionEndTime = motionStartTime + 10000;
+		transInc = new PointF(vx/1000/startScale, vy/1000/startScale);
+		targetScale = startScale;
+		friction = 0.0005f;
+		Log.d(TAG, "nudge: " + transInc.x  + ", " + transInc.y);
+		mWideningAmplitude = 0.1;
+		move();
 	}
 
 	public void showRect(Rect r) {
-		final int duration = 300;
+		stop();
 		RectF target = new RectF(r);
 		mBaseMatrix.mapRect(target);
 
-		startScale = getScale();
 		targetScale = Math.min(
 			(float)mThisWidth / (target.right - target.left),
 			(float)mThisHeight / (target.bottom - target.top));
-		scaleInc = (targetScale - startScale) / duration;
 
-		startTrans = new PointF(translation.x, translation.y);
 		PointF targetTrans = new PointF(
 			(mThisWidth - target.right - target.left)/2,
 			(mThisHeight - target.top - target.bottom)/2);
@@ -448,26 +466,40 @@ abstract class ImageViewTouchBase extends ImageView {
 			(targetTrans.x - startTrans.x) / duration,
 			(targetTrans.y - startTrans.y) / duration);
 
-		motionStartTime = System.currentTimeMillis();
 		motionEndTime = motionStartTime + duration;
+		friction = 0;
+		mWideningAmplitude = Math.max(Math.abs(targetScale - startScale)/4, 0.5f);
+		move();
+	}
+
+
+	private void move() {
+		scaleInc = (targetScale - startScale) / duration;
+		final PointF frictionAcc = new PointF(transInc.x, transInc.y);
+		frictionAcc.x *= -friction/transInc.length()/2;
+		frictionAcc.y *= -friction/transInc.length()/2;
+		if(friction != 0) {
+			motionEndTime = motionStartTime + (long)(transInc.length() / friction);
+		}
 
 		mHandler.post(new Runnable() { 
 				public void run() {
 					long t = System.currentTimeMillis();
 					if(t > motionEndTime)
 						t = motionEndTime;
+					
+					long spent = t - motionStartTime;
 
-					double phase = Math.PI * (t - motionStartTime)/duration ;
-					double amp = Math.max(Math.abs(targetScale - startScale)/4, 0.5f);
+					double phase = Math.PI * spent / (motionEndTime - motionStartTime) ;
+					float scale = startScale + scaleInc * spent - 
+						(float)(mWideningAmplitude*Math.sin(phase));
+					float tx = startTrans.x + (transInc.x + frictionAcc.x * spent) * spent;
+					float ty = startTrans.y + (transInc.y + frictionAcc.y * spent) * spent;
 
-					float scale = startScale + scaleInc * (t - motionStartTime) - 
-						(float)(amp*Math.sin(phase));
 					mSuppMatrix.reset();
-					translation.x = startTrans.x + transInc.x * (t - motionStartTime);
-					translation.y = startTrans.y + transInc.y * (t - motionStartTime);
-					mSuppMatrix.setTranslate(translation.x, translation.y);
+					mSuppMatrix.setTranslate(tx, ty);
 					mSuppMatrix.postScale(scale, scale, mThisWidth /2, mThisHeight/2);
-					setImageMatrix(getImageViewMatrix());
+					center(true, true);
 
 					if(t < motionEndTime)
 						mHandler.post(this);

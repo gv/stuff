@@ -298,7 +298,7 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 		@Override public boolean onFling(MotionEvent down, MotionEvent up, 
 			float vx, float vy) {
 			if(mPaused) return false;
-
+			mImageView.nudge(vx, vy);
 			return true;
 		}
 
@@ -362,7 +362,7 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 		if (cachedThumb != null) {
 			mImageView.setImageRotateBitmapResetBase(
 				new RotateBitmap(cachedThumb, image.getDegreesRotated()), true);
-			mImageView.mPath = path;
+			mImageView.mTitle = path;
 			updateZoomButtonsEnabled();
 		}
 
@@ -411,7 +411,7 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 						// reset the supp matrix for then thumb bitmap, and keep
 						// the supp matrix when the full bitmap is loaded.
 						mImageView.setImageRotateBitmapResetBase(bitmap, isThumb);
-						mImageView.mPath = path;
+						mImageView.mTitle = path;
 						updateZoomButtonsEnabled();
 
 						//if(mPaneNum >= 0) 
@@ -755,8 +755,8 @@ class ImageViewTouch extends ImageViewTouchBase {
 
 		Paint headTextPaint = new Paint();
 		headTextPaint.setColor(0xFF336644);
-		if(mPath != null) {
-			c.drawText(mPath, head.left, head.bottom, headTextPaint);
+		if(mTitle != null) {
+			c.drawText(mTitle, head.left, head.bottom, headTextPaint);
 		}
 
 		if(!mDrawDebugInfo)
