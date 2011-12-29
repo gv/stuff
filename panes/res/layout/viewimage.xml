@@ -18,7 +18,6 @@
         android:id="@+id/rootLayout"
         android:layout_width="match_parent"
         android:layout_height="match_parent">
-
     <AbsoluteLayout android:id="@+id/abs"
             android:layout_width="match_parent"
             android:layout_height="match_parent">

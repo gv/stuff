@@ -756,7 +756,7 @@ class ImageViewTouch extends ImageViewTouchBase {
 		int titleHeight = (int)head.height() / 2;
 		titlePaint.setTextSize(titleHeight - 5);
 		if(mTitle != null) {
-			c.drawText(mTitle, freeSpace.left, freeSpace.top + titleHeight, titlePaint);
+			c.drawText(mTitle, titleSpace.left, freeSpace.top + titleHeight, titlePaint);
 		}
 
 		if(!mDrawDebugInfo)
