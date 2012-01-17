@@ -349,16 +349,28 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 		return b;
 	}
 
+	void displayImageTitle() {
+		IImage image = mAllImages.getImageAt(mCurrentPosition);
+		int imageCnt = mAllImages.getCount();
+		String path = image.getDataPath();
+		int p = path.lastIndexOf('/');
+		mImageView.mTitle = path.substring(p) + " [" + (mCurrentPosition + 1) + 
+			" of " + imageCnt + "]";
+		mImageView.mSubtitle = path.substring(0, p);
+	}
+		
+
 	void setImage(int pos, boolean showControls) {
 		mCurrentPosition = pos;
 		IImage image = mAllImages.getImageAt(pos);
-		final String path = image.getDataPath();
+		mImageView.mTitle = null;
+		mImageView.mSubtitle = "Loading...";
 
 		Bitmap cachedThumb = mCache.getBitmap(pos);
 		if (cachedThumb != null) {
 			mImageView.setImageRotateBitmapResetBase(
 				new RotateBitmap(cachedThumb, image.getDegreesRotated()), true);
-			mImageView.mTitle = path;
+			displayImageTitle();
 			updateZoomButtonsEnabled();
 		}
 
@@ -407,7 +419,7 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 						// reset the supp matrix for then thumb bitmap, and keep
 						// the supp matrix when the full bitmap is loaded.
 						mImageView.setImageRotateBitmapResetBase(bitmap, isThumb);
-						mImageView.mTitle = path;
+						displayImageTitle();
 						updateZoomButtonsEnabled();
 
 						//if(mPaneNum >= 0) 
@@ -637,7 +649,7 @@ class ImageViewTouch extends ImageViewTouchBase {
 	public List<Rect> mPanes = new ArrayList<Rect>();
 	public Rect mDetectionArea;
 	public boolean mDrawDebugInfo = false;
-	public String mTitle, mSubTitle;
+	public String mTitle, mSubtitle;
 
 	public void setPaneNum(int n) {
 		if(n == mPaneNum)
@@ -754,9 +766,19 @@ class ImageViewTouch extends ImageViewTouchBase {
 		titlePaint.setColor(0xFFf3f3d1);
 		titlePaint.setAntiAlias(true);
 		int titleHeight = (int)head.height() / 2;
-		titlePaint.setTextSize(titleHeight - 5);
+		titlePaint.setTextSize(titleHeight - 8);
 		if(mTitle != null) {
 			c.drawText(mTitle, titleSpace.left, titleSpace.top + titleHeight, titlePaint);
+		}
+
+		Paint subtitlePaint = new Paint();
+		subtitlePaint.setColor(0xFFf3f3d1);
+		subtitlePaint.setAntiAlias(true);
+		int subtitleHeight = (int)head.height() / 3;
+		subtitlePaint.setTextSize(subtitleHeight - 5);
+		if(mSubtitle != null) {
+			c.drawText(mSubtitle, titleSpace.left, 
+				titleSpace.top + titleHeight + subtitleHeight, subtitlePaint);
 		}
 
 		if(!mDrawDebugInfo)
