@@ -30,12 +30,14 @@
 				android:layout_width="wrap_content"
 				android:layout_height="wrap_content"
 				android:visibility="gone"
-				android:text="Next" />
+				android:text="Next" 
+				android:onClick="onClick" />
 		<Button android:id="@+id/prev_image_btn"
 				android:layout_width="wrap_content"
 				android:layout_height="wrap_content"
 				android:visibility="gone"
-				android:text="Prev" />
+				android:text="Prev" 
+				android:onClick="onClick" />
     </AbsoluteLayout>
 </RelativeLayout>
 
