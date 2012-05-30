@@ -137,6 +137,7 @@
 (set-default-coding-systems 'windows-1251-dos)
 (set-terminal-coding-system 'windows-1251-dos)
 (set-selection-coding-system 'windows-1251-dos)
+(set-clipboard-coding-system 'windows-1251-dos)
 ;;
 ;; Использовать окружение UTF-8
 ;;(set-language-environment 'UTF-8)
@@ -247,6 +248,7 @@
 (setq tramp-mode nil)
 
 (fset 'yes-or-no-p 'y-or-n-p)
+(fset 'c 'compile)
 
 
 (load "haskell-mode-2.8.0/haskell-site-file")

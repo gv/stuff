@@ -354,7 +354,7 @@ public class ViewImage extends NoSearchActivity implements View.OnClickListener 
 		int imageCnt = mAllImages.getCount();
 		String path = image.getDataPath();
 		int p = path.lastIndexOf('/');
-		mImageView.mTitle = path.substring(p) + " [" + (mCurrentPosition + 1) + 
+		mImageView.mTitle = path.substring(p + 1) + " [" + (mCurrentPosition + 1) + 
 			" of " + imageCnt + "]";
 		mImageView.mSubtitle = path.substring(0, p);
 	}
@@ -759,7 +759,7 @@ class ImageViewTouch extends ImageViewTouchBase {
 		Rect titleSpace = mViewImage.updatePrevAndNextButtons(head);
 
 		Paint headBgPaint = new Paint();
-		headBgPaint.setColor(0xFF256725);
+		headBgPaint.setColor(0xFF355735);
 		c.drawRoundRect(head, 3, 3, headBgPaint);
 
 		Paint titlePaint = new Paint();
@@ -775,7 +775,7 @@ class ImageViewTouch extends ImageViewTouchBase {
 		subtitlePaint.setColor(0xFFf3f3d1);
 		subtitlePaint.setAntiAlias(true);
 		int subtitleHeight = (int)head.height() / 3;
-		subtitlePaint.setTextSize(subtitleHeight - 5);
+		subtitlePaint.setTextSize(subtitleHeight - 6);
 		if(mSubtitle != null) {
 			c.drawText(mSubtitle, titleSpace.left, 
 				titleSpace.top + titleHeight + subtitleHeight, subtitlePaint);

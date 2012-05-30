@@ -6,8 +6,36 @@ function print(x) {
 	WScript.Echo(x);
 }
 
-var hostname = "gv";
+var vsSuffixes = "ncb|suo";
+if(WScript.Arguments.Named.Exists("open")) {
+	var path = WScript.Arguments.Unnamed.Item(0);
+	path = path.replace(new RegExp("(" + vsSuffixes + ")$"), "sln");
+	sh.Run(path);
+	WScript.Quit();
+}
 
+if(WScript.FullName.match(new RegExp('wscript', 'i'))) {
+	WScript.Quit();
+}
+
+print("SETTING FILE ASSOCIATIONS");
+
+var sxs = vsSuffixes.split("|"), s;
+while(s = sxs.shift()) {
+	var t = sh.RegRead("HKCR\\." + s + "\\");
+	var cp = "HKCR\\" + t + "\\shell\\open\\command\\";
+	var cmd = "wscript " + WScript.ScriptFullName + " /open %1";
+	print("Setting " + cp + " to " + cmd);
+	sh.RegWrite(cp, cmd, "REG_SZ");
+}
+
+
+/*
+	SYSTEM
+*/
+	
+
+/*
 WScript.Echo("Adding an admin user with non blank password...");
 
 sh.Run("net user root q /add");
@@ -19,7 +47,7 @@ var cp = "HKCR\\exefile\\shell\\runasroot\\";
 var cmd = "runas /user:root \"%1\"";
 sh.RegWrite(cp, cmd, "REG_SZ");
 sh.RegWrite(cp + "command\\", cmd, "REG_SZ"); 
-
+*/
 
 WScript.Echo("Disabling admin shares...");
 
@@ -55,16 +83,6 @@ for(var i in p) {
 //print(newPath);
 sh.RegWrite(pathPath, newPath+";;", "REG_EXPAND_SZ");
 	
-print("Installing scripts...");
-
-var fs = new ActiveXObject("Scripting.FileSystemObject");
-/*var a = fs.CreateTextFile("c:\\windows\\updall.cmd", true);
-a.WriteLine("tortoiseproc /command:update /path:d:\\five\\izumrud");
-a.WriteLine("tortoiseproc /command:update /path:d:\\six\\integration");
-a.WriteLine("tortoiseproc /command:update /path:d:\\six\\scriptlibrary");
-a.Close();
-*/
-
 print("Enabling remote desktop access...");
 
 sh.RegWrite("HKLM\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server\\" + 
@@ -73,3 +91,13 @@ sh.RegWrite("HKLM\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server\\" +
 print("Enabling quick edit in console...");
 
 sh.Run("REG.EXE add HKCU\\Console /v QuickEdit /t REG_DWORD /d 1 /f");
+
+/*
+	APPLICATIONS
+*/
+
+var kp = "HKCU\\Environment\\NODE_DISABLE_COLORS";
+try { var old = sh.RegRead(kp); } catch(e) { old = e }
+var val = 1;
+sh.RegWrite(kp, val, "REG_SZ");
+print(kp + ": was " + old + ", set " + val);

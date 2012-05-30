@@ -10,6 +10,24 @@ if(!needAdd) {
 	var needDelete = WScript.Arguments.Named.Exists("del");
 }
 
+var desktopKeyPath = 
+		"HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows\\currentversion\\app paths";
+
+if(WScript.Arguments.Named.Exists("a")) {
+	sh.Run("cmd /k reg query \"" + desktopKeyPath + "\" /s|less && exit");
+	WScript.Quit();
+}
+
+if(WScript.Arguments.Named.Exists("aadd")) {
+	var path = WScript.Arguments.Unnamed.Item(0);
+	var name = path.split("\\").pop();
+	var kp = desktopKeyPath + "\\" + name + "\\";
+	try { var oldVal = sh.RegRead(kp); } catch(e) {}
+	sh.RegWrite(kp, path, "REG_SZ");
+	print(kp + ": was \"" + oldVal + "\", set to \"" + path + "\"");
+	WScript.Quit();
+}
+
 var userKeyPath = "HKEY_CURRENT_USER\\Environment\\path";
 var userPaths = sh.RegRead(userKeyPath).split(";");
 
