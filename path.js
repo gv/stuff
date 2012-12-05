@@ -29,7 +29,9 @@ if(WScript.Arguments.Named.Exists("aadd")) {
 }
 
 var userKeyPath = "HKEY_CURRENT_USER\\Environment\\path";
-var userPaths = sh.RegRead(userKeyPath).split(";");
+try { var userPaths = sh.RegRead(userKeyPath).split(";"); } catch(e) {
+	userPaths = [];
+}
 
 var sysKeyPath = "HKLM\\SYSTEM\\CurrentControlSet\\Control\\" + 
 	"Session Manager\\Environment\\PATH";

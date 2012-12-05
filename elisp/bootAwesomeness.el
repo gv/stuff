@@ -161,7 +161,7 @@
   "Major mode for editing documents in Wikipedia markup." t)
 
 ;; for ViewSourceWith Firefox extension
-(add-to-list 'auto-mode-alist '("index.\\.*" . wikipedia-mode))
+;;(add-to-list 'auto-mode-alist '("index.\\.*" . wikipedia-mode))
 
 (load "../ltags/ties/question")
 ;(global-set-key [M-up] 'question-here)

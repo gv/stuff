@@ -6,6 +6,13 @@ function print(x) {
 	WScript.Echo(x);
 }
 
+function changeReg(kp, val) {
+	try { var old = sh.RegRead(kp); } catch(e) { old = e }
+	sh.RegWrite(kp, val, "REG_SZ");
+	print(kp + ": was " + old + ", set " + val);
+}
+
+
 var vsSuffixes = "ncb|suo";
 if(WScript.Arguments.Named.Exists("open")) {
 	var path = WScript.Arguments.Unnamed.Item(0);
@@ -21,10 +28,12 @@ if(WScript.FullName.match(new RegExp('wscript', 'i'))) {
 print("SETTING FILE ASSOCIATIONS");
 
 var sxs = vsSuffixes.split("|"), s;
+var cmd = "wscript " + WScript.ScriptFullName + " /open %1";
 while(s = sxs.shift()) {
-	var t = sh.RegRead("HKCR\\." + s + "\\");
+	try { var t = sh.RegRead("HKCR\\." + s + "\\"); } catch(e) {continue};
+	if(!t)
+		continue;
 	var cp = "HKCR\\" + t + "\\shell\\open\\command\\";
-	var cmd = "wscript " + WScript.ScriptFullName + " /open %1";
 	print("Setting " + cp + " to " + cmd);
 	sh.RegWrite(cp, cmd, "REG_SZ");
 }
@@ -92,12 +101,15 @@ print("Enabling quick edit in console...");
 
 sh.Run("REG.EXE add HKCU\\Console /v QuickEdit /t REG_DWORD /d 1 /f");
 
+/*print("Setting default kb to en-us...");
+
+changeReg("HKEY_CURRENT_USER\\keyboard layout\\preload\\1", 
+	"00000409" || "00002009"); 
+changeReg("HKEY_CURRENT_USER\\keyboard layout\\preload\\2", "00000419" || 
+"00010C1A");*/
+
 /*
 	APPLICATIONS
 */
 
-var kp = "HKCU\\Environment\\NODE_DISABLE_COLORS";
-try { var old = sh.RegRead(kp); } catch(e) { old = e }
-var val = 1;
-sh.RegWrite(kp, val, "REG_SZ");
-print(kp + ": was " + old + ", set " + val);
+changeReg("HKCU\\Environment\\NODE_DISABLE_COLORS", 1);
