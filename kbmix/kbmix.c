@@ -99,7 +99,7 @@ handleEveryWindowMessage(HWND w, UINT m, WPARAM wParam,	LPARAM lParam) {
 		
 	case WM_HOTKEY:
 		adjustVolume(wParam);
-		sprintf(uiMsg, "Volume: %d%%", volume.dwValue / (MAX_VOLUME/100));
+		sprintf(uiMsg, " Volume: %d%% ", volume.dwValue / (MAX_VOLUME/100));
 		showUi(1);
 		return 0;
 
@@ -115,6 +115,7 @@ HWND hiddenParentWindow;
 int startUi() {
 	WNDCLASS wc;
 	RECT r;
+	char keyList[100] = "";
 
 	wc.style         = 0;
 	wc.lpfnWndProc   = handleEveryWindowMessage;
@@ -134,8 +135,7 @@ int startUi() {
 	hiddenParentWindow = CreateWindow(_T("kbmixWindowClass"), 
 		"Keyboard-mix user interface hidden parent window", 
 		WS_POPUP | WS_BORDER,
-		r.right - 210, r.bottom - 35, 200, 20, 
-		NULL, NULL, GetModuleHandle(0), NULL);
+		0, 0, 0, 0, NULL, NULL, GetModuleHandle(0), NULL);
 	if (!hiddenParentWindow) {
 		debug("no window");
 		goto fail;
@@ -150,26 +150,29 @@ int startUi() {
 		goto fail;
 	}
 
-	if(!RegisterHotKey(w, KBMIX_LOUDER, MOD_WIN, VK_OEM_PLUS)) {
-		fprintf(stderr, "No hotkey\n");
-		goto fail;
+	if(RegisterHotKey(w, KBMIX_LOUDER, MOD_WIN, VK_PRIOR)) {
+		strcat(keyList, ", Win+PgUp");
 	}
 
-	if(!RegisterHotKey(w, KBMIX_LOUDER, MOD_WIN, VK_ADD)) {
-		fprintf(stderr, "No hotkey\n");
-		goto fail;
+	if(RegisterHotKey(w, KBMIX_QUIETER, MOD_WIN, VK_NEXT)) {
+		strcat(keyList, ", Win+PgDn");
 	}
 
-	if(!RegisterHotKey(w, KBMIX_QUIETER, MOD_WIN, VK_OEM_MINUS)) {
-		fprintf(stderr, "No hotkey\n");
-		goto fail;
+	if(RegisterHotKey(w, KBMIX_LOUDER, MOD_WIN, VK_ADD)) {
+		strcat(keyList, ", Win+Num'+'");
 	}
 
-	if(!RegisterHotKey(w, KBMIX_QUIETER, MOD_WIN, VK_SUBTRACT)) {
-		fprintf(stderr, "No hotkey\n");
-		goto fail;
+	if(RegisterHotKey(w, KBMIX_QUIETER, MOD_WIN, VK_SUBTRACT)) {
+		strcat(keyList, ", Win+Num'-'");
 	}
 
+	if(!strlen(keyList)) {
+		debug("no hotkeys at all");
+		goto fail;
+	}
+	
+	sprintf(uiMsg, "press: %s", keyList + 2);
+	showUi(1);
 
 	return 0;
 
@@ -187,9 +190,8 @@ int doUi() {
 	return 0;
 }
 	
-	
-
-int main() {
+int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine,
+  int nCmdShow) {
 	MMRESULT r;
 	MIXERCAPS caps = {0};
 	MIXERLINE line;
@@ -242,9 +244,6 @@ int main() {
 	if(startUi())
 		return 1;
 	
-	sprintf(uiMsg, "kb volume control");
-	showUi(1);
-
 	return doUi();
 }
 
