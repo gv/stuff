@@ -4,11 +4,59 @@
 #include <stdio.h>
 #include <tchar.h>
 
+#include "last.h"
+
 wchar_t path[] = L"D:\\";
 HANDLE dir;
 DWORD resultSize;
 char buf[4096];
 HANDLE over;
+
+struct Entry *top[STORE_SIZE];
+
+static struct Entry **find(const wchar_t *path, DWORD pathLen) {
+	struct Entry **e = top, *x;
+	int len = pathLen / sizeof (wchar_t);
+	
+	while(e < top + STORE_SIZE && *e) {
+		if(wcslen((*e)->path) == len) {
+			if(!wcsncmp((*e)->path, path, len))
+				break;
+		}
+		e++;
+	}
+
+	return e;
+}
+
+static void touch(const wchar_t *path, DWORD pathLen) {
+	struct Entry **e, *x;
+	int len = pathLen / sizeof (wchar_t);
+	
+	e = find(path, pathLen);
+
+	if(e >= top + STORE_SIZE) {
+		e--;
+		free(*e);
+		*e = NULL;
+	}
+
+	if(*e) {
+		x = *e;
+	} else {
+		x = (struct Entry*) malloc(sizeof(struct Entry));
+		if(!x)
+			abort();
+		memcpy(x->path, path, pathLen);
+		x->path[len] = 0;
+	}
+	
+	memmove(top + 1, top, (char*)e - (char*)top);
+	top[0] = x;
+
+	updateUi();
+}
+		
 
 VOID CALLBACK onChange(DWORD errCode,	DWORD dwNumberOfBytesTransfered,				
 	LPOVERLAPPED ov) {
@@ -74,10 +122,26 @@ int _tmain(int argc, TCHAR *argv[]) {
 		return 1;
 	}
 	
+	touch(L"<EMPTY>", 14);
+	
+	if(startUi()) {
+		fprintf(stderr, "no ui\n");
+		return 1;
+	}
+	
 	onChange(0, 0, &ov); 
 	do {
-		r = WaitForSingleObjectEx(over, INFINITE, TRUE);
-		
+		r = MsgWaitForMultipleObjects(1, &over, FALSE, INFINITE, QS_ALLINPUT);
+
+		if(WAIT_OBJECT_0 + 1 == r) {
+			MSG msg;
+			if (PeekMessage(&msg,  NULL, 0, 0, PM_REMOVE)){
+				TranslateMessage(&msg);
+				DispatchMessage(&msg);
+			} 
+			continue;
+		}
+			
 		if(WAIT_IO_COMPLETION == r)
 			continue;
 		

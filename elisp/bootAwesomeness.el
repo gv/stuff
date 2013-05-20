@@ -131,24 +131,24 @@
 ;;
 
 ;;Используем Windows 1251
-(set-language-environment "Russian")
+;(set-language-environment "Russian")
 ;(define-coding-system-alias 'windows-1251 'cp1251)
-(set-buffer-file-coding-system 'windows-1251-dos)
-(set-default-coding-systems 'windows-1251-dos)
-(set-terminal-coding-system 'windows-1251-dos)
-(set-selection-coding-system 'windows-1251-dos)
-(set-clipboard-coding-system 'windows-1251-dos)
+;(set-buffer-file-coding-system 'windows-1251-dos)
+;(set-default-coding-systems 'windows-1251-dos)
+;(set-terminal-coding-system 'windows-1251-dos)
+;(set-selection-coding-system 'windows-1251-dos)
+;(set-clipboard-coding-system 'windows-1251-dos)
 ;;
 ;; Использовать окружение UTF-8
-;;(set-language-environment 'UTF-8)
-;;(set-buffer-file-coding-system 'utf-8-dos)
-;;(set-default-coding-systems 'utf-8-dos)
-;;(set-terminal-coding-system 'utf-8-dos)
-;;(set-selection-coding-system 'utf-8-dos)
-;(prefer-coding-system 'cp866-dos)
-;(prefer-coding-system 'koi8-r-dos)
-;(prefer-coding-system 'utf-8-dos)
+(set-language-environment 'UTF-8)
+(set-buffer-file-coding-system 'utf-8-dos)
+(set-default-coding-systems 'utf-8-dos)
+(set-terminal-coding-system 'utf-8-dos)
+(set-selection-coding-system 'utf-8-dos)
+(prefer-coding-system 'koi8-r-dos)
+(prefer-coding-system 'cp866-dos)
 (prefer-coding-system 'windows-1251-dos)
+(prefer-coding-system 'utf-8-dos)
 
 ;; 
 ;;     PROGRAMMING
@@ -172,8 +172,8 @@
 (global-set-key [M-.] 'question-eponimous)
 
 (defun vg-tune-c ()
-  (setq c-basic-offset 2
-		tab-width 2
+  (setq c-basic-offset 4
+		tab-width 4
 		indent-tabs-mode t
 		case-fold-search nil
 		case-replace nil)

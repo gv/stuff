@@ -97,10 +97,6 @@ print("Enabling remote desktop access...");
 sh.RegWrite("HKLM\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server\\" + 
 	"fDenyTSConnections", 0, "REG_DWORD");
 
-print("Enabling quick edit in console...");
-
-sh.Run("REG.EXE add HKCU\\Console /v QuickEdit /t REG_DWORD /d 1 /f");
-
 /*print("Setting default kb to en-us...");
 
 changeReg("HKEY_CURRENT_USER\\keyboard layout\\preload\\1", 
@@ -113,3 +109,5 @@ changeReg("HKEY_CURRENT_USER\\keyboard layout\\preload\\2", "00000419" ||
 */
 
 changeReg("HKCU\\Environment\\NODE_DISABLE_COLORS", 1);
+changeReg("HKCU\\Environment\\_NT_SYMBOL_PATH", 
+	"srv*d:\\cache\\perf*http://msdl.microsoft.com/download/symbols");
