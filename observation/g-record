@@ -1,0 +1,2 @@
+#!/bin/bash
+perf record -a --no-delay -e syscalls:sys_enter_open -e syscalls:sys_enter_openat
