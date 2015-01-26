@@ -254,7 +254,7 @@
 (load "haskell-mode-2.8.0/haskell-site-file")
 (add-hook 'haskell-mode-hook 'turn-on-haskell-indentation)
 
-
+(setenv "GREP_OPTIONS" "--recursive --binary-files=without-match")
 ;;
 (message "init.el by vg loaded OK.")
 
