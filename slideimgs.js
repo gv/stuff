@@ -144,26 +144,6 @@ SlideableImageWindow.prototype.indicate = function(s) {
 	this.ind.innerHTML = this.indShadow.innerHTML = s;
 };
 
-imgPathPattern = new RegExp("\\.(gif|jpg|png)$", "i");
-
-try {
-	var links = document.getElementsByTagName('A'), imgLinks = [];
-	for(var i = 0; i < links.length; i++) 
-		if(links[i].href.match(imgPathPattern))
-			imgLinks.push(links[i]);
-	
-	if(imgLinks.length) {
-		var place = document.body.insertBefore(
-			document.createElement('DIV'), document.body.firstChild);
-		var s = place.style;
-		s.border = '2px solid #464646';
-		new SlideableImageWindow(place, imgLinks);
-	}
-} catch(e) {
-	alert(e);
-}
-	
-
 function cancel(e){
 	if(window.event)
 		e=window.event;
@@ -175,6 +155,71 @@ function cancel(e){
 		e.cancelBubble=true;
 	}
 }
+
+imgPathPattern = new RegExp("\\.(gif|jpg|png)$", "i");
+
+try {
+	var links = document.getElementsByTagName('A'), imgLinks = [];
+	for(var i = 0; i < links.length; i++) 
+		if(links[i].href.match(imgPathPattern))
+			imgLinks.push(links[i]);
+	
+	if(imgLinks.length) {
+		var starter = document.body.insertBefore(
+			document.createElement('a'), document.body.firstChild);
+		starter.innerHTML = "browse";
+		starter.position = 'absolute';
+		starter.right = 10;
+
+		starter.onclick = function() {
+			var p = document.body.insertBefore(
+				document.createElement('DIV'), document.body.firstChild);
+			var s = p.style;
+			s.border = '2px solid #464646';
+			var w = new SlideableImageWindow(p, imgLinks);
+			starter.onclick = null;
+
+			var next = document.body.insertBefore(document.createElement('div'), 
+				null);
+			var prev = document.body.insertBefore(document.createElement('div'),
+				null);
+			next.style.position = prev.style.position = 'absolute';
+			next.style.right = prev.style.right = 0
+			next.style.top = "20px";
+			prev.style.top = "80px";
+
+			next.style.cursor = prev.style.cursor = "pointer";
+			next.style.background = prev.style.background = "#d88";
+			next.style.padding = prev.style.padding = "20px";
+			next.innerHTML = "next";
+			prev.innerHTML = "prev";
+
+			next.onclick = function() {
+				w.currentIndex++;
+				w.snap();
+			};
+
+			prev.onclick = function() {
+				w.currentIndex--;
+				w.snap();
+			};
+			
+			document.onkeydown = function(e) {
+				var keycode;
+				if (window.event) keycode = window.event.keyCode;
+				else if (e) keycode = e.which;
+				
+				if(keycode == 39)
+					return next.onclick();
+				if(keycode == 37)
+					return prev.onclick();
+			};
+		}
+	}
+} catch(e) {
+	alert(e);
+}
+	
 
 	
 
