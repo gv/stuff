@@ -16,8 +16,11 @@ else
 
 if(haveUac() && !WScript.Arguments.Named.Exists("didelevate")) {
 	var face = new ActiveXObject("Shell.Application");
-	var command = quote(WScript.ScriptFullName) + " /didelevate " + mode;
-	face.ShellExecute("wscript", command, "", "runas", 1);
+	var command = ["/k", 
+		"cscript", quote(WScript.ScriptFullName),  "/didelevate",  mode, "&", 
+		"w32tm /resync"
+	];
+	face.ShellExecute("cmd", command.join(" "), "", "runas", 1);
 	WScript.Quit(0);
 }
 
