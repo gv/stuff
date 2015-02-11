@@ -236,5 +236,7 @@
 
 (setenv "GREP_OPTIONS" "--recursive --binary-files=without-match")
 
+(setq dabbrev-case-fold-search nil)
+
 (message "init.el by vg loaded OK.")
 
