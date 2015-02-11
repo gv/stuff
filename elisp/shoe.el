@@ -30,12 +30,12 @@
 ;;
 (setq
    backup-by-copying t      ; don't clobber symlinks
-   backup-directory-alist
-    '(("." . "~/backup"))    ; don't litter my fs tree
+   backup-directory-alist '(("." . "~/backup"))    ; don't litter my fs tree
    delete-old-versions t
    kept-new-versions 6
    kept-old-versions 2
    version-control t)       ; use versioned backups
+
 ;;
 ;;мышка...
 ;;
@@ -106,7 +106,6 @@
 ;;
 
 (setq-default tab-width 4)
-
 (setq font-lock-maximum-decoration t)
 (global-font-lock-mode 1) ; for syntax highlighting
 
@@ -163,13 +162,13 @@
 ;; for ViewSourceWith Firefox extension
 ;;(add-to-list 'auto-mode-alist '("index.\\.*" . wikipedia-mode))
 
-(load "../ltags/ties/question")
+;(load "../ltags/ties/question")
 ;(global-set-key [M-up] 'question-here)
 ;(global-set-key (kbd "ESC <up>") 'question-here)
 (global-set-key [M-up] 'previous-error)
 (global-set-key (kbd "ESC <up>") 'previous-error)
 (global-set-key [M-down] 'next-error)
-(global-set-key [M-.] 'question-eponimous)
+;(global-set-key [M-.] 'question-eponimous)
 
 (defun vg-tune-c ()
   (setq c-basic-offset 4
@@ -181,14 +180,12 @@
   (c-set-offset 'arglist-cont-nonempty '+)
   (c-set-offset 'arglist-close 0)
   (setq js-indent-level 2)
-  (local-set-key [M-.] 'question-eponimous)
+  ;(local-set-key [M-.] 'question-eponimous)
   ;(local-set-key [M-up] 'question-here)
   )
 
 (add-hook 'c-mode-common-hook 'vg-tune-c)
 (add-hook 'js-mode-hook 'vg-tune-c)
-
-(fset 'find-tag 'question-eponimous)
 
 (add-hook 'python-mode-hook 
 		  '(lambda ()
@@ -202,31 +199,14 @@
 	(global-set-key (kbd "M-[") 'gtags-find-rtag)
 )
 
-;(global-set-key [M-left] 'gtags-pop-stack)
-;(global-set-key (kbd "ESC <left>") 'gtags-pop-stack)
-
 ; Set file types.
 (add-to-list 'auto-mode-alist '("\\.ks\\'" . java-mode))
 (add-to-list 'auto-mode-alist '("\\.cs\\'" . java-mode))
 (add-to-list 'auto-mode-alist '("\\.h\\'" . c++-mode))
-;(setq javascript-mode 'java-mode)
 (add-to-list 'auto-mode-alist '("\\.js\\'" . java-mode))
 (make-face-bold 'font-lock-keyword-face)
 (make-face-italic 'font-lock-string-face)
 
-;;
-; because javascript-mode still doesn't work
-;(font-lock-add-keywords 'java-mode '("\\<\\(function)\\>"))
-         
-;(defvar js-font-lock-keywords
-  ;'(;("\\<\\(function\\|constructor\\|prototype\\)\\>" . font-lock-keyword-face)
-;	("\\<\\(four\\|five\\|six\\)\\>" . font-lock-type-face))
-;  "Default expressions to highlight in Foo mode.")
-
-;(add-hook 'java-mode-hook
-;		  (lambda ()
-;			(set (make-local-variable 'font-lock-defaults)
-;				 '(js-font-lock-keywords t))))
 
 
 (defun utf () "Reload this buffer as utf-8" (interactive) 
@@ -255,6 +235,6 @@
 (add-hook 'haskell-mode-hook 'turn-on-haskell-indentation)
 
 (setenv "GREP_OPTIONS" "--recursive --binary-files=without-match")
-;;
+
 (message "init.el by vg loaded OK.")
 
