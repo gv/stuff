@@ -7,10 +7,11 @@
 	"#89b6e2", "#46a4ff", "#cccccc", "#ffffff"
 	);
 
-open(H, ">", "temp-resources");
+$path = "temp-resources";
+open(H, ">", $path)  || die "$0: can't open $path for reading: $!";
 
-print(H "xterm*faceName: Liberation Mono:size=10:antialias=false\n");
-print(H "xterm*font: 7x13");
+print(H "xterm*faceName: Liberation Mono:size=9:antialias=false\n");
+# print(H "xterm*font: 7x12");
 
 $i = 0;
 while($i < 16) {

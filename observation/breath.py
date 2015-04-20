@@ -46,7 +46,6 @@ def trace_end():
 	print "in trace_end"
 
 def need(comm):
-				return "smbd" == comm
 				if "perf" == comm: return False
 				return True
 				

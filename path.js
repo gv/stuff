@@ -5,16 +5,57 @@ function print(x) {
 	WScript.Echo(x);
 }
 
-var needAdd = WScript.Arguments.Named.Exists("add");
-if(!needAdd) {
-	var needDelete = WScript.Arguments.Named.Exists("del");
+function changeReg(kp, val, type) {
+	try { var old = sh.RegRead(kp); } catch(e) { old = e }
+	sh.RegWrite(kp, val, type || "REG_SZ");
+	print(kp + ": was " + old + ", set " + val);
+}
+
+function quote(s) { return '"' + s + '"' }
+
+function haveUac() {
+	var v = WScript.Version.split(".");
+	return +v[0] >=5 && +v[1] > 6;
+}
+
+var mode = "";
+if(WScript.Arguments.Named.Exists("add") || WScript.Arguments.Unnamed.length)
+	mode += "add";
+if(WScript.Arguments.Named.Exists("del"))
+	mode += "del";
+
+if(mode.length > 3) {
+	WScript.Echo("usage : paths.js [/add | /del] dir");
+	WScript.Quit(1);
+}
+
+if(haveUac() && !WScript.Arguments.Named.Exists("didelevate")) {
+	var face = new ActiveXObject("Shell.Application");
+	var command = quote(WScript.ScriptFullName) + " /didelevate /" + mode;
+	for(var i = 0; i < WScript.Arguments.Unnamed.length; i++) {
+		command += ' "' + WScript.Arguments.Unnamed.Item(i) + '"';
+	}
+	face.ShellExecute("cscript", command, "", "runas", 1);
+	WScript.Quit(1);
+}
+
+// get a console
+var sh = new ActiveXObject('WScript.Shell');
+if(WScript.FullName.match(new RegExp('wscript', 'i'))) {
+  var cmdLine = 'cscript /nologo /' + mode + ' ' + 
+	  WScript.ScriptFullName + ' & pause';
+	for(var i = 0; i < WScript.Arguments.Unnamed.length; i++) {
+		cmdLine += ' "' + WScript.Arguments.Unnamed.Item(i) + '"';
+	}
+  sh.Run(cmdLine);
+  WScript.Quit();
 }
 
 var desktopKeyPath = 
-		"HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows\\currentversion\\app paths";
+	"HKLM\\Software\\Microsoft\\Windows\\currentversion\\app paths";
 
 if(WScript.Arguments.Named.Exists("a")) {
-	sh.Run("cmd /k reg query \"" + desktopKeyPath + "\" /s|less && exit");
+	sh.Run("cmd /k reg query \"" + desktopKeyPath + "\" /s|more && exit");
 	WScript.Quit();
 }
 
@@ -45,7 +86,7 @@ for(var i in userPaths)
 	print("USR " + userPaths[i]);
 print("");
 
-if(needAdd) {
+if("add" == mode) {
 	for(var j = 0; j < WScript.Arguments.Unnamed.length; j++) {
 		var p = WScript.Arguments.Unnamed.Item(j);
 		userPaths.push(p);
@@ -71,8 +112,9 @@ var used = {};
 function filterPaths(paths) {
 	var newPaths = [];
 	for(var i in paths) {
-		//print("");
 		var dirPath = paths[i];
+		if(dirPath == "")
+			continue;
 		dirPath = sh.ExpandEnvironmentStrings(dirPath);
 		dirPath = dirPath.toLowerCase();
 		dirPath = dirPath.replace(new RegExp("\\\\+$", "g"), "");
@@ -89,7 +131,7 @@ function filterPaths(paths) {
 			continue;
 		}
 
-		if(needDelete) {
+		if("del" == mode) {
 			for(var j = 0; j < WScript.Arguments.Unnamed.length; j++) {
 				var p = WScript.Arguments.Unnamed.Item(j);
 				if(dirPath == p.toLowerCase()) 
@@ -111,6 +153,31 @@ function filterPaths(paths) {
 
 var newSysPaths = filterPaths(sysPaths);
 var newUserPaths = filterPaths(userPaths);
-	
-sh.RegWrite(sysKeyPath, newSysPaths.join(";"), "REG_EXPAND_SZ");
-sh.RegWrite(userKeyPath, newUserPaths.join(";"), "REG_EXPAND_SZ");
+
+if(sysPaths + ""  != newSysPaths + "")
+	changeReg(sysKeyPath, newSysPaths.join(";"), "REG_EXPAND_SZ");
+if(userPaths + "" != newUserPaths + "")
+	changeReg(userKeyPath, newUserPaths.join(";"), "REG_EXPAND_SZ");
+
+function updateEnv() {
+	/*
+	sh.Run("control");
+	sh.AppActivate("Control Panel");
+	WScript.Sleep(200);
+	sh.SendKeys("^w");
+
+	sh.Run("control");
+	sh.AppActivate("Control Panel");
+	WScript.Sleep(1000);
+	var groups = ("environment,{Down},{Down},{Enter}").split(","), g;
+	while(g = groups.shift()) {
+		sh.SendKeys(g);
+		WScript.Sleep(300);
+	}
+	*/
+
+	sh.Run("C:\\Windows\\system32\\rundll32.exe " + 
+		"sysdm.cpl,EditEnvironmentVariables");
+}
+
+updateEnv();

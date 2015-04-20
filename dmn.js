@@ -18,6 +18,7 @@ if(haveUac() && !WScript.Arguments.Named.Exists("didelevate")) {
 	var face = new ActiveXObject("Shell.Application");
 	var command = ["/k", 
 		"cscript", quote(WScript.ScriptFullName),  "/didelevate",  mode, "&", 
+		"net start w32time &", 
 		"w32tm /resync"
 	];
 	face.ShellExecute("cmd", command.join(" "), "", "runas", 1);
