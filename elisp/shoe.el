@@ -59,9 +59,9 @@
 ;;Home and End move to beginning and end of line
 ;;C-Home and C-End move to beginning and end of buffer.
 ;;C-Escape does list-buffers." 
-(pc-bindings-mode)
+(if (fboundp 'pc-bindings-mode) (pc-bindings-mode))
 ;;Настройка выделения "как в Windows"
-(pc-selection-mode)
+(if (fboundp 'pc-selection-mode) (pc-selection-mode))
 ;(delete-selection-mode nil)
 ;;
 ;;Установка режима CUA
