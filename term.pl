@@ -6,15 +6,23 @@ while($i < 16) {
 	$colors[$i] = sprintf("#%06X", int(rand(0x1000000)));
 	$i++;
 }
-@colors = sort @colors;
+
+@colors = sort {
+#	$aa = ord(substr($a, -2)) + ord(substr($a, -4)) + ord(substr($a, -6));
+#	$bb = ord(substr($b, -2)) + ord(substr($b, -4)) + ord(substr($b, -6));
+
+	$aa = hex(substr($a, -2)) + hex(substr($a, -4, 2)) + hex(substr($a, -6, 2));
+	$bb = hex(substr($b, -2)) + hex(substr($b, -4, 2)) + hex(substr($b, -6, 2));
+	return $aa <=> $bb;
+} @colors;
 
 $path = "temp-resources";
 open(H, ">", $path)  || die "$0: can't open $path for writing: $!";
 
 print(H "xterm*faceName: Liberation Mono:size=9:antialias=false\n");
-print(H "xterm*vt100*geometry: 80x50\n");
+print(H "xterm*vt100*geometry: 80x30\n");
 
-if(rand(2) > 0) {
+if(rand(2) > 1) {
 	@colors = reverse @colors;
 }
 
