@@ -220,9 +220,9 @@
   (let ((coding-system-for-read 'windows-1251-dos))
     (revert-buffer nil t t)))
 
-;;установка цветов экрана
-;;(set-background-color "black")
-;;(set-foreground-color "white")
+(defun wb () "White on black" (interactive)
+  (set-background-color "black")
+  (set-foreground-color "white"))
 
 (defun bw () "Black on white" (interactive) 
   (set-background-color "white")
@@ -240,6 +240,7 @@
 (setenv "GREP_OPTIONS" "--recursive --binary-files=without-match")
 
 (setq dabbrev-case-fold-search nil)
+(setq revert-without-query '(".*"))
 
 (message "init.el by vg loaded OK.")
 
