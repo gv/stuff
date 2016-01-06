@@ -1,30 +1,44 @@
 #!/usr/bin/perl -w
 
-@colors = (
-	"#000000", "#555753", "#ff6565", "#ff8d8d", 
-	"#93d44f", "#c8e7a8", "#eab93d", "#ffc123",
-	"#204a87", "#3465a4", "#ce5c00", "#f57900",
-	"#89b6e2", "#46a4ff", "#cccccc", "#ffffff"
-	);
-
-$path = "temp-resources";
-open(H, ">", $path)  || die "$0: can't open $path for reading: $!";
-
-print(H "xterm*faceName: Liberation Mono:size=9:antialias=false\n");
-# print(H "xterm*font: 7x12");
-
+@colors = ();
 $i = 0;
 while($i < 16) {
-	$j = $i + int(rand(16 - $i));
-	$c = $colors[$j];
-	print(H "xterm*color${i}: $c\n");
-	$colors[$j] = $colors[$i];
-	$colors[$i] = $c;
+	$colors[$i] = sprintf("#%06X", int(rand(0x1000000)));
 	$i++;
 }
 
-print(H "xterm*background: $colors[0]\n");
-print(H "xterm*foreground: $colors[7]\n");
+@colors = sort {
+#	$aa = ord(substr($a, -2)) + ord(substr($a, -4)) + ord(substr($a, -6));
+#	$bb = ord(substr($b, -2)) + ord(substr($b, -4)) + ord(substr($b, -6));
+
+	$aa = hex(substr($a, -2)) + hex(substr($a, -4, 2)) + hex(substr($a, -6, 2));
+	$bb = hex(substr($b, -2)) + hex(substr($b, -4, 2)) + hex(substr($b, -6, 2));
+	return $aa <=> $bb;
+} @colors;
+
+$path = "temp-resources";
+open(H, ">", $path)  || die "$0: can't open $path for writing: $!";
+
+print(H "xterm*faceName: Liberation Mono:size=9:antialias=false\n");
+print(H "xterm*vt100*geometry: 80x30\n");
+
+if(rand(2) > 1) {
+	@colors = reverse @colors;
+}
+
+$i = 0;
+while($i < 16) {
+	$c = $colors[$i];
+
+	print(H "xterm*color${i}: $c\n");
+	if($i == 0) {
+		print(H "xterm*background: $c\n");
+	} 
+	if($i == 15) {
+		print(H "xterm*foreground: $c\n");
+	}
+	$i++;
+}
 
 system("xrdb temp-resources");
 exec("xterm");
