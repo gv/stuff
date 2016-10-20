@@ -1,3 +1,5 @@
+;; Eval before cursor is C-x C-e
+
 (message "Trying to load init.el by vg...")
 
 ;;
@@ -182,12 +184,14 @@
   (c-set-offset 'arglist-intro '+)
   (c-set-offset 'arglist-cont-nonempty '+)
   (c-set-offset 'arglist-close 0)
-  (setq js-indent-level 2)
+  ;(setq js-indent-level 2)
   ;(local-set-key [M-.] 'question-eponimous)
   ;(local-set-key [M-up] 'question-here)
   )
 
 (add-hook 'c-mode-common-hook 'vg-tune-c)
+(add-hook 'js-mode-hook 'vg-tune-c)
+(add-hook 'javascript-mode-hook 'vg-tune-c)
 (add-hook 'js-mode-hook 'vg-tune-c)
 
 (add-hook 'python-mode-hook 
@@ -241,6 +245,9 @@
 
 (setq dabbrev-case-fold-search nil)
 (setq revert-without-query '(".*"))
+
+;(defun get-t1 (other-buffer) t)
+;(setq dabbrev-friend-buffer-function 'get-t1)
 
 (message "init.el by vg loaded OK.")
 
