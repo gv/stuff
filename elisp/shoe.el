@@ -9,11 +9,11 @@
 
 (setq default-major-mode 'text-mode)
 (setq transient-mark-mode '1)
-;;загружается молча
+;;Р·Р°РіСЂСѓР¶Р°РµС‚СЃСЏ РјРѕР»С‡Р°
 (setq inhibit-startup-message t)
-;; Scratch buffer settings. Очищаем его.
+;; Scratch buffer settings. РћС‡РёС‰Р°РµРј РµРіРѕ.
 (setq initial-scratch-message nil)
-;;гладкий скроллинг с полями
+;;РіР»Р°РґРєРёР№ СЃРєСЂРѕР»Р»РёРЅРі СЃ РїРѕР»СЏРјРё
 (setq scroll-conservatively 100 scroll-preserve-screen-position 't
 	  scroll-margin 0)
 ;; show column & line numbers in status bar
@@ -28,7 +28,7 @@
 ; (kill-buffer "*Messages*")
 (recentf-mode 1); Recent files in menu
 ;;
-;;Создание резервных копий редактируемых файлов (Backup)
+;;РЎРѕР·РґР°РЅРёРµ СЂРµР·РµСЂРІРЅС‹С… РєРѕРїРёР№ СЂРµРґР°РєС‚РёСЂСѓРµРјС‹С… С„Р°Р№Р»РѕРІ (Backup)
 ;;
 (setq
    backup-by-copying t      ; don't clobber symlinks
@@ -42,18 +42,18 @@
 	  `((".*" ,temporary-file-directory t)))
 
 ;;
-;;мышка...
+;;РјС‹С€РєР°...
 ;;
 ;; Scroll Bar gets dragged by mouse butn 1
 (global-set-key [vertical-scroll-bar down-mouse-1] 'scroll-bar-drag)
 ;; Paste at point NOT at cursor
 (setq mouse-yank-at-point 't)
-;;колесо мышки
+;;РєРѕР»РµСЃРѕ РјС‹С€РєРё
 (mouse-wheel-mode 1)
 ;;
-;;Настройка поведения редактора "как в Windows"
+;;РќР°СЃС‚СЂРѕР№РєР° РїРѕРІРµРґРµРЅРёСЏ СЂРµРґР°РєС‚РѕСЂР° "РєР°Рє РІ Windows"
 ;;
-;;настройка клавиатуры как в Windows
+;;РЅР°СЃС‚СЂРѕР№РєР° РєР»Р°РІРёР°С‚СѓСЂС‹ РєР°Рє РІ Windows
 ;;
 ;;Delete (and its variants) delete forward instead of backward.
 ;;C-Backspace kills backward a word (as C-Delete normally would).
@@ -62,22 +62,22 @@
 ;;C-Home and C-End move to beginning and end of buffer.
 ;;C-Escape does list-buffers." 
 (if (fboundp 'pc-bindings-mode) (pc-bindings-mode))
-;;Настройка выделения "как в Windows"
+;;РќР°СЃС‚СЂРѕР№РєР° РІС‹РґРµР»РµРЅРёСЏ "РєР°Рє РІ Windows"
 (if (fboundp 'pc-selection-mode) (pc-selection-mode))
 ;(delete-selection-mode nil)
 ;;
-;;Установка режима CUA
-;;поддержка Ctr-c,v,x,d как в windows
+;;РЈСЃС‚Р°РЅРѕРІРєР° СЂРµР¶РёРјР° CUA
+;;РїРѕРґРґРµСЂР¶РєР° Ctr-c,v,x,d РєР°Рє РІ windows
 ;;
 (require 'cua-base)
 (cua-mode t)
-;;установка режимов работы курсора через CUA
+;;СѓСЃС‚Р°РЅРѕРІРєР° СЂРµР¶РёРјРѕРІ СЂР°Р±РѕС‚С‹ РєСѓСЂСЃРѕСЂР° С‡РµСЂРµР· CUA
 (setq cua-normal-cursor-color "black")
 (setq cua-overwrite-cursor-color "red")
 (setq cua-read-only-cursor-color "green") 
 ;; always end a file with a newline
 (setq require-final-newline t)
-(delete-selection-mode t) ; <del> удаляет выделенный текст
+(delete-selection-mode t) ; <del> СѓРґР°Р»СЏРµС‚ РІС‹РґРµР»РµРЅРЅС‹Р№ С‚РµРєСЃС‚
 
 ;;
 ;;     GENERAL KEYS
@@ -89,8 +89,8 @@
 (global-set-key [select] 'end-of-line)
 (global-set-key [\C-home] 'beginning-of-buffer)
 (global-set-key [\C-end] 'end-of-buffer)
-;;удаляем строку целиком
-;(setq kill-whole-line t) удаляет ОТ позиции курсора до конца строки
+;;СѓРґР°Р»СЏРµРј СЃС‚СЂРѕРєСѓ С†РµР»РёРєРѕРј
+;(setq kill-whole-line t) СѓРґР°Р»СЏРµС‚ РћРў РїРѕР·РёС†РёРё РєСѓСЂСЃРѕСЂР° РґРѕ РєРѕРЅС†Р° СЃС‚СЂРѕРєРё
 (global-set-key [(control y)] 
   '(lambda () 
      (interactive)
@@ -115,9 +115,9 @@
 (global-font-lock-mode 1) ; for syntax highlighting
 
 
-;; Выделение парных скобок
+;; Р’С‹РґРµР»РµРЅРёРµ РїР°СЂРЅС‹С… СЃРєРѕР±РѕРє
 (show-paren-mode 1)
-(setq show-paren-style 'expression);выделять все выражение в скобках
+(setq show-paren-style 'expression);РІС‹РґРµР»СЏС‚СЊ РІСЃРµ РІС‹СЂР°Р¶РµРЅРёРµ РІ СЃРєРѕР±РєР°С…
 (tool-bar-mode -1)
 (set-default-font 
  (if (equal window-system 'x)
@@ -130,11 +130,11 @@
 (blink-cursor-mode nil)
 
 ;; 
-;;    КОДИРОВКИ
+;;    РљРћР”РР РћР’РљР
 ;;    `````````
 ;;
 
-;;Используем Windows 1251
+;;РСЃРїРѕР»СЊР·СѓРµРј Windows 1251
 ;(set-language-environment "Russian")
 ;(define-coding-system-alias 'windows-1251 'cp1251)
 ;(set-buffer-file-coding-system 'windows-1251-dos)
@@ -143,7 +143,7 @@
 ;(set-selection-coding-system 'windows-1251-dos)
 ;(set-clipboard-coding-system 'windows-1251-dos)
 ;;
-;; Использовать окружение UTF-8
+;; РСЃРїРѕР»СЊР·РѕРІР°С‚СЊ РѕРєСЂСѓР¶РµРЅРёРµ UTF-8
 (set-language-environment 'UTF-8)
 (set-buffer-file-coding-system 'utf-8-dos)
 (set-default-coding-systems 'utf-8-dos)
@@ -159,7 +159,7 @@
 ;;     ```````````
 ;;
 
-; Загрузим другие программы 
+; Р—Р°РіСЂСѓР·РёРј РґСЂСѓРіРёРµ РїСЂРѕРіСЂР°РјРјС‹ 
 (autoload 'php-mode "php-mode.el" "XXX" t)
 (autoload 'wikipedia-mode "wikipedia-mode.el"
   "Major mode for editing documents in Wikipedia markup." t)
@@ -175,6 +175,10 @@
 (global-set-key [M-down] 'next-error)
 ;(global-set-key [M-.] 'question-eponimous)
 
+; Mac keys
+(global-set-key [C-p] 'dabbrev-expand)
+(global-set-key [end] 'end-of-line)
+
 (defun vg-tune-c ()
   (setq c-basic-offset 4
 		tab-width 4
@@ -184,7 +188,7 @@
   (c-set-offset 'arglist-intro '+)
   (c-set-offset 'arglist-cont-nonempty '+)
   (c-set-offset 'arglist-close 0)
-  ;(setq js-indent-level 2)
+  (setq js-indent-level 4)
   ;(local-set-key [M-.] 'question-eponimous)
   ;(local-set-key [M-up] 'question-here)
   )
@@ -193,6 +197,8 @@
 (add-hook 'js-mode-hook 'vg-tune-c)
 (add-hook 'javascript-mode-hook 'vg-tune-c)
 (add-hook 'js-mode-hook 'vg-tune-c)
+
+(defun my-javascript-mode-hook () (setq indent-tabs-mode t tab-width 4 js-indent-level 4)) (add-hook 'javascript-mode-hook 'my-javascript-mode-hook)
 
 (add-hook 'python-mode-hook 
 		  '(lambda ()

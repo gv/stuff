@@ -28,26 +28,25 @@ if(mode.length > 3) {
 	WScript.Echo("usage : paths.js [/add | /del] dir");
 	WScript.Quit(1);
 }
-
+/*
 if(haveUac() && !WScript.Arguments.Named.Exists("didelevate")) {
 	var face = new ActiveXObject("Shell.Application");
 	var command = quote(WScript.ScriptFullName) + " /didelevate /" + mode;
 	for(var i = 0; i < WScript.Arguments.Unnamed.length; i++) {
 		command += ' "' + WScript.Arguments.Unnamed.Item(i) + '"';
 	}
-	face.ShellExecute("cscript", command, "", "runas", 1);
+	face.ShellExecute("wscript", command, "", "runas", 1);
 	WScript.Quit(1);
 }
-
+*/
 // get a console
 var sh = new ActiveXObject('WScript.Shell');
 if(WScript.FullName.match(new RegExp('wscript', 'i'))) {
-  var cmdLine = 'cscript /nologo /' + mode + ' ' + 
-	  WScript.ScriptFullName + ' & pause';
+  var cmdLine = 'cscript /nologo /' + mode + ' ' + WScript.ScriptFullName;
 	for(var i = 0; i < WScript.Arguments.Unnamed.length; i++) {
 		cmdLine += ' "' + WScript.Arguments.Unnamed.Item(i) + '"';
 	}
-  sh.Run(cmdLine);
+  sh.Run(cmdLine + "& pause");
   WScript.Quit();
 }
 
@@ -78,13 +77,15 @@ var sysKeyPath = "HKLM\\SYSTEM\\CurrentControlSet\\Control\\" +
 	"Session Manager\\Environment\\PATH";
 var sysPaths = sh.RegRead(sysKeyPath).split(";");
 
+var message = "";
 for(var i in sysPaths)
-	print("SYS " + sysPaths[i]);
-print("");
+	message += ("SYS " + sysPaths[i]) + "\n";
+print(message);
 
+var message = "";
 for(var i in userPaths)
-	print("USR " + userPaths[i]);
-print("");
+	message += ("USR " + userPaths[i] + "\n");
+print(message);
 
 if("add" == mode) {
 	for(var j = 0; j < WScript.Arguments.Unnamed.length; j++) {
@@ -154,8 +155,14 @@ function filterPaths(paths) {
 var newSysPaths = filterPaths(sysPaths);
 var newUserPaths = filterPaths(userPaths);
 
-if(sysPaths + ""  != newSysPaths + "")
-	changeReg(sysKeyPath, newSysPaths.join(";"), "REG_EXPAND_SZ");
+
+if(sysPaths + ""  != newSysPaths + "") {
+	try { 
+		changeReg(sysKeyPath, newSysPaths.join(";"), "REG_EXPAND_SZ");
+	} catch(e) {
+		print("writing " + sysKeyPath + ": " + e);
+	}
+}
 if(userPaths + "" != newUserPaths + "")
 	changeReg(userKeyPath, newUserPaths.join(";"), "REG_EXPAND_SZ");
 

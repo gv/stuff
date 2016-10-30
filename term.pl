@@ -19,7 +19,7 @@ while($i < 16) {
 $path = "temp-resources";
 open(H, ">", $path)  || die "$0: can't open $path for writing: $!";
 
-print(H "xterm*faceName: Liberation Mono:size=9:antialias=false\n");
+print(H "xterm*faceName: Liberation Mono:size=8:antialias=false\n");
 print(H "xterm*vt100*geometry: 80x30\n");
 
 if(rand(2) > 1) {
