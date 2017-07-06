@@ -102,8 +102,37 @@
 (global-set-key [M-f4]  'save-buffers-kill-emacs)
 (global-set-key [C-f]  'isearch-forward)
 (global-set-key [M-f7]  'find-name-dired)
-(global-set-key [C-tab]  'other-window) 
+(global-set-key [C-tab]  'other-window)
 ;(global-set-key [M-left] 'pop-tag-mark)
+(global-set-key [S-k] 'kill-line)
+
+(global-set-key (kbd "A-k") 'kill-line)
+(global-set-key (kbd "A-/") 'dabbrev-expand)
+(global-set-key (kbd "A-'") 'other-window)
+;;(global-set-key [C-x] 'clipboard-kill-region)
+(global-set-key (kbd "C-v") 'cua-paste)
+(global-set-key [M-tab] 'other-window)
+;(load "../ltags/ties/question")
+;(global-set-key [M-up] 'question-here)
+;(global-set-key (kbd "ESC <up>") 'question-here)
+(global-set-key [M-up] 'previous-error)
+(global-set-key (kbd "ESC <up>") 'previous-error)
+(global-set-key [M-down] 'next-error)
+;(global-set-key [M-.] 'question-eponimous)
+(global-set-key (kbd "C-p") 'dabbrev-expand)
+(global-set-key (kbd "C-/") 'dabbrev-expand)
+
+(when (fboundp 'osx-key-mode)
+  (define-key osx-key-mode-map [(end)] 'end-of-line)
+  (define-key osx-key-mode-map [(home)] 'beginning-of-line)
+  (define-key osx-key-mode-map [M-up] 'backward-paragraph)
+  (define-key osx-key-mode-map [M-down] 'forward-paragraph)
+  (define-key osx-key-mode-map `[(,osxkeys-command-key up)] 'previous-error)
+  (define-key osx-key-mode-map `[(,osxkeys-command-key down)] 'next-error)
+  (define-key osx-key-mode-map `[(meta z)] 'aquamacs-undo)
+  (define-key osx-key-mode-map `[(meta c)] 'clipboard-kill-ring-save)
+  (define-key osx-key-mode-map `[(meta v)] 'cua-paste)
+  )
 
 ;;
 ;;    APPEARANCE
@@ -166,18 +195,6 @@
 
 ;; for ViewSourceWith Firefox extension
 ;;(add-to-list 'auto-mode-alist '("index.\\.*" . wikipedia-mode))
-
-;(load "../ltags/ties/question")
-;(global-set-key [M-up] 'question-here)
-;(global-set-key (kbd "ESC <up>") 'question-here)
-(global-set-key [M-up] 'previous-error)
-(global-set-key (kbd "ESC <up>") 'previous-error)
-(global-set-key [M-down] 'next-error)
-;(global-set-key [M-.] 'question-eponimous)
-
-; Mac keys
-(global-set-key [C-p] 'dabbrev-expand)
-(global-set-key [end] 'end-of-line)
 
 (defun vg-tune-c ()
   (setq c-basic-offset 4
