@@ -22,10 +22,6 @@
 ;; Start off in "C:/home" dir.
 (cd "~/")
 (setq my-author-name (getenv "USER") user-full-name (getenv "USER"))
-;; Shut off message buffer. Note - if you need to debug emacs,
-;; comment these out so you can see what's going on.
-; (setq message-log-max nil)
-; (kill-buffer "*Messages*")
 (recentf-mode 1); Recent files in menu
 ;;
 ;;Создание резервных копий редактируемых файлов (Backup)
@@ -106,6 +102,8 @@
 ;(global-set-key [M-left] 'pop-tag-mark)
 (global-set-key [S-k] 'kill-line)
 
+(global-set-key [A-end] 'end-of-buffer)
+(global-set-key [A-home] 'beginning-of-buffer)
 (global-set-key (kbd "A-k") 'kill-line)
 (global-set-key (kbd "A-/") 'dabbrev-expand)
 (global-set-key (kbd "A-'") 'other-window)
@@ -174,7 +172,7 @@
 ;;
 ;; Использовать окружение UTF-8
 (set-language-environment 'UTF-8)
-(set-buffer-file-coding-system 'utf-8-dos)
+(set-buffer-file-coding-system 'utf-8-unix)
 (set-default-coding-systems 'utf-8-dos)
 (set-terminal-coding-system 'utf-8-dos)
 (set-selection-coding-system 'utf-8-dos)
@@ -230,10 +228,11 @@
 )
 
 ; Set file types.
-(add-to-list 'auto-mode-alist '("\\.ks\\'" . java-mode))
+(add-to-list 'auto-mode-alist '("\\.ks\\'" . javascript-mode))
 (add-to-list 'auto-mode-alist '("\\.cs\\'" . java-mode))
 (add-to-list 'auto-mode-alist '("\\.h\\'" . c++-mode))
-(add-to-list 'auto-mode-alist '("\\.js\\'" . java-mode))
+(add-to-list 'auto-mode-alist '("\\.js\\'" . javascript-mode))
+(add-to-list 'auto-mode-alist '("\\.gyp\\'". javascript-mode))
 (make-face-bold 'font-lock-keyword-face)
 (make-face-italic 'font-lock-string-face)
 
@@ -260,12 +259,12 @@
 (fset 'yes-or-no-p 'y-or-n-p)
 (fset 'c 'compile)
 
-
 (load "haskell-mode-2.8.0/haskell-site-file")
 (add-hook 'haskell-mode-hook 'turn-on-haskell-indentation)
-
+(server-start)
+(setenv "EDITOR" "/Applications/Aquamacs.app/Contents/MacOS/bin/emacsclient")
 (setenv "GREP_OPTIONS" "--recursive --binary-files=without-match")
-
+(setenv "PAGER" "cat")
 (setq dabbrev-case-fold-search nil)
 (setq revert-without-query '(".*"))
 
