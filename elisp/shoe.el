@@ -267,7 +267,7 @@
 (setenv "PAGER" "cat")
 (setq dabbrev-case-fold-search nil)
 (setq revert-without-query '(".*"))
-
+(setq create-lockfiles nil)
 ;(defun get-t1 (other-buffer) t)
 ;(setq dabbrev-friend-buffer-function 'get-t1)
 
