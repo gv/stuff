@@ -211,9 +211,14 @@
 (add-hook 'c-mode-common-hook 'vg-tune-c)
 (add-hook 'js-mode-hook 'vg-tune-c)
 (add-hook 'javascript-mode-hook 'vg-tune-c)
-(add-hook 'js-mode-hook 'vg-tune-c)
 
-(defun my-javascript-mode-hook () (setq indent-tabs-mode t tab-width 4 js-indent-level 4)) (add-hook 'javascript-mode-hook 'my-javascript-mode-hook)
+(defun my-javascript-mode-hook ()
+  (setq indent-tabs-mode t tab-width 4 js-indent-level 4)
+  (modify-syntax-entry ?/ "\"")
+  (modify-syntax-entry ?` "\"")
+  (message "JS mode template strings enabled")
+  )
+(add-hook 'js-mode-hook 'my-javascript-mode-hook)
 
 (add-hook 'python-mode-hook 
 		  '(lambda ()
@@ -270,6 +275,9 @@
 (setq create-lockfiles nil)
 ;(defun get-t1 (other-buffer) t)
 ;(setq dabbrev-friend-buffer-function 'get-t1)
+;(setq mouse-wheel-scroll-amount '(1 ((shift) . 1)))
+;(setq mouse-wheel-progressive-speed 't)
+;(setq mouse-wheel-follow-mouse 't)
 
 (message "init.el by vg loaded OK.")
 
