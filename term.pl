@@ -40,5 +40,6 @@ while($i < 16) {
 	$i++;
 }
 
+print(H "xterm*selectToClipboard: true\n");
 system("xrdb temp-resources");
 exec("xterm");
