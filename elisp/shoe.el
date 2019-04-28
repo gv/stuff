@@ -214,7 +214,6 @@
 
 (defun my-javascript-mode-hook ()
   (setq indent-tabs-mode t tab-width 4 js-indent-level 4)
-  (modify-syntax-entry ?/ "\"")
   (modify-syntax-entry ?` "\"")
   (message "JS mode template strings enabled")
   )
@@ -273,11 +272,12 @@
 (setq dabbrev-case-fold-search nil)
 (setq revert-without-query '(".*"))
 (setq create-lockfiles nil)
-;(defun get-t1 (other-buffer) t)
-;(setq dabbrev-friend-buffer-function 'get-t1)
-;(setq mouse-wheel-scroll-amount '(1 ((shift) . 1)))
-;(setq mouse-wheel-progressive-speed 't)
-;(setq mouse-wheel-follow-mouse 't)
+(setq cperl-indent-level 2)
+;;(defun get-t1 (other-buffer) t)
+;;(setq dabbrev-friend-buffer-function 'get-t1)
+;;(setq mouse-wheel-scroll-amount '(1 ((shift) . 1)))
+;;(setq mouse-wheel-progressive-speed 't)
+;;(setq mouse-wheel-follow-mouse 't)
 
 (message "init.el by vg loaded OK.")
 
