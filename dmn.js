@@ -1,3 +1,9 @@
+/* 
+   A script to add the machine on which it runs to the PROGRAMMERS domain.
+   Damain name and admin username are hardcoded. If option /IN is given,
+   script tries to unjoin domain first
+*/
+
 function quote(s) { return '"' + s + '"' }
 
 function print(x) {	WScript.Echo(x) }
