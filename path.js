@@ -1,3 +1,7 @@
+/* 
+   Updates initial value for %PATH% environment variable in the registry.
+*/
+
 var sh = new ActiveXObject('WScript.Shell');
 var fs = new ActiveXObject("Scripting.FileSystemObject");
 
