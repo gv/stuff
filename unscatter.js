@@ -1,3 +1,10 @@
+/*
+  Uploads a directory to iPhone. Sets "Album" MP3 tag to a single value 
+  for all files in the folder. Sets up an Explorer context menu. Also can 
+  run mencoder on AVI files, convert them to MP4 and then put them on 
+  the iPhone.
+*/
+
 var needToPrintMencoderArgs = WScript.Arguments.Named.Exists('pma');
 if(needToPrintMencoderArgs) {
 	output = "";
