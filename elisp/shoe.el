@@ -302,7 +302,7 @@
 (load "haskell-mode-2.8.0/haskell-site-file")
 (add-hook 'haskell-mode-hook 'turn-on-haskell-indentation)
 (server-start)
-(setenv "EDITOR" "/Applications/Aquamacs.app/Contents/MacOS/bin/emacsclient")
+(setenv "EDITOR" "/Volumes/aux_apps/Aquamacs.app/Contents/MacOS/bin/emacsclient")
 (setenv "GREP_OPTIONS" "--recursive --binary-files=without-match")
 (setenv "PAGER" "cat")
 (setq dabbrev-case-fold-search nil)

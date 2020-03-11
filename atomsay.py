@@ -78,7 +78,7 @@ class Item:
 						m = name
 				else:
 						name = self.title
-						m = re.sub(r"[^\w]+", "_", name)[0:30]
+						m = re.sub(r"(?u)[^\w]+", "_", name)[0:30]
 				if not options.prefix and options.reverse:
 						# hex numbers don't get sorted right by Finder.app
 						prefix = "%s%012d" % (prefix, n)
@@ -305,7 +305,6 @@ if __name__ == '__main__':
 				"--contains", nargs=1, action="store", help="Substring")
 		parser.add_argument("INPUT", nargs="*")
 		args = parser.parse_args()
-		args.chrono = not args.recent or not args.reverse
 
 		d = Download(args)
 		try:
