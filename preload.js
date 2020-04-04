@@ -1,3 +1,7 @@
+/* 
+   Prints a list of preloaded DLLs in Windows
+*/
+
 var sh = new ActiveXObject('WScript.Shell');
 var fs = new ActiveXObject("Scripting.FileSystemObject");
 

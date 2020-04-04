@@ -119,6 +119,13 @@
 ;(global-set-key [M-.] 'question-eponimous)
 (global-set-key (kbd "C-p") 'dabbrev-expand)
 (global-set-key (kbd "C-/") 'dabbrev-expand)
+(global-set-key [A-M-down] 'ft-at-point)
+(global-set-key [A-M-S-down] 'ft-other-window-at-point)
+(global-set-key [A-C-M-down] 'ft-other-window-at-point)
+(global-set-key [A-M-next] 'ft-other-window-at-point)
+(global-set-key [A-M-up] 'pop-tag-mark)
+; [A-M-/] didn't work
+(global-set-key (kbd "A-M-/") 'ft-next)
 
 (when (fboundp 'osx-key-mode)
   (define-key osx-key-mode-map [(end)] 'end-of-line)
@@ -130,8 +137,22 @@
   (define-key osx-key-mode-map `[(meta z)] 'aquamacs-undo)
   (define-key osx-key-mode-map `[(meta c)] 'clipboard-kill-ring-save)
   (define-key osx-key-mode-map `[(meta v)] 'cua-paste)
+  (define-key osx-key-mode-map `[(,osxkeys-command-key i)] 'test)
   )
 
+(defun test () "Test" (interactive)
+	   (dabbrev--goto-start-of-abbrev)
+	   (message "dabbrev--goto-start-of-abbrev called")
+	   )
+
+(defun ft-at-point () "AKA go to def" (interactive)
+	   (find-tag (find-tag-default)))
+
+(defun ft-next () "Other def" (interactive)
+	   (find-tag () t))
+
+(defun ft-other-window-at-point () "Set other window to def" (interactive)
+	   (find-tag-other-window (find-tag-default)))
 ;;
 ;;    APPEARANCE
 ;;    ``````````
@@ -154,7 +175,7 @@
  )
 
 ;(set-cursor-color "red")
-(blink-cursor-mode nil)
+(blink-cursor-mode -10)
 
 ;; 
 ;;    КОДИРОВКИ
@@ -195,9 +216,9 @@
 ;;(add-to-list 'auto-mode-alist '("index.\\.*" . wikipedia-mode))
 
 (defun vg-tune-c ()
-  (setq c-basic-offset 4
+  (setq c-basic-offset 2
 		tab-width 4
-		indent-tabs-mode t
+		indent-tabs-mode nil
 		case-fold-search nil
 		case-replace nil)
   (c-set-offset 'arglist-intro '+)
@@ -226,6 +247,21 @@
 				   indent-tabs-mode t
 				   case-fold-search nil
 				   case-replace nil)))
+
+(defun tune-dabbrev ()
+  (set (make-local-variable 'dabbrev-abbrev-char-regexp) "[A-Za-z0-9_]")
+  (message "dabbrev-abbrev-char-regexp set to '%s'" dabbrev-abbrev-char-regexp))
+
+(add-hook 'org-mode-hook 'tune-dabbrev)
+(add-hook 'sh-mode-hook 'tune-dabbrev)
+(add-hook 'shell-mode-hook 'tune-dabbrev)
+
+; this is for grep to stop without confirmation when next grep is started
+(add-hook
+ 'compilation-start-hook
+ '(lambda (procname)
+	(set-process-query-on-exit-flag
+	 (get-buffer-process (current-buffer)) nil)))
 
 (if window-system
 	(global-set-key (kbd "M-[") 'gtags-find-rtag)

@@ -27,7 +27,6 @@ for(var en = new Enumerator(profilesDir.SubFolders);
 
 	
 
-/*
 print("IE: history");
 sh.Run("RunDll32.exe InetCpl.cpl,ClearMyTracksByProcess 1");
 print("IE: cache");
@@ -38,4 +37,3 @@ print("IE: passwords");
 sh.Run("RunDll32.exe InetCpl.cpl,ClearMyTracksByProcess 32");
 print("IE: forms");
 sh.Run("RunDll32.exe InetCpl.cpl,ClearMyTracksByProcess 16");
-*/

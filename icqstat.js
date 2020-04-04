@@ -1,3 +1,8 @@
+/*
+  A script to count word occurences in QIP messaging history. 
+  QIP is an old ICQ client.
+*/
+
 var DEBUG = false;
 var DEBUG = true;
 
