@@ -194,7 +194,7 @@
 ;; Использовать окружение UTF-8
 (set-language-environment 'UTF-8)
 (set-buffer-file-coding-system 'utf-8-unix)
-(set-default-coding-systems 'utf-8-dos)
+(set-default-coding-systems 'utf-8-unix)
 (set-terminal-coding-system 'utf-8-dos)
 (set-selection-coding-system 'utf-8-dos)
 (prefer-coding-system 'koi8-r-dos)
@@ -211,6 +211,8 @@
 (autoload 'php-mode "php-mode.el" "XXX" t)
 (autoload 'wikipedia-mode "wikipedia-mode.el"
   "Major mode for editing documents in Wikipedia markup." t)
+(autoload 'rust-mode "rust-mode.el"
+  "From https://github.com/rust-lang/rust-mode.git" t)
 
 ;; for ViewSourceWith Firefox extension
 ;;(add-to-list 'auto-mode-alist '("index.\\.*" . wikipedia-mode))
@@ -273,6 +275,7 @@
 (add-to-list 'auto-mode-alist '("\\.h\\'" . c++-mode))
 (add-to-list 'auto-mode-alist '("\\.js\\'" . javascript-mode))
 (add-to-list 'auto-mode-alist '("\\.gyp\\'". javascript-mode))
+(add-to-list 'auto-mode-alist '("\\.d\\'" . sh-mode))
 (make-face-bold 'font-lock-keyword-face)
 (make-face-italic 'font-lock-string-face)
 
