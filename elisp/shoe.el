@@ -213,6 +213,7 @@
   "Major mode for editing documents in Wikipedia markup." t)
 (autoload 'rust-mode "rust-mode.el"
   "From https://github.com/rust-lang/rust-mode.git" t)
+(setq rust-cargo-bin "/Users/vg/.cargo/bin/cargo")
 
 ;; for ViewSourceWith Firefox extension
 ;;(add-to-list 'auto-mode-alist '("index.\\.*" . wikipedia-mode))

@@ -181,6 +181,12 @@ class Feed:
 						if not work:
 								print("No items containing %s" % (s))
 								return
+
+				if self.options.podcast:
+						work = [t for t in work if t.getAudioUrl()]
+						if not work:
+								print("No podcast items")
+								return
 						
 				work = [
 						item for item in work
@@ -303,6 +309,8 @@ if __name__ == '__main__':
 				help="Don't convert title and date to speech")
 		parser.add_argument(
 				"--contains", nargs=1, action="store", help="Substring")
+		parser.add_argument(
+				"--podcast", action="store_true", help="Only those with an mp3 file")
 		parser.add_argument("INPUT", nargs="*")
 		args = parser.parse_args()
 
