@@ -246,7 +246,6 @@
 (add-hook 'python-mode-hook 
 		  '(lambda ()
 			 (setq c-basic-offset 2
-				   tab-width 2
 				   indent-tabs-mode t
 				   case-fold-search nil
 				   case-replace nil)))
