@@ -11,9 +11,8 @@
 (setq default-major-mode 'text-mode)
 (setq transient-mark-mode '1)
 ;;загружается молча
-(setq inhibit-startup-message t)
-;; Scratch buffer settings. Очищаем его.
-(setq initial-scratch-message nil)
+(setq inhibit-startup-message t initial-scratch-message nil)
+(tool-bar-mode -1)
 ;;гладкий скроллинг с полями
 (setq scroll-conservatively 100 scroll-preserve-screen-position 't
 	  scroll-margin 0)
@@ -86,8 +85,6 @@
 (global-set-key [select] 'end-of-line)
 (global-set-key [\C-home] 'beginning-of-buffer)
 (global-set-key [\C-end] 'end-of-buffer)
-;;удаляем строку целиком
-;(setq kill-whole-line t) удаляет ОТ позиции курсора до конца строки
 (global-set-key [(control y)] 
   '(lambda () 
      (interactive)
@@ -95,7 +92,6 @@
      (kill-line)))
 ;; setting some f[1-12] keys
 (global-set-key [f2]    'save-buffer)
-(global-set-key [f4]    'ispell-buffer)
 (global-set-key [M-f4]  'save-buffers-kill-emacs)
 (global-set-key [C-f]  'isearch-forward)
 (global-set-key [M-f7]  'find-name-dired)
@@ -141,11 +137,6 @@
   (define-key osx-key-mode-map `[(,osxkeys-command-key i)] 'test)
   )
 
-(defun test () "Test" (interactive)
-	   (dabbrev--goto-start-of-abbrev)
-	   (message "dabbrev--goto-start-of-abbrev called")
-	   )
-
 (defun ft-at-point () "AKA go to def" (interactive)
 	   (find-tag (find-tag-default)))
 
@@ -167,7 +158,6 @@
 ;; Выделение парных скобок
 (show-paren-mode 1)
 (setq show-paren-style 'expression);выделять все выражение в скобках
-(tool-bar-mode -1)
 (set-default-font 
  (if (equal window-system 'x)
     ; "Bitstream Vera Sans Mono-9"
@@ -215,6 +205,8 @@
 (autoload 'rust-mode "rust-mode.el"
   "From https://github.com/rust-lang/rust-mode.git" t)
 (setq rust-cargo-bin "/Users/vg/.cargo/bin/cargo")
+(autoload 'haskell-mode "haskell-mode-2.8.0/haskell-site-file" "HM" t)
+(add-hook 'haskell-mode-hook 'turn-on-haskell-indentation)
 
 ;; for ViewSourceWith Firefox extension
 ;;(add-to-list 'auto-mode-alist '("index.\\.*" . wikipedia-mode))
@@ -222,6 +214,7 @@
 (defun vg-tune-c ()
   (setq c-basic-offset 2
 		tab-width 4
+		js-indent-level 4
 		indent-tabs-mode nil
 		case-fold-search nil
 		tags-case-fold-search nil
@@ -229,11 +222,9 @@
   (c-set-offset 'arglist-intro '+)
   (c-set-offset 'arglist-cont-nonempty '+)
   (c-set-offset 'arglist-close 0)
-  (setq js-indent-level 4)
-  ;(local-set-key [M-.] 'question-eponimous)
-  ;(local-set-key [M-up] 'question-here)
+  (message
+   "C mode hook: tab-width=%d c-basic-offset=%d" tab-width c-basic-offset)
   )
-
 (add-hook 'c-mode-common-hook 'vg-tune-c)
 (add-hook 'js-mode-hook 'vg-tune-c)
 (add-hook 'javascript-mode-hook 'vg-tune-c)
@@ -282,7 +273,6 @@
 (make-face-italic 'font-lock-string-face)
 
 
-
 (defun utf () "Reload this buffer as utf-8" (interactive) 
   (let ((coding-system-for-read 'utf-8))
     (revert-buffer nil t t)))
@@ -304,8 +294,6 @@
 (fset 'yes-or-no-p 'y-or-n-p)
 (fset 'c 'compile)
 
-(load "haskell-mode-2.8.0/haskell-site-file")
-(add-hook 'haskell-mode-hook 'turn-on-haskell-indentation)
 (server-start)
 (setenv "EDITOR" "/Volumes/aux_apps/Aquamacs.app/Contents/MacOS/bin/emacsclient")
 (setenv "GREP_OPTIONS" "--recursive --binary-files=without-match")
