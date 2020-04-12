@@ -1,6 +1,7 @@
 ;; Eval before cursor is C-x C-e
 
 (message "Trying to load init.el by vg...")
+(setq force-load-messages t)
 
 ;;
 ;;     BEHAVIOR
@@ -223,6 +224,7 @@
 		tab-width 4
 		indent-tabs-mode nil
 		case-fold-search nil
+		tags-case-fold-search nil
 		case-replace nil)
   (c-set-offset 'arglist-intro '+)
   (c-set-offset 'arglist-cont-nonempty '+)
@@ -312,6 +314,7 @@
 (setq revert-without-query '(".*"))
 (setq create-lockfiles nil)
 (setq cperl-indent-level 2)
+(setq dired-listing-switches "-alh")
 ;;(defun get-t1 (other-buffer) t)
 ;;(setq dabbrev-friend-buffer-function 'get-t1)
 ;;(setq mouse-wheel-scroll-amount '(1 ((shift) . 1)))
