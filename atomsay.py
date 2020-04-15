@@ -15,8 +15,6 @@ import urlparse
 import shutil
 import sys
 
-out = os.path.join(os.path.dirname(__file__), "audio")
-
 def getText(n):
 	rc = []
 	for node in n.childNodes:
@@ -170,7 +168,7 @@ class Feed:
 		return self.getOutputPath(item, out, "." + 
 			os.path.basename(urlparse.urlparse(audio).path).split('.')[-1])
 
-	def run(self, out):
+	def run(self, outDirs):
 		work = self.items
 		if not work:
 			print("No items loaded")
@@ -188,17 +186,19 @@ class Feed:
 				print("No podcast items")
 				return
 			
-		work = [
-			item for item in work
-			if not os.path.isfile(self.getMainOutputPath(item, out))]
+		for out in outDirs:
+			work = [
+				item for item in work
+				if not os.path.isfile(self.getMainOutputPath(item, out))]
+				
 		self.count.work = len(work)
 
 		if 0 == len(work):
 			print "Every one of %d items is already present in %s" % (
-				len(self.items), out)
+				len(self.items), outDirs)
 		
 		try:
-			os.mkdir(out)
+			os.mkdir(outDirs[0])
 		except OSError, e:
 			if e.errno != 17:
 				raise e
@@ -207,7 +207,7 @@ class Feed:
 		for item in work:
 			print "%d / %d %s %s" % (
 				n, self.count.work, item.getName(self.options), item.title)
-			self.save(n, item, out)
+			self.save(n, item, outDirs[0])
 			n += 1
 
 	def hasStopWords(self, text):
@@ -256,8 +256,9 @@ class Feed:
 			return False
 		tf = open(self.getOutputPath(item, out, ".txt"), "w")
 		tf.write(text.encode("utf-8"))
-		c = subprocess.Popen(
-			["say", "-v", self.getVoice(text), "--output-file", p, "--progress"],
+		c = subprocess.Popen([
+			"say", "-v", self.getVoice(text), "--output-file", p,
+			"--progress"],
 			stdin=subprocess.PIPE)
 		c.stdin.write(text.encode("utf-8"))
 		c.stdin.close()
@@ -303,7 +304,7 @@ if __name__ == '__main__':
 	parser.add_argument(
 		"--prefix", nargs=1, action="store", help="Prefix")
 	parser.add_argument(
-		"--out", nargs=1, action="store", help="Storage directory")
+		"--out", action="append", help="Storage directory")
 	parser.add_argument(
 		"--textonly", action="store_true",
 		help="Don't convert title and date to speech")
@@ -316,6 +317,6 @@ if __name__ == '__main__':
 
 	d = Download(args)
 	try:
-		d.run(args.out and args.out[0] or out)
+		d.run(args.out or ["."])
 	finally:
 		d.cleanup()
