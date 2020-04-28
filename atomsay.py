@@ -112,6 +112,28 @@ PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
 		return "%s\n\n%s\n\n%s" % (
 			self.date.strftime("%a, %d %b %Y, %H %M"), self.title, d)
 
+	def getOutputPath(self, options, suffix):
+		return self._getOutputPaths(options, suffix)[0]
+
+	def _getOutputPaths(self, args, suffix):
+		result = []
+		for out in args.out:
+			result += [os.path.join(out, self.getName(args) + suffix)]
+		return result
+
+	def getMainOutputPaths(self, options):
+		audio = self.getAudioUrl()
+		if not audio:
+			return self._getOutputPaths(options, ".mp4")
+		return self._getOutputPaths(options, "." + 
+			os.path.basename(urlparse.urlparse(audio).path).split('.')[-1])
+
+def noFile(list):
+	for x in list:
+		if os.path.isfile(x):
+			return False
+	return True
+
 class Fb2Item(Item):
 	def __init__(self, n, ts):
 		self.ts = ts
@@ -136,6 +158,7 @@ class Feed:
 		if "-" == p:
 			res = sys.stdin
 		elif re.match(r"https?://", p):
+			print("Downloading '%s'..." % (p))
 			req = urllib2.Request(p)
 			res = urllib2.urlopen(req)
 		else:
@@ -158,16 +181,6 @@ class Feed:
 				self.items += [item]
 		self.items.sort(key = lambda t: t.ts)
 
-	def getOutputPath(self, item, out, suffix):
-		return os.path.join(out, item.getName(self.options) + suffix)
-
-	def getMainOutputPath(self, item, out):
-		audio = item.getAudioUrl()
-		if not audio:
-			return self.getOutputPath(item, out, ".mp4")
-		return self.getOutputPath(item, out, "." + 
-			os.path.basename(urlparse.urlparse(audio).path).split('.')[-1])
-
 	def run(self, outDirs):
 		work = self.items
 		if not work:
@@ -186,10 +199,8 @@ class Feed:
 				print("No podcast items")
 				return
 			
-		for out in outDirs:
-			work = [
-				item for item in work
-				if not os.path.isfile(self.getMainOutputPath(item, out))]
+		work = [
+			x for x in work if noFile(x.getMainOutputPaths(self.options))]
 				
 		self.count.work = len(work)
 
@@ -219,7 +230,7 @@ class Feed:
 		return False
 
 	def save(self, n, item, out):
-		op = self.getMainOutputPath(item, out)
+		op = item.getMainOutputPaths(self.options)[0]
 		self.tmp = op + ".tmp.mp4"
 		if os.path.isfile(self.tmp):
 			os.unlink(self.tmp)
@@ -274,7 +285,8 @@ class Download:
 
 	def run(self, out):
 		if self.args.default:
-			self.feed.loadAtom("https://stackoverflow.com/jobs/feed?v=true")
+			self.feed.loadAtom(
+				"https://stackoverflow.com/jobs/feed?v=true")
 			self.feed.run(out)
 		else:
 			if 0 == len(self.args.INPUT):
