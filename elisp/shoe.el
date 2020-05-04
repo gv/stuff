@@ -239,8 +239,11 @@
 				   case-replace nil)))
 
 (defun tune-dabbrev ()
-  (set (make-local-variable 'dabbrev-abbrev-char-regexp) "[A-Za-z0-9_]")
-  (message "dabbrev-abbrev-char-regexp set to '%s'" dabbrev-abbrev-char-regexp))
+  (modify-syntax-entry ?/ ".")
+  (message "Char syntax: /=%s" (string (char-syntax ?/)))
+  ;;(set (make-local-variable 'dabbrev-abbrev-char-regexp) "[A-Za-z0-9_]")
+  ;;(message "dabbrev-abbrev-char-regexp set to '%s'" dabbrev-abbrev-char-regexp)
+  )
 
 (add-hook 'org-mode-hook 'tune-dabbrev)
 (add-hook 'sh-mode-hook 'tune-dabbrev)
