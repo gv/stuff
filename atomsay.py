@@ -31,6 +31,12 @@ def getTextRecursive(n):
 			rc.append(getTextRecursive(node))
 	return ''.join(rc)
 	
+def getAllPossibleSubstitutions(string, substs):
+	if not substs:
+		return [string]
+	next = getAllPossibleSubstitutions(string, substs[1:])
+	source, target = substs[0].split("=")
+	return [re.sub(source, target, x) for x in next] + next
 
 class Item:
 	def __init__(self, n):
@@ -56,8 +62,8 @@ class Item:
 		if len(nodes) != 1:
 			raise Exception("Bad number of enclosures = %d" % (len(nodes)))
 		return nodes[0].getAttribute("url")
-	
-	def getName(self, options):
+
+	def getPrefix(self, options):
 		if options.prefix:
 			n = 0
 			prefix = options.prefix
@@ -67,21 +73,59 @@ class Item:
 		else:
 			n = 0xFFFFFFFF - self.ts
 			prefix = ""
-		if options.names:
-			audio = self.getAudioUrl()
-			if not audio:
-				raise Exception(
-					"--names option must only be used for audio feeds")
-			name = os.path.basename(urlparse.urlparse(audio).path)
-			m = name
-		else:
-			name = self.title
-			m = re.sub(r"(?u)[^\w]+", "_", name)[0:30]
 		if not options.prefix and options.reverse:
 			# hex numbers don't get sorted right by Finder.app
 			prefix = "%s%012d" % (prefix, n)
+		return prefix
+
+	def getSourceAudiofileName(self):
+		audio = self.getAudioUrl()
+		if not audio:
+			raise Exception(
+				"--names option must only be used for audio feeds")
+		return os.path.basename(urlparse.urlparse(audio).path)
+	
+	def getName_v1(self, options):
+		prefix = self.getPrefix(options)
+		if options.names:
+			m = self.getSourceAudiofileName()
+		else:
+			m = re.sub(r"(?u)[^\w]+", "_", self.title)[0:30]
 		return "%s-%04d-%02d-%02d-%s" % (
 			prefix, self.date.year, self.date.month, self.date.day, m)
+
+	def getNames_v1(self, args):
+		return getAllPossibleSubstitutions(
+			self.getName_v1(args), getattr(args, "subst", []))
+
+	def getNames(self, args):
+		prefix = self.getPrefix(args)
+		if args.names:
+			mm = [self.getSourceAudiofileName()]
+		else:
+			mm = [x[0:32] for x in getAllPossibleSubstitutions(
+				re.sub(r"(?u)[^\w]+", "_", self.title),
+				getattr(args, "subst", []))]
+		return ["%s-%04d-%02d-%02d-%s" % (
+			prefix, self.date.year, self.date.month, self.date.day, m)
+			for m in mm] + self.getNames_v1(args)
+
+	def getOutputPath(self, options, suffix):
+		return self._getOutputPaths(options, suffix)[0]
+
+	def _getOutputPaths(self, args, suffix):
+		result = []
+		for out in args.out:
+			result += [
+				os.path.join(out, x + suffix) for x in self.getNames(args)]
+		return result
+
+	def getMainOutputPaths(self, options):
+		audio = self.getAudioUrl()
+		if not audio:
+			return self._getOutputPaths(options, ".mp4")
+		return self._getOutputPaths(options, "." + 
+			os.path.basename(urlparse.urlparse(audio).path).split('.')[-1])
 
 	def getDescNoTags(self):
 		t = re.sub(r"<br[^<>]*>", "\n", self.getDesc())
@@ -112,27 +156,11 @@ PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
 		return "%s\n\n%s\n\n%s" % (
 			self.date.strftime("%a, %d %b %Y, %H %M"), self.title, d)
 
-	def getOutputPath(self, options, suffix):
-		return self._getOutputPaths(options, suffix)[0]
-
-	def _getOutputPaths(self, args, suffix):
-		result = []
-		for out in args.out:
-			result += [os.path.join(out, self.getName(args) + suffix)]
-		return result
-
-	def getMainOutputPaths(self, options):
-		audio = self.getAudioUrl()
-		if not audio:
-			return self._getOutputPaths(options, ".mp4")
-		return self._getOutputPaths(options, "." + 
-			os.path.basename(urlparse.urlparse(audio).path).split('.')[-1])
-
-def noFile(list):
+def getExistingFilePath(list):
 	for x in list:
 		if os.path.isfile(x):
-			return False
-	return True
+			return x
+	return None
 
 class Fb2Item(Item):
 	def __init__(self, n, ts):
@@ -142,7 +170,14 @@ class Fb2Item(Item):
 		self.node = n
 
 	def getText(self):
-		return getTextRecursive(self.node)		
+		return getTextRecursive(self.node)
+
+def safeMove(source, target):
+	if os.path.isfile(target):
+		raise Exception("Can't move '%s': '%s' already exists" % (
+			source, target))
+	print("Moving '%s' to '%s'..." % (source, target))
+	os.rename(source, target)
 	
 class Feed:
 	def __init__(self, options):
@@ -181,10 +216,26 @@ class Feed:
 				self.items += [item]
 		self.items.sort(key = lambda t: t.ts)
 
+	def move(self, work):
+		for x in work:
+			paths = x.getMainOutputPaths(self.options)
+			target = paths[0]
+			paths = set(paths)
+			if len(paths) == 1:
+				continue
+			print("paths=%s" % (paths))
+			source = getExistingFilePath(paths)
+			if (not source) or target == source:
+				continue
+			safeMove(source, target)
+
 	def run(self, outDirs):
 		work = self.items
 		if not work:
 			print("No items loaded")
+
+		if self.options.move:
+			self.move(work)
 			
 		if self.options.contains:
 			s = self.options.contains[0]
@@ -200,7 +251,8 @@ class Feed:
 				return
 			
 		work = [
-			x for x in work if noFile(x.getMainOutputPaths(self.options))]
+			x for x in work if not
+			getExistingFilePath(x.getMainOutputPaths(self.options))]
 				
 		self.count.work = len(work)
 
@@ -217,7 +269,8 @@ class Feed:
 		work.sort(key = lambda t: t.ts, reverse=self.options.recent)
 		for item in work:
 			print "%d / %d %s %s" % (
-				n, self.count.work, item.getName(self.options), item.title)
+				n, self.count.work, item.getNames(self.options)[0],
+				item.title)
 			self.save(n, item, outDirs[0])
 			n += 1
 
@@ -284,6 +337,12 @@ class Download:
 		self.feed = Feed(args)
 
 	def run(self, out):
+		if self.args.permissive:
+			out = [x for x in self.args.out if os.path.isdir(x)]
+			not_out = [x for x in self.args.out if not os.path.isdir(x)]
+			self.args.out = out
+			if not_out:
+				print("%s discarded" % (not_out))
 		if self.args.default:
 			self.feed.loadAtom(
 				"https://stackoverflow.com/jobs/feed?v=true")
@@ -324,6 +383,15 @@ if __name__ == '__main__':
 		"--contains", nargs=1, action="store", help="Substring")
 	parser.add_argument(
 		"--podcast", action="store_true", help="Only those with an mp3 file")
+	parser.add_argument(
+		"--subst", action='append',
+		help="Replace strings in file names, format A=B")
+	parser.add_argument(
+		"--move", action='store_true',
+		help="Rename already downloaded files to the new naming scheme with substs and all")
+	parser.add_argument(
+		"--permissive", action='store_true',
+		help='Discard output dirs that do not exist')
 	parser.add_argument("INPUT", nargs="*")
 	args = parser.parse_args()
 

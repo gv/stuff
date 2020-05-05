@@ -8,8 +8,7 @@
 ;;     ````````
 ;;
 
-(setq default-major-mode 'text-mode)
-(setq transient-mark-mode '1)
+(setq default-major-mode 'text-mode transient-mark-mode t)
 ;;загружается молча
 (setq inhibit-startup-message t initial-scratch-message nil)
 (tool-bar-mode -1)
@@ -32,10 +31,9 @@
    delete-old-versions t
    kept-new-versions 6
    kept-old-versions 2
-   version-control t)       ; use versioned backups
-
-(setq auto-save-file-name-transforms
-	  `((".*" ,temporary-file-directory t)))
+   version-control t       ; use versioned backups
+   auto-save-file-name-transforms
+   `((".*" ,temporary-file-directory t)))
 
 ;;
 ;;мышка...
@@ -60,7 +58,6 @@
 (if (fboundp 'pc-bindings-mode) (pc-bindings-mode))
 ;;Настройка выделения "как в Windows"
 (if (fboundp 'pc-selection-mode) (pc-selection-mode))
-;(delete-selection-mode nil)
 ;;
 ;;Установка режима CUA
 ;;поддержка Ctr-c,v,x,d как в windows
@@ -216,8 +213,7 @@
 		tab-width 4
 		js-indent-level 4
 		indent-tabs-mode nil
-		case-fold-search nil
-		tags-case-fold-search nil
+;		tags-case-fold-search nil
 		case-replace nil)
   (c-set-offset 'arglist-intro '+)
   (c-set-offset 'arglist-cont-nonempty '+)
@@ -240,7 +236,6 @@
 		  '(lambda ()
 			 (setq c-basic-offset 2
 				   indent-tabs-mode t
-				   case-fold-search nil
 				   case-replace nil)))
 
 (defun tune-dabbrev ()
@@ -256,7 +251,10 @@
  'compilation-start-hook
  '(lambda (procname)
 	(set-process-query-on-exit-flag
-	 (get-buffer-process (current-buffer)) nil)))
+	 (get-buffer-process (current-buffer)) nil)
+	; get '-' character out of "symbol" class
+	(modify-syntax-entry ?- ".")
+	(message "Char classes:-=%s" (string (char-syntax ?-)))))
 
 (if window-system
 	(global-set-key (kbd "M-[") 'gtags-find-rtag)
@@ -289,25 +287,39 @@
   (set-background-color "white")
   (set-foreground-color "black"))
 
+(defun git-log (options)
+  "Print log with options"
+  (interactive "sGit log options:")
+  (let ((bn "*git-log*"))
+	(set-buffer bn)
+	(vc-setup-buffer bn)
+	(setq vc-command-messages t)
+	;;(let ((inhibit-read-only t))
+	;; (with-current-buffer bn
+	(vc-git-command bn 'async nil "log" options)
+	;;	))
+	(setq vc-log-view-type 'long log-view-vc-backend 'git)
+	(vc-git-log-view-mode)
+	(setq buffer-read-only t)
+	;; [ ] add message to buffer when process is done; use "compile"
+	;;     or vc-run-delayed
+	(pop-to-buffer bn)))
+
 (setq tramp-mode nil)
 
 (fset 'yes-or-no-p 'y-or-n-p)
 (fset 'c 'compile)
 
 (server-start)
-(setenv "EDITOR" "/Volumes/aux_apps/Aquamacs.app/Contents/MacOS/bin/emacsclient")
+(setenv
+ "EDITOR" "/Volumes/aux_apps/Aquamacs.app/Contents/MacOS/bin/emacsclient")
 (setenv "GREP_OPTIONS" "--recursive --binary-files=without-match")
 (setenv "PAGER" "cat")
-(setq dabbrev-case-fold-search nil)
+(setq-default case-fold-search nil dabbrev-case-fold-search nil)
 (setq revert-without-query '(".*"))
 (setq create-lockfiles nil)
 (setq cperl-indent-level 2)
 (setq dired-listing-switches "-alh")
-;;(defun get-t1 (other-buffer) t)
-;;(setq dabbrev-friend-buffer-function 'get-t1)
-;;(setq mouse-wheel-scroll-amount '(1 ((shift) . 1)))
-;;(setq mouse-wheel-progressive-speed 't)
-;;(setq mouse-wheel-follow-mouse 't)
 
-(message "init.el by vg loaded OK.")
+(message "tab-width=%s case-fold-search=%s" tab-width case-fold-search)
 
