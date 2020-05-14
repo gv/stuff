@@ -210,10 +210,10 @@
 ;;(add-to-list 'auto-mode-alist '("index.\\.*" . wikipedia-mode))
 
 (defun vg-tune-c ()
-  (setq c-basic-offset 2
+  (setq c-basic-offset 4
 		tab-width 4
 		js-indent-level 4
-		indent-tabs-mode nil
+		indent-tabs-mode t
 ;		tags-case-fold-search nil
 		case-replace nil)
   (c-set-offset 'arglist-intro '+)
