@@ -204,6 +204,7 @@
 (setq rust-cargo-bin "/Users/vg/.cargo/bin/cargo")
 (autoload 'haskell-mode "haskell-mode-2.8.0/haskell-site-file" "HM" t)
 (add-hook 'haskell-mode-hook 'turn-on-haskell-indentation)
+(autoload 'compact-blame-mode "compact-blame.el" "Git blame viewer" t)
 
 ;; for ViewSourceWith Firefox extension
 ;;(add-to-list 'auto-mode-alist '("index.\\.*" . wikipedia-mode))
@@ -218,6 +219,7 @@
   (c-set-offset 'arglist-intro '+)
   (c-set-offset 'arglist-cont-nonempty '+)
   (c-set-offset 'arglist-close 0)
+  (abbrev-mode -1)
   (message
    "C mode hook: tab-width=%d c-basic-offset=%d" tab-width c-basic-offset)
   )
@@ -232,11 +234,16 @@
   )
 (add-hook 'js-mode-hook 'my-javascript-mode-hook)
 
-(add-hook 'python-mode-hook 
-		  '(lambda ()
-			 (setq c-basic-offset 2
-				   indent-tabs-mode t
-				   case-replace nil)))
+;;(add-hook 'python-mode-hook 
+;;		  '(lambda ()
+;;			 (setq c-basic-offset 2
+;;				   indent-tabs-mode t
+;;				   case-replace nil)))
+(add-hook 'python-mode-hook 'compact-blame-mode)
+(add-hook 'cperl-mode-hook 'compact-blame-mode)
+(add-hook 'perl-mode-hook 'compact-blame-mode)
+(add-hook 'c-mode-common-hook 'compact-blame-mode)
+(add-hook 'makefile-mode-hook 'compact-blame-mode)
 
 (defun tune-dabbrev ()
   (modify-syntax-entry ?/ ".")
