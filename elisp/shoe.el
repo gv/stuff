@@ -279,6 +279,7 @@
 (add-to-list 'auto-mode-alist '("\\.d\\'" . sh-mode))
 (make-face-bold 'font-lock-keyword-face)
 (make-face-italic 'font-lock-string-face)
+(which-function-mode 1)
 
 
 (defun utf () "Reload this buffer as utf-8" (interactive) 
