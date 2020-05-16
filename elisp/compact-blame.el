@@ -13,22 +13,6 @@
 (defun compact-blame-pattern-for-space-separated-tokens (&rest parts)
   (mapconcat 'identity parts "[ \t]+"))
 
-(defun compact-blame--update-overlay1 (ov length year month name)
-  (let ((str compact-blame-format)
-		(b "#808080") (f "white"))
-	(setq str (replace-regexp-in-string "%#" (number-to-string length) str))
-	(setq str (replace-regexp-in-string "%Y" year str))
-	(setq str (replace-regexp-in-string "%m" month str))
-	(setq str (replace-regexp-in-string "%." name str))
-	(setq str
-		  (concat
-		   (propertize
-			" \x25c4" 'face (list :background f :foreground b))
-		   (propertize
-			str 'face (list :background b :foreground f :height 0.85))))
-	(overlay-put ov 'before-string str)
-	))
-
 (defun compact-blame--update-overlay (ov length time author)
   (let ((str (format-time-string compact-blame-format time))
 		(b "#808080") (f "white"))
@@ -80,7 +64,7 @@
   (compact-blame-make-line-pattern
    "\\(?1:[0-9a-fA-F]+\\) [0-9]+ \\(?2:[0-9]+\\) \\(?3:[0-9]+\\)"
    "\\(?99:[0-9a-fA-F]+\\) [0-9]+ \\(?2:[0-9]+\\)"
-   "author-mail <\\(?4:.+?\\)@.*"
+   "author-mail <\\(?4:.+?\\)[@>].*"
    "author-time \\(?5:.+\\)"
    "\\(?99:[a-zA-Z0-9_-]+\\) .*"
    "\t\\(?99:.*\\)"
@@ -129,82 +113,12 @@
 	 compact-blame-process b compact-blame--pattern 'filter)
 	(set-process-sentinel compact-blame-process 'sentinel)))
 	  
-		  
-
-(defun compact-blame--create-process1 ()
-  (compact-blame--cleanup)
-  (let*
-	  ((ac "") line fatal unparsed id name year month day number
-	   last-id last-number last-ov pos (b (current-buffer)) parsed
-	   (pattern
-		(compact-blame-make-line-pattern
-		 (compact-blame-pattern-for-space-separated-tokens
-		  "\\(?1:[0-9a-f]+\\)" "\\(?:[^() \t]+[ \t]+\\)?(\\(?2:.+?\\)"
-		  "\\(?3:[0-9]+\\)-\\(?4:[0-9]+\\)-\\(?5:[0-9]+\\)"
-		  "\\(?6:[0-9]+\\):\\(?7:[0-9]+\\):\\(?8:[0-9]+\\)"
-		  "[-+][0-9]+" "\\(?9:[0-9]+\\)).*?")
-		 "fatal:\\(?101:.+?\\)"
-		 "\\(?201:.*?\\)"
-		 ))
-	   (cmd (list "git" "blame" (buffer-file-name)))
-	   (take-off (float-time)))
-	(set (make-local-variable 'compact-blame-overlays) nil)
-	(message "Running %s pattern=%s" cmd pattern)
-	(set
-	 (make-local-variable 'compact-blame-process)
-	 ;; Only in Aquamacs 3.4 
-	 ;; (make-process
-	 ;;  :command command :buffer nil
-	 ;;  :filter
-	 (apply 'start-process "compact-blame-process" nil cmd))
-	(set-process-filter
-	 compact-blame-process
-	 (lambda (process str)
-	   (setq ac (concat ac str))
-	   ;;(message "recv %d, total %d" (length str) (length ac))
-	   (if (not (live-buffer-name b))
-		   (progn 
-			 (message "Buffer '%s' gone, killing process '%s'" b process)
-			 (delete-process process))
-		 (while (string-match pattern ac)
-		   (setq parsed (match-end 0))
-		   (setq id (match-string 1 ac) fatal (match-string 101 ac)
-				 unparsed (match-string 201 ac))
-		   (when id
-			 (setq name (match-string 2 ac) year (match-string 3 ac)
-				   month (match-string 4 ac)
-				   number (string-to-number (match-string 9 ac)))
-			 ;;(message "id='%s' name='%s' year='%s' month='%s'"
-			 ;;id name year month)
-			 (if (string= id last-id)
-				 (compact-blame--update-overlay
-				  last-ov (+ 1 (- number last-number)) year month name)
-			   (setq last-id id last-number number
-					 pos (compact-blame--find-pos b number))
-			   (with-current-buffer b
-				 (push (setq last-ov (make-overlay pos pos b t t))
-					   compact-blame-overlays))
-			   (compact-blame--update-overlay last-ov 1 year month name)))
-		   (when fatal
-			 (message "fatal='%s'" fatal))
-		   (when unparsed
-			 (message "line='%s'" unparsed))
-		   (setq ac (substring ac parsed))
-		   )
-		 )))
-	;; 
-	;; :sentinel
-	;;
-	(set-process-sentinel
-	 compact-blame-process
-	 (lambda (process event)
-	   (setq event (car (split-string event)))
-	   (message
-		"event=%s time=%dms" event (* 1000 (- (float-time) take-off)))
-	   ))))
 
 (defun compact-blame--cleanup ()
   (if compact-blame-process (delete-process compact-blame-process))
+  ;;(backtrace)
+  (message
+   "#=%d cbm=%s buf=%s" (length compact-blame-overlays) compact-blame-mode (current-buffer))
   (mapc 'delete-overlay compact-blame-overlays)
   (setq compact-blame-overlays nil)
   )
@@ -220,11 +134,17 @@
 		(message "Buffer %s is not a file" (current-buffer))
 	  (if compact-blame-mode
 		  (progn
-			(set (make-local-variable 'compact-blame-saved-readonly) buffer-read-only)
+			(set (make-local-variable 'compact-blame-saved-readonly)
+				 buffer-read-only)
 			(setq buffer-read-only t)
 			(compact-blame--create-process))
 		(compact-blame--cleanup)
 		(setq buffer-read-only compact-blame-saved-readonly)
 		))))
 
-(apply 'set '(b 5))
+(defun test ()
+  (interactive)
+  (message
+   "#=%d cbm=%s buf=%s" (length compact-blame-overlays) compact-blame-mode (current-buffer)))
+
+  
