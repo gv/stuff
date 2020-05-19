@@ -108,7 +108,7 @@
 	(set (make-local-variable 'compact-blame-overlays) nil)
 	(compact-blame--spawn-local
 	 'compact-blame-process
-	 "git" "blame" "--line-porcelain" (buffer-file-name))
+	 "git" "blame" "-w" "--line-porcelain" (buffer-file-name))
 	(compact-blame--filter-lines
 	 compact-blame-process b compact-blame--pattern 'filter)
 	(set-process-sentinel compact-blame-process 'sentinel)))
