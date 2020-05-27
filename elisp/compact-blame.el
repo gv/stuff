@@ -49,7 +49,7 @@
 (defun compact-blame--filter-lines (process b pattern cb)
   (let ((ac "") consumed) 
 	(defun real-filter (proc str)
-	  (if (not (live-buffer-name b))
+	  (if (not (buffer-live-p b))
 		  (progn
 			(message "Buffer '%s' gone, killing process '%s'" b proc)
 			(delete-process proc))
@@ -67,6 +67,7 @@
    "author-mail <\\(?4:.+?\\)[@>].*"
    "author-time \\(?5:.+\\)"
    "\\(?99:[a-zA-Z0-9_-]+\\) .*"
+   "\\(?99:[a-zA-Z0-9_-]+\\)"
    "\t\\(?99:.*\\)"
    "fatal:\\(?6:.+?\\)"
    "\\(?98:.*?\\)"))

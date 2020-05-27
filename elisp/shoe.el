@@ -1,4 +1,4 @@
-;; Eval before cursor is C-x C-e
+;; Eval before cursor is C-x C-e -*-lexical-binding: t-*-
 
 (message "Trying to load init.el by vg...")
 (setq force-load-messages t)
@@ -44,6 +44,8 @@
 (setq mouse-yank-at-point 't)
 ;;колесо мышки
 (mouse-wheel-mode 1)
+(setq mouse-wheel-scroll-amount '(5 ((shift) . 1) ((control) . nil)))
+(setq mouse-wheel-progressive-speed t)
 ;;
 ;;Настройка поведения редактора "как в Windows"
 ;;
@@ -93,8 +95,6 @@
 (global-set-key [C-f]  'isearch-forward)
 (global-set-key [M-f7]  'find-name-dired)
 (global-set-key [C-tab]  'other-window)
-;(global-set-key [M-left] 'pop-tag-mark)
-(global-set-key [S-k] 'kill-line)
 
 (global-set-key [A-end] 'end-of-buffer)
 (global-set-key [A-home] 'beginning-of-buffer)
@@ -134,6 +134,33 @@
   (define-key osx-key-mode-map `[(,osxkeys-command-key i)] 'test)
   )
 
+(when (and (not (fboundp 'osx-key-mode)) (equal window-system 'ns))
+  (define-key global-map [M-up] 'backward-paragraph)
+  (define-key global-map [M-down] 'forward-paragraph)
+  (define-key global-map [s-up] 'previous-error)
+  (define-key global-map [s-down] 'next-error)
+  (define-key global-map [M-s-up] 'pop-tag-mark)
+  (define-key global-map [M-s-down] 'ft-at-point)
+  (define-key global-map [C-M-s-down] 'ft-other-window-at-point)
+  (define-key global-map (kbd "M-s-÷") 'ft-next)
+  ;; [s-\`] [s-/] do not work!
+  (define-key global-map (kbd "s-/") 'dabbrev-expand)
+  (define-key global-map (kbd "s-`") 'next-multiframe-window)
+  (define-key global-map (kbd "C-\\")
+	(lambda () (interactive) (message "Keyboard language switch disabled")))
+  (let ((size 10) (i 0)
+		(fonts ["Menlo" "Courier" "Monaco" "PT Mono" "Andale Mono"]))
+	(defun vg-update-font (ns ni)
+	  (setq size ns i (% ni (length fonts)))
+	  (set-frame-font (format "%s-%d" (aref fonts i) size) t))
+	(define-key global-map (kbd "s-=")
+	  (lambda () (interactive) (vg-update-font (+ 1 size) i)))
+	(define-key global-map (kbd "s--")
+	  (lambda () (interactive) (vg-update-font (- size 1) i)))
+	(define-key global-map (kbd "s-0")
+	  (lambda () (interactive) (vg-update-font size (1+ i))))
+	(vg-update-font size i)))
+
 (defun ft-at-point () "AKA go to def" (interactive)
 	   (find-tag (find-tag-default)))
 
@@ -155,12 +182,10 @@
 ;; Выделение парных скобок
 (show-paren-mode 1)
 (setq show-paren-style 'expression);выделять все выражение в скобках
-(set-default-font 
- (if (equal window-system 'x)
-    ; "Bitstream Vera Sans Mono-9"
-	 "Monospace-9"
-   "Courier New 9")
- )
+(if (equal window-system 'x)
+	;; "Bitstream Vera Sans Mono-9"
+	(set-default-font "Monospace-9"))
+  ;; "Courier New 9")
 
 ;(set-cursor-color "red")
 (blink-cursor-mode -10)
@@ -215,7 +240,7 @@
 		js-indent-level 4
 		indent-tabs-mode t
 ;		tags-case-fold-search nil
-		case-replace nil)
+		)
   (c-set-offset 'arglist-intro '+)
   (c-set-offset 'arglist-cont-nonempty '+)
   (c-set-offset 'arglist-close 0)
@@ -234,11 +259,14 @@
   )
 (add-hook 'js-mode-hook 'my-javascript-mode-hook)
 
-;;(add-hook 'python-mode-hook 
-;;		  '(lambda ()
-;;			 (setq c-basic-offset 2
-;;				   indent-tabs-mode t
-;;				   case-replace nil)))
+(defun vg-tune-py ()
+  (setq
+   ;; c-basic-offset 2
+   indent-tabs-mode t
+   py-indent-tabs-mode t
+   ))
+(add-hook 'python-mode-hook 'vg-tune-py)
+
 (add-hook 'python-mode-hook 'compact-blame-mode)
 (add-hook 'cperl-mode-hook 'compact-blame-mode)
 (add-hook 'perl-mode-hook 'compact-blame-mode)
@@ -252,9 +280,10 @@
   ;;(message "dabbrev-abbrev-char-regexp set to '%s'" dabbrev-abbrev-char-regexp)
   )
 
-(add-hook 'org-mode-hook 'tune-dabbrev)
 (add-hook 'sh-mode-hook 'tune-dabbrev)
 (add-hook 'shell-mode-hook 'tune-dabbrev)
+(add-hook 'org-mode-hook 'tune-dabbrev)
+(add-hook 'org-mode-hook (lambda () (auto-fill-mode 1)))
 
 ; this is for grep to stop without confirmation when next grep is started
 (add-hook
@@ -304,7 +333,6 @@
   (let ((bn "*git-log*"))
 	(set-buffer bn)
 	(vc-setup-buffer bn)
-	(setq vc-command-messages t)
 	;;(let ((inhibit-read-only t))
 	;; (with-current-buffer bn
 	(vc-git-command bn 'async nil "log" options)
@@ -326,11 +354,15 @@
  "EDITOR" "/Volumes/aux_apps/Aquamacs.app/Contents/MacOS/bin/emacsclient")
 (setenv "GREP_OPTIONS" "--recursive --binary-files=without-match")
 (setenv "PAGER" "cat")
-(setq-default case-fold-search nil dabbrev-case-fold-search nil)
+(setq-default case-fold-search nil case-replace nil
+			  dabbrev-case-fold-search nil)
 (setq revert-without-query '(".*"))
 (setq create-lockfiles nil)
 (setq cperl-indent-level 2)
 (setq dired-listing-switches "-alh")
+(setq ring-bell-function 'ignore)
+(setq org-support-shift-select t)
+(setq vc-command-messages t)
 
 (message "tab-width=%s case-fold-search=%s" tab-width case-fold-search)
 
