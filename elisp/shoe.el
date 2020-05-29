@@ -213,7 +213,7 @@
 (prefer-coding-system 'koi8-r-dos)
 (prefer-coding-system 'cp866-dos)
 (prefer-coding-system 'windows-1251-dos)
-(prefer-coding-system 'utf-8-dos)
+(prefer-coding-system 'utf-8-unix)
 
 ;; 
 ;;     PROGRAMMING

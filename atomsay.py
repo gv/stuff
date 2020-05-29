@@ -223,7 +223,7 @@ class Feed:
 			paths = set(paths)
 			if len(paths) == 1:
 				continue
-			print("paths=%s" % (paths))
+			# print("paths=%s" % (paths))
 			source = getExistingFilePath(paths)
 			if (not source) or target == source:
 				continue
@@ -294,7 +294,7 @@ class Feed:
 				r = 56 # Connection reset by peer
 				while r == 56: 
 					r = subprocess.Popen([
-						"curl", "-Lk", "--retry", "99999",
+						"curl", "-L", "--insecure", "--retry", "99999",
 						audio, "-o", self.tmp]).wait()
 				if r != 0:
 					raise Exception("curl returned %d" % (r))
