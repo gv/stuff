@@ -148,11 +148,13 @@
   (define-key global-map (kbd "s-`") 'next-multiframe-window)
   (define-key global-map (kbd "C-\\")
 	(lambda () (interactive) (message "Keyboard language switch disabled")))
-  (let ((size 10) (i 0)
+  (let ((size 10) (i 0) name
 		(fonts ["Menlo" "Courier" "Monaco" "PT Mono" "Andale Mono"]))
 	(defun vg-update-font (ns ni)
 	  (setq size ns i (% ni (length fonts)))
-	  (set-frame-font (format "%s-%d" (aref fonts i) size) t))
+	  (setq name (format "%s-%d" (aref fonts i) size))
+	  (set-frame-font name t)
+	  (message "Font: %s" name))
 	(define-key global-map (kbd "s-=")
 	  (lambda () (interactive) (vg-update-font (+ 1 size) i)))
 	(define-key global-map (kbd "s--")
@@ -264,6 +266,8 @@
    ;; c-basic-offset 2
    indent-tabs-mode t
    py-indent-tabs-mode t
+   tab-width 4
+   python-indent-offset 4
    ))
 (add-hook 'python-mode-hook 'vg-tune-py)
 
@@ -285,15 +289,19 @@
 (add-hook 'org-mode-hook 'tune-dabbrev)
 (add-hook 'org-mode-hook (lambda () (auto-fill-mode 1)))
 
-; this is for grep to stop without confirmation when next grep is started
-(add-hook
- 'compilation-start-hook
- '(lambda (procname)
-	(set-process-query-on-exit-flag
-	 (get-buffer-process (current-buffer)) nil)
-	; get '-' character out of "symbol" class
-	(modify-syntax-entry ?- ".")
-	(message "Char classes:-=%s" (string (char-syntax ?-)))))
+(defun vg-tune-compilation (procname)
+  "this is for grep to stop without confirmation when 
+next grep is started"
+  (set-process-query-on-exit-flag
+   (get-buffer-process (current-buffer)) nil)
+  ;; get '-' character out of "symbol" class
+  (modify-syntax-entry ?- ".")
+  (message "Char classes:-=%s" (string (char-syntax ?-)))))
+(add-hook 'compilation-start-hook 'vg-tune-compilation)
+
+(defun vg-tune-log-view ()
+  (message "truncate-lines=%s" (setq truncate-lines nil)))
+(add-hook 'log-view-mode-hook 'vg-tune-log-view)
 
 (if window-system
 	(global-set-key (kbd "M-[") 'gtags-find-rtag)
@@ -348,10 +356,11 @@
 
 (fset 'yes-or-no-p 'y-or-n-p)
 (fset 'c 'compile)
+(fset 'vtt 'visit-tags-table)
 
 (server-start)
 (setenv
- "EDITOR" "/Volumes/aux_apps/Aquamacs.app/Contents/MacOS/bin/emacsclient")
+ "EDITOR" "/Volumes/aux_apps/Emacs.app/Contents/MacOS/bin/emacsclient")
 (setenv "GREP_OPTIONS" "--recursive --binary-files=without-match")
 (setenv "PAGER" "cat")
 (setq-default case-fold-search nil case-replace nil
