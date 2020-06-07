@@ -1,5 +1,0 @@
-cron:
-- description: daily summary job
-  url: /update
-  schedule: every day 09:00
-  timezone: Moscow
