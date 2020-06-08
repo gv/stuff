@@ -132,6 +132,8 @@
   (define-key osx-key-mode-map `[(meta c)] 'clipboard-kill-ring-save)
   (define-key osx-key-mode-map `[(meta v)] 'cua-paste)
   (define-key osx-key-mode-map `[(,osxkeys-command-key i)] 'test)
+  (define-key osx-key-mode-map (kbd "A-;")
+	(lambda () (interactive) (message "Spell check disabled")))
   )
 
 (when (and (not (fboundp 'osx-key-mode)) (equal window-system 'ns))
