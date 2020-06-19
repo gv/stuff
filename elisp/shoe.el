@@ -345,7 +345,7 @@ next grep is started"
   "Print log with options"
   (interactive "sGit log options:")
   (let ((bn "*git-log*"))
-	(set-buffer bn)
+	(set-buffer (get-buffer-create bn))
 	(vc-setup-buffer bn)
 	;;(let ((inhibit-read-only t))
 	;; (with-current-buffer bn

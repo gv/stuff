@@ -4,8 +4,10 @@
 
 (defvar compact-blame-mode nil)
 (defvar compact-blame-format "%# %Y-%m %.")
+
 (defvar compact-blame-process nil)
 (defvar compact-blame-overlays nil)
+(defvar compact-blame--line-info nil)
 
 (defun compact-blame-make-line-pattern (&rest parts)
   (format "^\\(?:%s\\)\n" (mapconcat 'identity parts "\\|")))
@@ -75,44 +77,50 @@
 (defun compact-blame--create-process ()
   (compact-blame--cleanup)
   (let* ((take-off (float-time)) (b (current-buffer))
-		 ov number author length id new-author new-time pos)
-	(defun filter (ac)
-	  ;;(message "a='%s' m=%s" (match-string 0 ac) (match-data))
-	  (when (setq id (match-string 1 ac))
-		(setq number (match-string 2 ac) length (match-string 3 ac))
-		(setq pos (compact-blame--find-pos b (string-to-number number)))
-		(with-current-buffer b
-		  (push (setq ov (make-overlay pos pos b t t))
-				compact-blame-overlays))
-		(update 'time (setq author nil)))
-	  (when (setq new-time (match-string 5 ac))
-		;;(message "new-time='%s'" new-time)
-		;;(setq time (string-to-number new-time))
-		(update 'time (seconds-to-time (string-to-number new-time))))
-	  ;;(when (setq unimportant (match-string 101 ac))
-	  ;;(message "unimportant='%s'" unimportant))
-	  (when (setq new-author (match-string 4 ac))
-		;;(message "new-author='%s'" new-author)
-		(setq author new-author)
-		(update 'author new-author))
-	  (when (setq fatal (match-string 6 ac))
-		(message "fatal='%s'" fatal)) 
-	  (when (setq unparsed (match-string 98 ac))
-		(message "unparsed='%s'" unparsed)))
-	(defun update (&rest args)
-	  (apply 'set args)
-	  (compact-blame--update-overlay ov length time author))
-	(defun sentinel (process event)
-	  (setq event (car (split-string event)))
-	  (message
-	   "event=%s time=%dms" event (* 1000 (- (float-time) take-off))))
+		 ov number author length id new-author new-time pos update)
+	(setq
+	 update
+	 (lambda (&rest args)
+	   (apply 'set args)
+	   (compact-blame--update-overlay ov length time author)))
 	(set (make-local-variable 'compact-blame-overlays) nil)
 	(compact-blame--spawn-local
 	 'compact-blame-process
 	 "git" "blame" "-w" "--line-porcelain" (buffer-file-name))
 	(compact-blame--filter-lines
-	 compact-blame-process b compact-blame--pattern 'filter)
-	(set-process-sentinel compact-blame-process 'sentinel)))
+	 compact-blame-process b compact-blame--pattern
+	 (lambda (ac)
+	   ;;(message "a='%s' m=%s" (match-string 0 ac) (match-data))
+	   (when (setq id (match-string 1 ac))
+		 (setq number (match-string 2 ac) length (match-string 3 ac))
+		 (setq pos (compact-blame--find-pos b (string-to-number number)))
+		 (with-current-buffer b
+		   (push (setq ov (make-overlay pos pos b t t))
+				 compact-blame-overlays))
+		 (overlay-put ov 'compact-blame--rev id)
+		 (funcall update 'time (setq author nil)))
+	   (when (setq new-time (match-string 5 ac))
+		 ;;(message "new-time='%s'" new-time)
+		 ;;(setq time (string-to-number new-time))
+		 (funcall update 'time (seconds-to-time (string-to-number new-time))))
+	   ;;(when (setq unimportant (match-string 101 ac))
+	   ;;(message "unimportant='%s'" unimportant))
+	   (when (setq new-author (match-string 4 ac))
+		 ;;(message "new-author='%s'" new-author)
+		 ;; TODO "update" args don't work
+		 (setq author new-author)
+		 (funcall update 'author new-author))
+	   (when (setq fatal (match-string 6 ac))
+		 (message "fatal='%s'" fatal)) 
+	   (when (setq unparsed (match-string 98 ac))
+		 (message "unparsed='%s'" unparsed))
+	   ))
+	(set-process-sentinel
+	 compact-blame-process
+	 (lambda (process event)
+	   (setq event (car (split-string event)))
+	   (message
+		"event=%s time=%dms" event (* 1000 (- (float-time) take-off)))))))
 	  
 
 (defun compact-blame--cleanup ()
@@ -124,8 +132,37 @@
   (setq compact-blame-overlays nil)
   )
 
+(defun compact-blame-show-diff-internal (all-files)
+  (let* ((p (save-excursion
+			 (skip-chars-forward "^\n")
+			 (point)))
+		 (ovs (overlays-in p p))
+		 (get-id (lambda (ov)
+				   (list (overlay-get ov 'compact-blame--rev))))
+		 (ids (mapcan get-id ovs)))
+	(cond
+	 ((not ovs)
+	  (message "No overlays at pos %d" p))
+	 ((not ids)
+	  (message "Commit id not found in %d overlays" (length ovs)))
+	 (t
+	  (message "ids=%s" ids)
+	  (vc-diff-internal
+	   t ;; async
+	   (list 'git (if all-files nil (list (buffer-file-name))))
+	   ;; TODO: fix situation with root commit
+	   (format "%s^" (car ids))
+	   (car ids)
+	   t ;; verbose
+	  )))
+	 ))
+
+(defun compact-blame-show-diff ()
+  (interactive) (compact-blame-show-diff-internal nil))
+
 (defconst compact-blame--keymap (make-sparse-keymap))
 (define-key compact-blame--keymap (kbd "RET") 'compact-blame-mode)
+(define-key compact-blame--keymap "=" 'compact-blame-show-diff)
 		
 (define-minor-mode compact-blame-mode "TODO Git blame view"
   :lighter ""
