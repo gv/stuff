@@ -81,31 +81,25 @@ proc gap::doGitAdd {d} {
 	upvar #0 gap::state$d state
 	set count 0
 	set opmax 64
-	set errors [set paths {}]
-	set doFlush {
-		puts -nonewline stderr\
-			"[formatNum $count] / [formatNum $state(size)] "
-		putsTime $d
-		puts -nonewline stderr "$v [llength $paths] files... "
-		if [catch [concat exec git $c $paths] message] {
-			puts stderr "error: $message"
-			lappend errors $message
-		} else {
-			puts stderr "[regsub {ing$} $v ed] $paths"
-		}
-		incr count [llength $paths]
-		set paths {}
-	}
-	foreach {m v c}\
-		{M changing add ? adding add T changing add D removing rm} {
-		foreach path $state(paths$m) {
-			lappend paths $path
-			if {[llength $paths] >= $opmax} {
-				eval $doFlush
+	set errors {}
+	set conds {
+		M changing add ? adding add T changing add D removing {rm --cached}} 
+	foreach {m verb command} $conds {
+		set start 0
+		while {$start < [llength $state(paths$m)]} {
+			set paths [lrange $state(paths$m) $start [expr $start+$opmax-1]]
+			puts -nonewline stderr\
+				"[formatNum $count] / [formatNum $state(size)] "
+			putsTime $d
+			puts -nonewline stderr "$verb [llength $paths] files... "
+			if [catch [concat exec git $command $paths] message] {
+				puts stderr "error: $message"
+				lappend errors "$m $message"
+			} else {
+				puts stderr "[regsub {ing$} $verb ed] $paths"
 			}
-		}
-		if [llength $paths] {
-			eval $doFlush
+			incr start $opmax
+			incr count [llength $paths]
 		}
 	}
 	if [llength $errors] {
