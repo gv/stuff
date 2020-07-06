@@ -43,6 +43,7 @@ proc gap::handleRead {d} {
 	if [regexp {^[AMDT? ]([AMDT? ]) (.+)$} $s -> mode p] {
 		if {$mode != " "} {
 			# TODO safer dequote
+			# TODO try [subst]
 			if [catch "set q $p"  msg] {
 				puts stderr "Error appending path '$s': $msg"
 			} elseif {![string match $q */]} {
