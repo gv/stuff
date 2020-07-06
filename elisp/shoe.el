@@ -134,6 +134,9 @@
   (define-key osx-key-mode-map `[(,osxkeys-command-key i)] 'test)
   (define-key osx-key-mode-map (kbd "A-;")
 	(lambda () (interactive) (message "Spell check disabled")))
+  ;; latvian keyboard workaround 
+  (define-key osx-key-mode-map (kbd "M-'")
+	(lambda () (interactive) (insert "`")))
   )
 
 (when (and (not (fboundp 'osx-key-mode)) (equal window-system 'ns))
@@ -289,6 +292,7 @@
 (add-hook 'sh-mode-hook 'tune-dabbrev)
 (add-hook 'shell-mode-hook 'tune-dabbrev)
 (add-hook 'org-mode-hook 'tune-dabbrev)
+(add-hook 'makefile-mode-hook 'tune-dabbrev)
 (add-hook 'org-mode-hook (lambda () (auto-fill-mode 1)))
 
 (defun vg-tune-compilation (procname)
@@ -298,7 +302,7 @@ next grep is started"
    (get-buffer-process (current-buffer)) nil)
   ;; get '-' character out of "symbol" class
   (modify-syntax-entry ?- ".")
-  (message "Char classes:-=%s" (string (char-syntax ?-)))))
+  (message "Char classes:-=%s" (string (char-syntax ?-))))
 (add-hook 'compilation-start-hook 'vg-tune-compilation)
 
 (defun vg-tune-log-view ()

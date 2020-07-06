@@ -153,8 +153,9 @@ PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
 			t = self.getDescNoTags()
 			t = re.sub("&nbsp;", " ", t)
 			d += t
-		return "%s\n\n%s\n\n%s" % (
-			self.date.strftime("%a, %d %b %Y, %H %M"), self.title, d)
+		if not d.startswith(self.title):
+			d = "%s\n\n%s" % (d, self.title)
+		return "%s\n\n%s" % (self.date.strftime("%a, %d %b %Y, %H %M"), d)
 
 def getExistingFilePath(list):
 	for x in list:
@@ -309,7 +310,7 @@ class Feed:
 	def getVoice(self, text):
 		if text.find(u"в") != -1:
 			return "Milena"
-		return "Tom"
+		return "Fiona"
 
 	def convertText(self, n, item, out, op, p):
 		if self.options.textonly:
@@ -318,7 +319,7 @@ class Feed:
 			text = "Job %d of %d\n\n%s" % (n, self.count.work, item.getText())
 		if self.hasStopWords(text):
 			return False
-		tf = open(self.getOutputPath(item, out, ".txt"), "w")
+		tf = open(item.getOutputPath(self.options, ".txt"), "w")
 		tf.write(text.encode("utf-8"))
 		c = subprocess.Popen([
 			"say", "-v", self.getVoice(text), "--output-file", p,
