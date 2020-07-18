@@ -147,6 +147,7 @@
   (define-key global-map [M-s-up] 'pop-tag-mark)
   (define-key global-map [M-s-down] 'ft-at-point)
   (define-key global-map [C-M-s-down] 'ft-other-window-at-point)
+  (define-key global-map [M-s-right] 'ft-other-window-at-point)
   (define-key global-map (kbd "M-s-÷") 'ft-next)
   ;; [s-\`] [s-/] do not work!
   (define-key global-map (kbd "s-/") 'dabbrev-expand)
