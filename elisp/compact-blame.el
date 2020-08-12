@@ -3,7 +3,7 @@
 ;; unobtrusive way. (At the end of line like this) <|2018-11 vg|
 
 (defvar compact-blame-mode nil)
-(defvar compact-blame-format "%# %Y-%m %.")
+(setq compact-blame-format "%Y%m%.%#")
 
 (defvar compact-blame-process nil)
 (defvar compact-blame-overlays nil)
@@ -16,18 +16,29 @@
   (mapconcat 'identity parts "[ \t]+"))
 
 (defun compact-blame--update-overlay (ov length time author)
-  (let ((str (format-time-string compact-blame-format time))
-		(b "#808080") (f "white"))
+  (let ((str compact-blame-format)
+		(b "#E0FFE0") (b2 "#FFFFC0") (f "#303030") (f2 "#111111")
+		(defprops '(:height 0.85)))
+	(setq length (if (< (length length) 2) "" (concat "\x2193" length)))
 	(setq str (replace-regexp-in-string "%#" length str))
 	(setq
-	 str (replace-regexp-in-string "%." (or author "...") str))
-	;;(message "str='%s'" str)
+	 str (replace-regexp-in-string "%[.]" (or author "...") str))
+	(setq
+	 str (replace-regexp-in-string "%Y" (format-time-string "%Y" time) str))
+	(setq str (propertize
+			   str 'face (apply 'list :background b :foreground f defprops)))
+	(setq
+	 str (replace-regexp-in-string
+		  "%m"
+		  (propertize
+		   (format-time-string "%m" time)
+		   'face (apply 'list :background b2 :foreground f2 defprops))
+		  str))
+	(setq str (replace-regexp-in-string "^\s+\\|\s+$" "" str))
 	(setq str
 		  (concat
 		   (propertize
-			" \x25c4" 'face (list :background f :foreground b))
-		   (propertize
-			str 'face (list :background b :foreground f :height 0.85))))
+			" \x25c4" 'face (list :foreground b)) str))
 	(overlay-put ov 'before-string str)
 	))
 
@@ -133,6 +144,7 @@
   )
 
 (defun compact-blame-show-diff-internal (all-files)
+  (require 'vc)
   (let* ((p (save-excursion
 			 (skip-chars-forward "^\n")
 			 (point)))
