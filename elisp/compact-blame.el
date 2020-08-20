@@ -1,9 +1,9 @@
 ;;; compact-blame.el -*-lexical-binding: t-*-
-;; A minor emacs mode for showing "git blame" data with text in an
+;; A minor emacs mode for showing "git blame" data  in an
 ;; unobtrusive way. (At the end of line like this) <|2018-11 vg|
 
 (defvar compact-blame-mode nil)
-(setq compact-blame-format "%Y%m%.%#")
+(defvar compact-blame-format "%Y%m%.%#")
 
 (defvar compact-blame-process nil)
 (defvar compact-blame-overlays nil)
@@ -15,32 +15,41 @@
 (defun compact-blame-pattern-for-space-separated-tokens (&rest parts)
   (mapconcat 'identity parts "[ \t]+"))
 
+(setq lisp-indent-offset 1)
+
 (defun compact-blame--update-overlay (ov length time author)
-  (let ((str compact-blame-format)
-		(b "#E0FFE0") (b2 "#FFFFC0") (f "#303030") (f2 "#111111")
-		(defprops '(:height 0.85)))
-	(setq length (if (< (length length) 2) "" (concat "\x2193" length)))
-	(setq str (replace-regexp-in-string "%#" length str))
-	(setq
-	 str (replace-regexp-in-string "%[.]" (or author "...") str))
-	(setq
-	 str (replace-regexp-in-string "%Y" (format-time-string "%Y" time) str))
-	(setq str (propertize
-			   str 'face (apply 'list :background b :foreground f defprops)))
-	(setq
-	 str (replace-regexp-in-string
-		  "%m"
-		  (propertize
-		   (format-time-string "%m" time)
-		   'face (apply 'list :background b2 :foreground f2 defprops))
-		  str))
-	(setq str (replace-regexp-in-string "^\s+\\|\s+$" "" str))
-	(setq str
-		  (concat
-		   (propertize
-			" \x25c4" 'face (list :foreground b)) str))
-	(overlay-put ov 'before-string str)
-	))
+ (let ((str compact-blame-format)
+	   (b "#E0FFE0") (b2 "#FFFFC0") (f "#303030") (f2 "#111111")
+	   (defprops '(:height 0.85)))
+  (setq length (if (< (length length) 2) "" (concat "\x2193" length)))
+  (setq str (replace-regexp-in-string "%#" length str))
+  (setq str (replace-regexp-in-string "%[.]" (or author "...") str))
+  (setq str
+   (replace-regexp-in-string "%Y" (format-time-string "%Y" time) str))
+  (setq str (propertize
+			 str 'face (apply 'list :background b :foreground f defprops)))
+  (setq str
+   (replace-regexp-in-string "%m"
+	(propertize (format-time-string "%m" time) 'face
+	 (apply 'list :background b2 :foreground f2	:box t defprops)) str))
+  (setq str (replace-regexp-in-string "^\s+\\|\s+$" "" str))
+  (setq str
+   (concat (propertize " \x25c4" 'face (list :foreground b)) str))
+  (overlay-put ov 'before-string str)
+  ))
+
+(defun compact-blame--update-status (b show percentage)
+ (with-current-buffer b
+  (let ((ov (car (last compact-blame-overlays)))
+		(str "Loading 'git blame' data %d%%...")
+		(b "#404040") (f "#FFFFFF"))
+   (setq str (format str percentage))
+   (if show
+	(overlay-put ov 'before-string
+	 (propertize str 'face (list :foreground f :background b)))
+	(delete-overlay ov)
+	)
+   )))
 
 (defun compact-blame--find-pos (b n)
   (with-current-buffer b
@@ -85,6 +94,12 @@
    "fatal:\\(?6:.+?\\)"
    "\\(?98:.*?\\)"))
 
+(defun compact-blame--make-status ()
+ (let ((pos (compact-blame--find-pos (current-buffer) 1)))
+  (push (make-overlay pos pos (current-buffer) t t)
+   compact-blame-overlays)
+  (compact-blame--update-status (current-buffer) t 0)))
+
 (defun compact-blame--create-process ()
   (compact-blame--cleanup)
   (let* ((take-off (float-time)) (b (current-buffer))
@@ -95,6 +110,7 @@
 	   (apply 'set args)
 	   (compact-blame--update-overlay ov length time author)))
 	(set (make-local-variable 'compact-blame-overlays) nil)
+	(compact-blame--make-status)
 	(compact-blame--spawn-local
 	 'compact-blame-process
 	 "git" "blame" "-w" "--line-porcelain" (buffer-file-name))
@@ -129,9 +145,10 @@
 	(set-process-sentinel
 	 compact-blame-process
 	 (lambda (process event)
-	   (setq event (car (split-string event)))
-	   (message
-		"event=%s time=%dms" event (* 1000 (- (float-time) take-off)))))))
+	  (setq event (car (split-string event)))
+	  (compact-blame--update-status b nil 100)
+	  (message
+	   "event=%s time=%dms" event (* 1000 (- (float-time) take-off)))))))
 	  
 
 (defun compact-blame--cleanup ()
