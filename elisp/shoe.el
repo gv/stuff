@@ -379,6 +379,7 @@ next grep is started"
 (setq ring-bell-function 'ignore)
 (setq org-support-shift-select t)
 (setq vc-command-messages t)
+(setq visible-bell t)
 (fringe-mode 0)
 
 (message "tab-width=%s case-fold-search=%s" tab-width case-fold-search)

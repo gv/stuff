@@ -60,13 +60,13 @@
   )
 
 (defun compact-blame--spawn-local (name &rest cmd)
-  (message "Running %s" cmd)
-  ;; Only in Aquamacs 3.4 
-  ;; (make-process
-  ;;  :command command :buffer nil
-  ;;  :filter
-  (set (make-local-variable name)
-	   (apply 'start-process (symbol-name name) nil cmd)))
+ (message "Running %s" cmd)
+ ;; Only in Aquamacs 3.4 
+ ;; (make-process
+ ;;  :command command :buffer nil
+ ;;  :filter
+ (set (make-local-variable name)
+  (apply 'start-process (symbol-name name) nil cmd)))
 
 (defun compact-blame--filter-lines (process b pattern cb)
   (let ((ac "") consumed) 
@@ -160,38 +160,54 @@
   (setq compact-blame-overlays nil)
   )
 
-(defun compact-blame-show-diff-internal (all-files)
-  (require 'vc)
-  (let* ((p (save-excursion
-			 (skip-chars-forward "^\n")
-			 (point)))
-		 (ovs (overlays-in p p))
-		 (get-id (lambda (ov)
-				   (list (overlay-get ov 'compact-blame--rev))))
-		 (ids (mapcan get-id ovs)))
-	(cond
-	 ((not ovs)
-	  (message "No overlays at pos %d" p))
-	 ((not ids)
-	  (message "Commit id not found in %d overlays" (length ovs)))
-	 (t
-	  (message "ids=%s" ids)
-	  (vc-diff-internal
-	   t ;; async
-	   (list 'git (if all-files nil (list (buffer-file-name))))
-	   ;; TODO: fix situation with root commit
-	   (format "%s^" (car ids))
-	   (car ids)
-	   t ;; verbose
+(defun compact-blame--show-diff (all-files)
+ (require 'vc)
+ (let*
+  ((p (save-excursion
+	   (skip-chars-forward "^\n")
+	   (point)))
+   (ovs (overlays-in p p))
+   (get-id (lambda (ov)
+			(list (overlay-get ov 'compact-blame--rev))))
+   (ids (mapcan get-id ovs)))
+  (cond
+   ((not ovs)
+	(message "No overlays at pos %d" p))
+   ((not ids)
+	(message "Commit id not found in %d overlays" (length ovs)))
+   (t
+	(message "ids=%s" ids)
+	(if all-files
+	 (compact-blame--show-commit (car ids))
+	 (vc-diff-internal t ;; async
+	  (list 'git (if all-files nil (list (buffer-file-name))))
+	  ;; TODO: fix situation with root commit
+	  (format "%s^" (car ids))
+	  (car ids)
+	  t ;; verbose
 	  )))
-	 ))
+   )))
+
+(defun compact-blame--show-commit (id)
+ (let* ((bn (format "*Commit %s*" id)))
+  (set-buffer (get-buffer-create bn))
+  (setq buffer-read-only t)
+  (diff-mode)
+  (start-process bn (current-buffer) "git" "show" id)
+  (goto-char 1)
+  (pop-to-buffer bn)
+  ))
 
 (defun compact-blame-show-diff ()
-  (interactive) (compact-blame-show-diff-internal nil))
+ (interactive) (compact-blame--show-diff nil))
+
+(defun compact-blame-show-commit () (interactive)
+ (compact-blame--show-diff t))
 
 (defconst compact-blame--keymap (make-sparse-keymap))
 (define-key compact-blame--keymap (kbd "RET") 'compact-blame-mode)
 (define-key compact-blame--keymap "=" 'compact-blame-show-diff)
+(define-key compact-blame--keymap "/" 'compact-blame-show-commit)
 		
 (define-minor-mode compact-blame-mode "TODO Git blame view"
   :lighter ""
@@ -209,9 +225,9 @@
 		(setq buffer-read-only compact-blame-saved-readonly)
 		))))
 
-(defun test ()
-  (interactive)
-  (message
-   "#=%d cbm=%s buf=%s" (length compact-blame-overlays) compact-blame-mode (current-buffer)))
+(defun test () (interactive)
+ (message
+  "#=%d cbm=%s buf=%s" (length compact-blame-overlays)
+  compact-blame-mode (current-buffer)))
 
   
