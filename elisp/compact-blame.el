@@ -69,18 +69,18 @@
   (apply 'start-process (symbol-name name) nil cmd)))
 
 (defun compact-blame--filter-lines (process b pattern cb)
-  (let ((ac "") consumed) 
-	(defun real-filter (proc str)
-	  (if (not (buffer-live-p b))
-		  (progn
-			(message "Buffer '%s' gone, killing process '%s'" b proc)
-			(delete-process proc))
-		(setq ac (concat ac str))
-		(while (string-match pattern ac)
-		  (setq consumed (match-end 0))
-		  (funcall cb ac)
-		  (setq ac (substring ac consumed)))))
-	(set-process-filter process 'real-filter)))
+ (let ((ac "") consumed)
+  (set-process-filter process
+   (lambda (proc str)
+	(if (not (buffer-live-p b))
+	 (progn
+	  (message "Buffer '%s' gone, killing process '%s'" b proc)
+	  (delete-process proc))
+	 (setq ac (concat ac str))
+	 (while (string-match pattern ac)
+	  (setq consumed (match-end 0))
+	  (funcall cb ac)
+	  (setq ac (substring ac consumed))))))))
 								
 (defconst compact-blame--pattern
   (compact-blame-make-line-pattern
@@ -113,7 +113,7 @@
 	(compact-blame--make-status)
 	(compact-blame--spawn-local
 	 'compact-blame-process
-	 "git" "blame" "-w" "--line-porcelain" (buffer-file-name))
+	 "nice" "git" "blame" "-w" "--line-porcelain" (buffer-file-name))
 	(compact-blame--filter-lines
 	 compact-blame-process b compact-blame--pattern
 	 (lambda (ac)
