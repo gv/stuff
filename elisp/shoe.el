@@ -258,7 +258,6 @@
   )
 (add-hook 'c-mode-common-hook 'vg-tune-c)
 (add-hook 'js-mode-hook 'vg-tune-c)
-(add-hook 'javascript-mode-hook 'vg-tune-c)
 
 (defun my-javascript-mode-hook ()
   (setq indent-tabs-mode t tab-width 4 js-indent-level 4)
@@ -282,6 +281,7 @@
 (add-hook 'perl-mode-hook 'compact-blame-mode)
 (add-hook 'c-mode-common-hook 'compact-blame-mode)
 (add-hook 'makefile-mode-hook 'compact-blame-mode)
+(add-hook 'js-mode-hook 'compact-blame-mode)
 
 (defun tune-dabbrev ()
   (modify-syntax-entry ?/ ".")

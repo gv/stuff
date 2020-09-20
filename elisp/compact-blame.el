@@ -1,13 +1,18 @@
 ;;; compact-blame.el -*-lexical-binding: t-*-
 ;; A minor emacs mode for showing "git blame" data  in an
-;; unobtrusive way. (At the end of line like this) <|2018-11 vg|
+;; unobtrusive way. (At the end of a line like this) <|2018|11|vg|
 
 (defvar compact-blame-mode nil)
 (defvar compact-blame-format "%Y%m%.%#")
 
+;; revert-buffer erases all buffer-local vars except marked. We must
+;; keep them to clean up process and overlays
 (defvar compact-blame-process nil)
+(put 'compact-blame-process 'permanent-local t)
 (defvar compact-blame-overlays nil)
+(put 'compact-blame-overlays 'permanent-local t)
 (defvar compact-blame--line-info nil)
+(put 'compact-blame--line-info 'permanent-local t)
 
 (defun compact-blame-make-line-pattern (&rest parts)
   (format "^\\(?:%s\\)\n" (mapconcat 'identity parts "\\|")))
@@ -149,7 +154,6 @@
 	  (compact-blame--update-status b nil 100)
 	  (message
 	   "event=%s time=%dms" event (* 1000 (- (float-time) take-off)))))))
-	  
 
 (defun compact-blame--cleanup ()
   (if compact-blame-process (delete-process compact-blame-process))
@@ -210,24 +214,17 @@
 (define-key compact-blame--keymap "/" 'compact-blame-show-commit)
 		
 (define-minor-mode compact-blame-mode "TODO Git blame view"
-  :lighter ""
-  :keymap compact-blame--keymap
-  (let* ((path (buffer-file-name)))
-	(if (not (buffer-file-name))
-		(message "Buffer %s is not a file" (current-buffer))
-	  (if compact-blame-mode
-		  (progn
-			(set (make-local-variable 'compact-blame-saved-readonly)
-				 buffer-read-only)
-			(setq buffer-read-only t)
-			(compact-blame--create-process))
-		(compact-blame--cleanup)
-		(setq buffer-read-only compact-blame-saved-readonly)
-		))))
-
-(defun test () (interactive)
- (message
-  "#=%d cbm=%s buf=%s" (length compact-blame-overlays)
-  compact-blame-mode (current-buffer)))
-
-  
+ :lighter ""
+ :keymap compact-blame--keymap
+ (let* ((path (buffer-file-name)))
+  (if (not (buffer-file-name))
+   (message "Buffer %s is not a file" (current-buffer))
+   (if compact-blame-mode
+	(progn
+	 (set (make-local-variable 'compact-blame-saved-readonly)
+	  buffer-read-only)
+	 (setq buffer-read-only t)
+	 (compact-blame--create-process))
+	(compact-blame--cleanup)
+	(setq buffer-read-only compact-blame-saved-readonly)
+	))))
