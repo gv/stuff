@@ -57,12 +57,12 @@
    )))
 
 (defun compact-blame--find-pos (b n)
-  (with-current-buffer b
-	(let ((lines (split-string (buffer-string) "\n")))
-	  (- (length (buffer-string))
-		 (length (mapconcat 'identity (nthcdr n lines) " ")))
-	  ))
-  )
+ (with-current-buffer b
+  (let ((lines (split-string (buffer-string) "\n")))
+   (- (length (buffer-string))
+	(length (mapconcat 'identity (nthcdr n lines) " ")))
+   ))
+ )
 
 (defun compact-blame--spawn-local (name &rest cmd)
  (message "Running %s" cmd)
@@ -106,63 +106,61 @@
   (compact-blame--update-status (current-buffer) t 0)))
 
 (defun compact-blame--create-process ()
-  (compact-blame--cleanup)
-  (let* ((take-off (float-time)) (b (current-buffer))
-		 ov number author length id new-author new-time pos update)
-	(setq
-	 update
-	 (lambda (&rest args)
-	   (apply 'set args)
-	   (compact-blame--update-overlay ov length time author)))
-	(set (make-local-variable 'compact-blame-overlays) nil)
-	(compact-blame--make-status)
-	(compact-blame--spawn-local
-	 'compact-blame-process
-	 "nice" "git" "blame" "-w" "--line-porcelain" (buffer-file-name))
-	(compact-blame--filter-lines
-	 compact-blame-process b compact-blame--pattern
-	 (lambda (ac)
-	   ;;(message "a='%s' m=%s" (match-string 0 ac) (match-data))
-	   (when (setq id (match-string 1 ac))
-		 (setq number (match-string 2 ac) length (match-string 3 ac))
-		 (setq pos (compact-blame--find-pos b (string-to-number number)))
-		 (with-current-buffer b
-		   (push (setq ov (make-overlay pos pos b t t))
-				 compact-blame-overlays))
-		 (overlay-put ov 'compact-blame--rev id)
-		 (funcall update 'time (setq author nil)))
-	   (when (setq new-time (match-string 5 ac))
-		 ;;(message "new-time='%s'" new-time)
-		 ;;(setq time (string-to-number new-time))
-		 (funcall update 'time (seconds-to-time (string-to-number new-time))))
-	   ;;(when (setq unimportant (match-string 101 ac))
-	   ;;(message "unimportant='%s'" unimportant))
-	   (when (setq new-author (match-string 4 ac))
-		 ;;(message "new-author='%s'" new-author)
-		 ;; TODO "update" args don't work
-		 (setq author new-author)
-		 (funcall update 'author new-author))
-	   (when (setq fatal (match-string 6 ac))
-		 (message "fatal='%s'" fatal)) 
-	   (when (setq unparsed (match-string 98 ac))
-		 (message "unparsed='%s'" unparsed))
-	   ))
-	(set-process-sentinel
-	 compact-blame-process
-	 (lambda (process event)
-	  (setq event (car (split-string event)))
-	  (compact-blame--update-status b nil 100)
-	  (message
-	   "event=%s time=%dms" event (* 1000 (- (float-time) take-off)))))))
+ (compact-blame--cleanup)
+ (let* ((take-off (float-time)) (b (current-buffer))
+		ov number author length id new-author new-time pos update)
+  (setq update
+   (lambda (&rest args)
+	(apply 'set args)
+	(compact-blame--update-overlay ov length time author)))
+  (set (make-local-variable 'compact-blame-overlays) nil)
+  (compact-blame--make-status)
+  (compact-blame--spawn-local 'compact-blame-process
+   "nice" "git" "blame" "-w" "--line-porcelain" (buffer-file-name))
+  (compact-blame--filter-lines
+   compact-blame-process b compact-blame--pattern
+   (lambda (ac)
+	;;(message "a='%s' m=%s" (match-string 0 ac) (match-data))
+	(when (setq id (match-string 1 ac))
+	 (setq number (match-string 2 ac) length (match-string 3 ac))
+	 (setq pos (compact-blame--find-pos b (string-to-number number)))
+	 (with-current-buffer b
+	  (push (setq ov (make-overlay pos pos b t t))
+	   compact-blame-overlays))
+	 (overlay-put ov 'compact-blame--rev id)
+	 (funcall update 'time (setq author nil)))
+	(when (setq new-time (match-string 5 ac))
+	 ;;(message "new-time='%s'" new-time)
+	 ;;(setq time (string-to-number new-time))
+	 (funcall update 'time (seconds-to-time (string-to-number new-time))))
+	;;(when (setq unimportant (match-string 101 ac))
+	;;(message "unimportant='%s'" unimportant))
+	(when (setq new-author (match-string 4 ac))
+	 ;;(message "new-author='%s'" new-author)
+	 ;; TODO "update" args don't work
+	 (setq author new-author)
+	 (funcall update 'author new-author))
+	(when (setq fatal (match-string 6 ac))
+	 (message "fatal='%s'" fatal)) 
+	(when (setq unparsed (match-string 98 ac))
+	 (message "unparsed='%s'" unparsed))
+	))
+  (set-process-sentinel compact-blame-process
+   (lambda (process event)
+	(setq event (car (split-string event)))
+	(compact-blame--update-status b nil 100)
+	(message
+	 "event=%s time=%dms" event (* 1000 (- (float-time) take-off)))))))
 
 (defun compact-blame--cleanup ()
-  (if compact-blame-process (delete-process compact-blame-process))
-  ;;(backtrace)
-  (message
-   "#=%d cbm=%s buf=%s" (length compact-blame-overlays) compact-blame-mode (current-buffer))
-  (mapc 'delete-overlay compact-blame-overlays)
-  (setq compact-blame-overlays nil)
-  )
+ (if compact-blame-process (delete-process compact-blame-process))
+ ;;(backtrace)
+ (message
+  "#=%d cbm=%s buf=%s" (length compact-blame-overlays) compact-blame-mode
+  (current-buffer))
+ (mapc 'delete-overlay compact-blame-overlays)
+ (setq compact-blame-overlays nil)
+ )
 
 (defun compact-blame--show-diff (all-files)
  (require 'vc)
