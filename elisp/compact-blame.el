@@ -12,7 +12,7 @@
 (defvar compact-blame-overlays nil)
 (put 'compact-blame-overlays 'permanent-local t)
 (defvar compact-blame--line-info nil)
-(put 'compact-blame--line-info 'permanent-local t)
+(defvar compact-blame--total-lines 0)
 
 (defun compact-blame-make-line-pattern (&rest parts)
   (format "^\\(?:%s\\)\n" (mapconcat 'identity parts "\\|")))
@@ -43,13 +43,21 @@
   (overlay-put ov 'before-string str)
   ))
 
+(defun compact-blame--make-status ()
+ (set (make-local-variable 'compact-blame--total-lines)
+  (count-lines (point-min) (point-max)))
+ (let ((pos (compact-blame--find-pos (current-buffer) 1)))
+  (push (make-overlay pos pos (current-buffer) t t)
+   compact-blame-overlays)
+  (compact-blame--update-status (current-buffer) t 0)))
+
 (defun compact-blame--update-status (b show line-number)
  (with-current-buffer b
   (let ((ov (car (last compact-blame-overlays)))
 		(str "Loading 'git blame' data %d%%...")
-		(b "#404040") (f "#FFFFFF")
-		(total (count-lines (point-min) (point-max))))
-   (setq str (format str (/ (* 100 line-number) total)))
+		(b "#404040") (f "#FFFFFF"))
+   (setq str (format str (/ (* 100 line-number)
+						  compact-blame--total-lines)))
    (if show
 	(overlay-put ov 'before-string
 	 (propertize str 'face (list :foreground f :background b)))
@@ -99,12 +107,6 @@
    "\t\\(?99:.*\\)"
    "fatal:\\(?6:.+?\\)"
    "\\(?98:.*?\\)"))
-
-(defun compact-blame--make-status ()
- (let ((pos (compact-blame--find-pos (current-buffer) 1)))
-  (push (make-overlay pos pos (current-buffer) t t)
-   compact-blame-overlays)
-  (compact-blame--update-status (current-buffer) t 0)))
 
 ;; (eval-buffer)
 
