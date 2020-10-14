@@ -320,7 +320,7 @@ next grep is started"
 (add-to-list 'auto-mode-alist '("\\.h\\'" . c++-mode))
 (add-to-list 'auto-mode-alist '("\\.js\\'" . javascript-mode))
 (add-to-list 'auto-mode-alist '("\\.gyp\\'". javascript-mode))
-(add-to-list 'auto-mode-alist '("\\.d\\'" . sh-mode))
+(add-to-list 'auto-mode-alist '("\\.d\\'" . awk-mode))
 (make-face-bold 'font-lock-keyword-face)
 (make-face-italic 'font-lock-string-face)
 (which-function-mode 1)

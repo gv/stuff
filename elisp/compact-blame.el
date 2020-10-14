@@ -43,12 +43,13 @@
   (overlay-put ov 'before-string str)
   ))
 
-(defun compact-blame--update-status (b show percentage)
+(defun compact-blame--update-status (b show line-number)
  (with-current-buffer b
   (let ((ov (car (last compact-blame-overlays)))
 		(str "Loading 'git blame' data %d%%...")
-		(b "#404040") (f "#FFFFFF"))
-   (setq str (format str percentage))
+		(b "#404040") (f "#FFFFFF")
+		(total (count-lines (point-min) (point-max))))
+   (setq str (format str (/ (* 100 line-number) total)))
    (if show
 	(overlay-put ov 'before-string
 	 (propertize str 'face (list :foreground f :background b)))
@@ -105,6 +106,8 @@
    compact-blame-overlays)
   (compact-blame--update-status (current-buffer) t 0)))
 
+;; (eval-buffer)
+
 (defun compact-blame--create-process ()
  (compact-blame--cleanup)
  (let* ((take-off (float-time)) (b (current-buffer))
@@ -122,8 +125,10 @@
    (lambda (ac)
 	;;(message "a='%s' m=%s" (match-string 0 ac) (match-data))
 	(when (setq id (match-string 1 ac))
-	 (setq number (match-string 2 ac) length (match-string 3 ac))
-	 (setq pos (compact-blame--find-pos b (string-to-number number)))
+	 (setq number (string-to-number (match-string 2 ac)))
+	 (setq length (match-string 3 ac))
+	 (setq pos (compact-blame--find-pos b number))
+	 (compact-blame--update-status b t number)
 	 (with-current-buffer b
 	  (push (setq ov (make-overlay pos pos b t t))
 	   compact-blame-overlays))
