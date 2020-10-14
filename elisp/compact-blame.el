@@ -54,10 +54,10 @@
 (defun compact-blame--update-status (b show line-number)
  (with-current-buffer b
   (let ((ov (car (last compact-blame-overlays)))
-		(str "Loading 'git blame' data %d%%...")
+		(str "Loading 'git blame' data %d/%d (%d%%)...")
 		(b "#404040") (f "#FFFFFF"))
-   (setq str (format str (/ (* 100 line-number)
-						  compact-blame--total-lines)))
+   (setq str (format str line-number compact-blame--total-lines
+			  (/ (* 100 line-number) compact-blame--total-lines)))
    (if show
 	(overlay-put ov 'before-string
 	 (propertize str 'face (list :foreground f :background b)))
@@ -65,13 +65,26 @@
 	)
    )))
 
+(setq compact-blame--saved-pos 0)
+(setq compact-blame--saved-pos-ln 0)
+
 (defun compact-blame--find-pos (b n)
  (with-current-buffer b
-  (let ((lines (split-string (buffer-string) "\n")))
-   (- (length (buffer-string))
-	(length (mapconcat 'identity (nthcdr n lines) " ")))
-   ))
- )
+  (save-excursion
+   (goto-char 0)
+   (forward-line n)
+   (1- (point)))
+   ;; ---
+   ;;(goto-char compact-blame--saved-pos)
+   ;;(forward-line (- n compact-blame--saved-pos-ln))
+   ;;(set (make-local-variable 'compact-blame--saved-pos-ln) n)
+   ;;(1- (set (make-local-variable 'compact-blame--saved-pos) (point))))
+   ;; ---
+   ;;(let ((lines (split-string (buffer-string) "\n")))
+   ;; (- (length (buffer-string))
+   ;;	(length (mapconcat 'identity (nthcdr n lines) " ")))
+   ;; )
+ ))
 
 (defun compact-blame--spawn-local (name &rest cmd)
  (message "Running %s" cmd)
