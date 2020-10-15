@@ -22,21 +22,28 @@
 
 (setq lisp-indent-offset 1)
 
+(defun compact-blame--propertize-face (str &rest props)
+ (propertize str 'face
+  (apply 'list :height 0.85 props)))
+
 (defun compact-blame--update-overlay (ov length time author)
  (let ((str compact-blame-format)
-	   (b "#E0FFE0") (b2 "#FFFFC0") (f "#303030") (f2 "#111111")
-	   (defprops '(:height 0.85)))
+	   (b "#E0FFE0") (b2 "#FFFFC0") (f "#303030") (f2 "#111111"))
   (setq length (if (< (length length) 2) "" (concat "\x2193" length)))
   (setq str (replace-regexp-in-string "%#" length str))
   (setq str (replace-regexp-in-string "%[.]" (or author "...") str))
   (setq str
    (replace-regexp-in-string "%Y" (format-time-string "%Y" time) str))
-  (setq str (propertize
-			 str 'face (apply 'list :background b :foreground f defprops)))
+  ;;(setq str (propertize
+  ;;		 str 'face (apply 'list :background b :foreground f defprops)))
+  (setq str
+   (compact-blame--propertize-face str :background b :foreground f))
   (setq str
    (replace-regexp-in-string "%m"
-	(propertize (format-time-string "%m" time) 'face
-	 (apply 'list :background b2 :foreground f2	:box t defprops)) str))
+	(compact-blame--propertize-face (format-time-string "%m" time)
+	 :background b2 :foreground f2 :box t) str))
+	;;(propertize (format-time-string "%m" time) 'face
+	;; (apply 'list :background b2 :foreground f2	:box t defprops)) str))
   (setq str (replace-regexp-in-string "^\s+\\|\s+$" "" str))
   (setq str
    (concat (propertize " \x25c4" 'face (list :foreground b)) str))
@@ -51,19 +58,19 @@
    compact-blame-overlays)
   (compact-blame--update-status (current-buffer) t 0)))
 
+(defun compact-blame--get-status-ov-local ()
+ (car (last compact-blame-overlays)))
+
 (defun compact-blame--update-status (b show line-number)
  (with-current-buffer b
-  (let ((ov (car (last compact-blame-overlays)))
-		(str "Loading 'git blame' data %d/%d (%d%%)...")
+  (let ((str "Loading 'git blame' data %d/%d (%d%%)...")
 		(b "#404040") (f "#FFFFFF"))
    (setq str (format str line-number compact-blame--total-lines
 			  (/ (* 100 line-number) compact-blame--total-lines)))
-   (if show
-	(overlay-put ov 'before-string
-	 (propertize str 'face (list :foreground f :background b)))
-	(delete-overlay ov)
-	)
-   )))
+	(overlay-put (compact-blame--get-status-ov-local) 'after-string
+	 (if show
+	  (compact-blame--propertize-face str :foreground f :background b)
+	  "")))))
 
 (setq compact-blame--saved-pos 0)
 (setq compact-blame--saved-pos-ln 0)
@@ -74,6 +81,7 @@
    (goto-char 0)
    (forward-line n)
    (1- (point)))
+  ;; apparently the second is equally fast...
    ;; ---
    ;;(goto-char compact-blame--saved-pos)
    ;;(forward-line (- n compact-blame--saved-pos-ln))
@@ -84,7 +92,16 @@
    ;; (- (length (buffer-string))
    ;;	(length (mapconcat 'identity (nthcdr n lines) " ")))
    ;; )
- ))
+  ))
+
+(defun compact-blame--get-overlay-local (line-number id)
+ (if (= line-number 1)
+  (compact-blame--get-status-ov-local)
+  (let* ((pos (compact-blame--find-pos (current-buffer) line-number))
+		 (ov (make-overlay pos pos (current-buffer) t t)))
+   (push ov compact-blame-overlays)
+   (overlay-put ov 'compact-blame--rev id)
+   ov)))
 
 (defun compact-blame--spawn-local (name &rest cmd)
  (message "Running %s" cmd)
@@ -145,9 +162,7 @@
 	 (setq pos (compact-blame--find-pos b number))
 	 (compact-blame--update-status b t number)
 	 (with-current-buffer b
-	  (push (setq ov (make-overlay pos pos b t t))
-	   compact-blame-overlays))
-	 (overlay-put ov 'compact-blame--rev id)
+	  (setq ov (compact-blame--get-overlay-local number id)))
 	 (funcall update 'time (setq author nil)))
 	(when (setq new-time (match-string 5 ac))
 	 ;;(message "new-time='%s'" new-time)
