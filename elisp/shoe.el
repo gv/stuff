@@ -140,6 +140,8 @@
   )
 
 (when (and (not (fboundp 'osx-key-mode)) (equal window-system 'ns))
+ (define-key global-map (kbd "s-[") 'backward-sexp)
+ (define-key global-map (kbd "s-]") 'forward-sexp)
   (define-key global-map [M-up] 'backward-paragraph)
   (define-key global-map [M-down] 'forward-paragraph)
   (define-key global-map [s-up] 'previous-error)

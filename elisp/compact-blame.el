@@ -11,7 +11,7 @@
 (put 'compact-blame-process 'permanent-local t)
 (defvar compact-blame-overlays nil)
 (put 'compact-blame-overlays 'permanent-local t)
-(defvar compact-blame--line-info nil)
+(defvar compact-blame--file-info nil)
 (defvar compact-blame--total-lines 0)
 
 (defun compact-blame-make-line-pattern (&rest parts)
@@ -26,9 +26,30 @@
  (propertize str 'face
   (apply 'list :height 0.85 props)))
 
+(setq compact-blame-bg1 "#E0FFE0")
+(setq compact-blame-bg1 "rainbow")
+(setq compact-blame-bg2 "#FFFFC0")
+(setq compact-blame-bg2 "rainbow")
+
+(defun compact-blame--get-bg-color (id config)
+ (if (not (string-equal "rainbow" config))
+  config (compact-blame--bg-color-from-id id)))
+
+(defun compact-blame--bg-color-from-id (id)
+ (let* ((r (string-to-number (substring id 0 2) 16))
+		(g (string-to-number (substring id 2 4) 16))
+		(b (string-to-number (substring id 4 6) 16))
+		;; 600 is more contrast but darker...
+		(lc (max 1 (/ (- 650 (+ r g b)) 50)))
+		(up (lambda (x) (- 255 (/ (- 255 x) lc)))))
+  (apply 'format "#%02x%02x%02x" (mapcar up (list r g b)))))
+
 (defun compact-blame--update-overlay (ov length time author)
- (let ((str compact-blame-format)
-	   (b "#E0FFE0") (b2 "#FFFFC0") (f "#303030") (f2 "#111111"))
+ (let* ((str compact-blame-format)
+		(id (overlay-get ov 'compact-blame--rev))
+		(b (compact-blame--get-bg-color id compact-blame-bg1))
+		(b2 (compact-blame--get-bg-color (substring id 6) compact-blame-bg2))
+		(f "#303030") (f2 "#111111"))
   (setq length (if (< (length length) 2) "" (concat "\x2193" length)))
   (setq str (replace-regexp-in-string "%#" length str))
   (setq str (replace-regexp-in-string "%[.]" (or author "...") str))
@@ -95,13 +116,16 @@
   ))
 
 (defun compact-blame--get-overlay-local (line-number id)
- (if (= line-number 1)
-  (compact-blame--get-status-ov-local)
-  (let* ((pos (compact-blame--find-pos (current-buffer) line-number))
-		 (ov (make-overlay pos pos (current-buffer) t t)))
-   (push ov compact-blame-overlays)
-   (overlay-put ov 'compact-blame--rev id)
-   ov)))
+ (let (ov)
+  (setq ov
+   (if (= line-number 1)
+	(compact-blame--get-status-ov-local)
+	(let* ((pos (compact-blame--find-pos (current-buffer) line-number))
+		   (ov (make-overlay pos pos (current-buffer) t t)))
+	 (push ov compact-blame-overlays)
+	 ov)))
+  (overlay-put ov 'compact-blame--rev id)
+  ov))
 
 (defun compact-blame--spawn-local (name &rest cmd)
  (message "Running %s" cmd)
@@ -143,7 +167,7 @@
 (defun compact-blame--create-process ()
  (compact-blame--cleanup)
  (let* ((take-off (float-time)) (b (current-buffer))
-		ov number author length id new-author new-time pos update)
+		ov number author length id new-author new-time update)
   (setq update
    (lambda (&rest args)
 	(apply 'set args)
@@ -159,7 +183,6 @@
 	(when (setq id (match-string 1 ac))
 	 (setq number (string-to-number (match-string 2 ac)))
 	 (setq length (match-string 3 ac))
-	 (setq pos (compact-blame--find-pos b number))
 	 (compact-blame--update-status b t number)
 	 (with-current-buffer b
 	  (setq ov (compact-blame--get-overlay-local number id)))
