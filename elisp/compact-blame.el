@@ -4,6 +4,7 @@
 
 (defvar compact-blame-mode nil)
 (defvar compact-blame-format "%Y%m%.%#")
+(defvar compact-blame-separators-enabled nil)
 
 ;; revert-buffer erases all buffer-local vars except marked. We must
 ;; keep them to clean up process and overlays
@@ -11,6 +12,7 @@
 (put 'compact-blame-process 'permanent-local t)
 (defvar compact-blame-overlays nil)
 (put 'compact-blame-overlays 'permanent-local t)
+(defvar compact-blame--separators nil)
 (defvar compact-blame--file-info nil)
 (defvar compact-blame--total-lines 0)
 
@@ -127,6 +129,21 @@
   (overlay-put ov 'compact-blame--rev id)
   ov))
 
+(defun compact-blame--get-body-ov-local (line-number id)
+ (let* ((start (compact-blame--find-start-local line-number)) ov
+		(end (+ start 4)))
+  ;; (setq end (min end 
+  (setq ov (make-overlay start end))
+  (push ov compact-blame-overlays)
+  (overlay-put ov 'face (list :overline compact-blame-separators-enabled))
+  ))
+
+(defun compact-blame--find-start-local (line-number)
+ (save-excursion
+  (goto-char 0)
+  (forward-line (1- line-number))
+  (point)))
+
 (defun compact-blame--spawn-local (name &rest cmd)
  (message "Running %s" cmd)
  ;; Only in Aquamacs 3.4 
@@ -185,7 +202,8 @@
 	 (setq length (match-string 3 ac))
 	 (compact-blame--update-status b t number)
 	 (with-current-buffer b
-	  (setq ov (compact-blame--get-overlay-local number id)))
+	  (setq ov (compact-blame--get-overlay-local number id))
+	  (compact-blame--get-body-ov-local number id))
 	 (funcall update 'time (setq author nil)))
 	(when (setq new-time (match-string 5 ac))
 	 ;;(message "new-time='%s'" new-time)
@@ -268,11 +286,22 @@
 (defun compact-blame-show-commit () (interactive)
  (compact-blame--show-diff t))
 
+(defun compact-blame-toggle-separators () (interactive)
+ (set (make-local-variable 'compact-blame-separators-enabled)
+  (not compact-blame-separators-enabled))
+ (mapc
+  (lambda ov
+   (overlay-put ov 'face
+	(list :overline compact-blame-separators-enabled)))
+  compact-blame--separators
+  ))
+
 (defconst compact-blame--keymap (make-sparse-keymap))
 (define-key compact-blame--keymap (kbd "RET") 'compact-blame-mode)
 (define-key compact-blame--keymap "=" 'compact-blame-show-diff)
 (define-key compact-blame--keymap "/" 'compact-blame-show-commit)
-		
+(define-key compact-blame--keymap "s" 'compact-blame-toggle-separators)
+
 (define-minor-mode compact-blame-mode "TODO Git blame view"
  :lighter ""
  :keymap compact-blame--keymap
