@@ -10,6 +10,7 @@
 (setq compact-blame-bg1 "rainbow")
 (setq compact-blame-bg2 "#FFFFC0")
 (setq compact-blame-bg2 "rainbow")
+(defvar compact-blame-light-coeff 650)
 
 ;; End of config
 
@@ -31,7 +32,9 @@
   (format "^\\(?:%s\\)\n" (mapconcat 'identity parts "\\|")))
 
 (defun compact-blame-pattern-for-space-separated-tokens (&rest parts)
-  (mapconcat 'identity parts "[ \t]+"))
+ (mapconcat 'identity parts "[ \t]+"))
+
+(defun compact-blame/get-light-coeff () "TODO")
 
 (defun compact-blame--get-bg-color (id config)
  (if (not (string-equal "rainbow" config))
@@ -42,7 +45,7 @@
 		(g (string-to-number (substring id 2 4) 16))
 		(b (string-to-number (substring id 4 6) 16))
 		;; 600 is more contrast but darker...
-		(lc (max 1 (/ (- 650 (+ r g b)) 50)))
+		(lc (max 1 (/ (- (min 765 compact-blame-light-coeff) (+ r g b)) 50)))
 		(up (lambda (x) (- 255 (/ (- 255 x) lc)))))
   (apply 'format "#%02x%02x%02x" (mapcar up (list r g b)))))
 
@@ -76,10 +79,12 @@
    (let* ((str compact-blame-format)
 		  (id (overlay-get ov 'compact-blame--rev))
 		  (b (compact-blame--get-bg-color id compact-blame-bg1))
-		  (b2 (compact-blame--get-bg-color (substring id 6) compact-blame-bg2))
+		  (b2 (compact-blame--get-bg-color
+			   (substring id 6) compact-blame-bg2))
 		  (f "#303030") (f2 "#111111"))
-	(setq length (if (< (length length) 2) "" (concat "\x2193" length)))
-	(setq str (replace-regexp-in-string "%#" length str))
+	(setq length-indication
+	 (if (< (length length) 2) "" (concat "\x2193" length)))
+	(setq str (replace-regexp-in-string "%#" length-indication str))
 	(setq str (replace-regexp-in-string "%[.]" (or author "...") str))
 	(setq str
 	 (replace-regexp-in-string "%Y" (format-time-string "%Y" time) str))
@@ -97,10 +102,12 @@
 	(setq str
 	 (concat (propertize " \x25c4" 'face (list :foreground b)) str))
 	(overlay-put ov 'before-string str)
+	(overlay-put ov 'compact-blame/ov-data
+	 (list ,@compact-blame/ov-vars))
 	(puthash id
 	 (list ,@compact-blame/commit-vars) compact-blame/file-info))))
-(format "---\n\n%s" (symbol-function 'compact-blame--update-overlay))
-;;(byte-compile 'compact-blame--update-overlay)
+;;(format "---\n\n%s" (symbol-function 'compact-blame--update-overlay))
+(byte-compile 'compact-blame--update-overlay)
 
 (defun compact-blame--make-status ()
  (set (make-local-variable 'compact-blame/total-lines)
@@ -342,11 +349,34 @@
   compact-blame/separators
   ))
 
+(defun compact-blame-light-up () (interactive)
+ (compact-blame/light-adjust 20))
+
+(defun compact-blame-light-down () (interactive)
+ (compact-blame/light-adjust -20))
+
+(defun compact-blame/light-adjust (amount)
+ (setq compact-blame-light-coeff
+  (min 765 (+ compact-blame-light-coeff amount)))
+ ;; Refresh
+ (mapc
+  (lambda (ov)
+   (let* (args (id (overlay-get ov 'compact-blame--rev))
+		  (commit-data (gethash id compact-blame/file-info)))
+	(when id
+	 (setq args (append (overlay-get ov 'compact-blame/ov-data) commit-data))
+	 ;;(message "id=%s args=%s" id args)
+	 (apply 'compact-blame--update-overlay args))))
+  compact-blame/overlays)
+ (message "coeff=%s" compact-blame-light-coeff))
+
 (defconst compact-blame--keymap (make-sparse-keymap))
 (define-key compact-blame--keymap (kbd "RET") 'compact-blame-mode)
 (define-key compact-blame--keymap "=" 'compact-blame-show-diff)
 (define-key compact-blame--keymap "/" 'compact-blame-show-commit)
 (define-key compact-blame--keymap "s" 'compact-blame-toggle-separators)
+(define-key compact-blame--keymap "-" 'compact-blame-light-up)
+(define-key compact-blame--keymap "+" 'compact-blame-light-down)
 
 (define-minor-mode compact-blame-mode "TODO Git blame view"
  :lighter ""
