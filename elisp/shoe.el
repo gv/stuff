@@ -284,6 +284,7 @@
 (add-hook 'c-mode-common-hook 'compact-blame-mode)
 (add-hook 'makefile-mode-hook 'compact-blame-mode)
 (add-hook 'js-mode-hook 'compact-blame-mode)
+(add-hook 'tcl-mode-hook 'compact-blame-mode)
 
 (defun tune-dabbrev ()
   (modify-syntax-entry ?/ ".")

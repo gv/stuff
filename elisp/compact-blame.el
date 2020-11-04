@@ -1,20 +1,28 @@
-;;; compact-blame.el -*-lexical-binding: t-*-
+;;;  -*- lexical-binding: t; lisp-indent-offset: 1 -*-
 ;; A minor emacs mode for showing "git blame" data  in an
 ;; unobtrusive way. (At the end of a line like this) <|2018|11|vg|
 
-(defvar compact-blame-mode nil)
+;; Config
+
 (defvar compact-blame-format "%Y%m%.%#")
 (defvar compact-blame-separators-enabled nil)
+(setq compact-blame-bg1 "#E0FFE0")
+(setq compact-blame-bg1 "rainbow")
+(setq compact-blame-bg2 "#FFFFC0")
+(setq compact-blame-bg2 "rainbow")
 
+;; End of config
+
+(defvar compact-blame-mode nil)
 ;; revert-buffer erases all buffer-local vars except marked. We must
 ;; keep them to clean up process and overlays
-(defvar compact-blame-process nil)
-(put 'compact-blame-process 'permanent-local t)
-(defvar compact-blame-overlays nil)
-(put 'compact-blame-overlays 'permanent-local t)
-(defvar compact-blame--separators nil)
-(defvar compact-blame--file-info nil)
-(defvar compact-blame--total-lines 0)
+(defvar-local compact-blame/process nil)
+(put 'compact-blame/process 'permanent-local t)
+(defvar-local compact-blame/overlays nil)
+(put 'compact-blame/overlays 'permanent-local t)
+(defvar-local compact-blame/separators nil)
+(defvar-local compact-blame/file-info nil)
+(defvar-local compact-blame/total-lines 0)
 
 (defun compact-blame-make-line-pattern (&rest parts)
   (format "^\\(?:%s\\)\n" (mapconcat 'identity parts "\\|")))
@@ -22,16 +30,9 @@
 (defun compact-blame-pattern-for-space-separated-tokens (&rest parts)
   (mapconcat 'identity parts "[ \t]+"))
 
-(setq lisp-indent-offset 1)
-
 (defun compact-blame--propertize-face (str &rest props)
  (propertize str 'face
   (apply 'list :height 0.85 props)))
-
-(setq compact-blame-bg1 "#E0FFE0")
-(setq compact-blame-bg1 "rainbow")
-(setq compact-blame-bg2 "#FFFFC0")
-(setq compact-blame-bg2 "rainbow")
 
 (defun compact-blame--get-bg-color (id config)
  (if (not (string-equal "rainbow" config))
@@ -74,29 +75,29 @@
   ))
 
 (defun compact-blame--make-status ()
- (set (make-local-variable 'compact-blame--total-lines)
+ (set (make-local-variable 'compact-blame/total-lines)
   (count-lines (point-min) (point-max)))
  (let ((pos (compact-blame--find-pos (current-buffer) 1)))
   (push (make-overlay pos pos (current-buffer) t t)
-   compact-blame-overlays)
+   compact-blame/overlays)
   (compact-blame--update-status (current-buffer) t 0)))
 
 (defun compact-blame--get-status-ov-local ()
- (car (last compact-blame-overlays)))
+ (car (last compact-blame/overlays)))
 
 (defun compact-blame--update-status (b show line-number)
  (with-current-buffer b
   (let ((str "Loading 'git blame' data %d/%d (%d%%)...")
 		(b "#404040") (f "#FFFFFF"))
-   (setq str (format str line-number compact-blame--total-lines
-			  (/ (* 100 line-number) compact-blame--total-lines)))
+   (setq str (format str line-number compact-blame/total-lines
+			  (/ (* 100 line-number) compact-blame/total-lines)))
 	(overlay-put (compact-blame--get-status-ov-local) 'after-string
 	 (if show
 	  (compact-blame--propertize-face str :foreground f :background b)
 	  "")))))
 
-(setq compact-blame--saved-pos 0)
-(setq compact-blame--saved-pos-ln 0)
+(defvar-local compact-blame--saved-pos 0)
+(defvar-local compact-blame--saved-pos-ln 0)
 
 (defun compact-blame--find-pos (b n)
  (with-current-buffer b
@@ -124,7 +125,7 @@
 	(compact-blame--get-status-ov-local)
 	(let* ((pos (compact-blame--find-pos (current-buffer) line-number))
 		   (ov (make-overlay pos pos (current-buffer) t t)))
-	 (push ov compact-blame-overlays)
+	 (push ov compact-blame/overlays)
 	 ov)))
   (overlay-put ov 'compact-blame--rev id)
   ov))
@@ -134,7 +135,8 @@
 		(end (+ start 4)))
   ;; (setq end (min end 
   (setq ov (make-overlay start end))
-  (push ov compact-blame-overlays)
+  (push ov compact-blame/separators)
+  (push ov compact-blame/overlays)
   (overlay-put ov 'face (list :overline compact-blame-separators-enabled))
   ))
 
@@ -184,17 +186,17 @@
 (defun compact-blame--create-process ()
  (compact-blame--cleanup)
  (let* ((take-off (float-time)) (b (current-buffer))
-		ov number author length id new-author new-time update)
+		ov number author length id new-author new-time update p s)
   (setq update
    (lambda (&rest args)
 	(apply 'set args)
 	(compact-blame--update-overlay ov length time author)))
-  (set (make-local-variable 'compact-blame-overlays) nil)
+  (set (make-local-variable 'compact-blame/overlays) nil)
   (compact-blame--make-status)
-  (compact-blame--spawn-local 'compact-blame-process
+  (compact-blame--spawn-local 'compact-blame/process
    "nice" "git" "blame" "-w" "--line-porcelain" (buffer-file-name))
   (compact-blame--filter-lines
-   compact-blame-process b compact-blame--pattern
+   compact-blame/process b compact-blame--pattern
    (lambda (ac)
 	;;(message "a='%s' m=%s" (match-string 0 ac) (match-data))
 	(when (setq id (match-string 1 ac))
@@ -208,6 +210,8 @@
 	(when (setq new-time (match-string 5 ac))
 	 ;;(message "new-time='%s'" new-time)
 	 ;;(setq time (string-to-number new-time))
+	 (setq p
+	  (plist-put p 'time (seconds-to-time (string-to-number new-time))))
 	 (funcall update 'time (seconds-to-time (string-to-number new-time))))
 	;;(when (setq unimportant (match-string 101 ac))
 	;;(message "unimportant='%s'" unimportant))
@@ -221,7 +225,7 @@
 	(when (setq unparsed (match-string 98 ac))
 	 (message "unparsed='%s'" unparsed))
 	))
-  (set-process-sentinel compact-blame-process
+  (set-process-sentinel compact-blame/process
    (lambda (process event)
 	(setq event (car (split-string event)))
 	(compact-blame--update-status b nil 100)
@@ -229,13 +233,13 @@
 	 "event=%s time=%dms" event (* 1000 (- (float-time) take-off)))))))
 
 (defun compact-blame--cleanup ()
- (if compact-blame-process (delete-process compact-blame-process))
+ (if compact-blame/process (delete-process compact-blame/process))
  ;;(backtrace)
  (message
-  "#=%d cbm=%s buf=%s" (length compact-blame-overlays) compact-blame-mode
+  "#=%d cbm=%s buf=%s" (length compact-blame/overlays) compact-blame-mode
   (current-buffer))
- (mapc 'delete-overlay compact-blame-overlays)
- (setq compact-blame-overlays nil)
+ (mapc 'delete-overlay compact-blame/overlays)
+ (setq compact-blame/overlays nil)
  )
 
 (defun compact-blame--show-diff (all-files)
@@ -247,7 +251,7 @@
    (ovs (overlays-in p p))
    (get-id (lambda (ov)
 			(list (overlay-get ov 'compact-blame--rev))))
-   (ids (mapcan get-id ovs)))
+   (ids (delq nil (mapcan get-id ovs))))
   (cond
    ((not ovs)
 	(message "No overlays at pos %d" p))
@@ -290,10 +294,10 @@
  (set (make-local-variable 'compact-blame-separators-enabled)
   (not compact-blame-separators-enabled))
  (mapc
-  (lambda ov
+  (lambda (ov)
    (overlay-put ov 'face
 	(list :overline compact-blame-separators-enabled)))
-  compact-blame--separators
+  compact-blame/separators
   ))
 
 (defconst compact-blame--keymap (make-sparse-keymap))
