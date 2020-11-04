@@ -24,15 +24,14 @@
 (defvar-local compact-blame/file-info nil)
 (defvar-local compact-blame/total-lines 0)
 
+;; (eval-buffer)
+;; (emacs-lisp-byte-compile-and-load)
+
 (defun compact-blame-make-line-pattern (&rest parts)
   (format "^\\(?:%s\\)\n" (mapconcat 'identity parts "\\|")))
 
 (defun compact-blame-pattern-for-space-separated-tokens (&rest parts)
   (mapconcat 'identity parts "[ \t]+"))
-
-(defun compact-blame--propertize-face (str &rest props)
- (propertize str 'face
-  (apply 'list :height 0.85 props)))
 
 (defun compact-blame--get-bg-color (id config)
  (if (not (string-equal "rainbow" config))
@@ -47,9 +46,11 @@
 		(up (lambda (x) (- 255 (/ (- 255 x) lc)))))
   (apply 'format "#%02x%02x%02x" (mapcar up (list r g b)))))
 
-;; I think this is needed to us it in macros
+;; I think this is needed to use it in macros
 (eval-when-compile
- (defconst compact-blame/commit-vars '(length time author number id)))
+ (defconst compact-blame/commit-vars '(time author id))
+ (defconst compact-blame/ov-vars '(ov number length))
+ )
 
 ;; This has to be a macro, because I can't put lexical
 ;; environment through eval
@@ -58,8 +59,20 @@
 
 (modify-syntax-entry ?@ ".")
 
+(defun compact-blame--propertize-face_ (str &rest props)
+ (propertize str 'face
+  (cons :height (cons 0.85 props))))
+
+(define-inline compact-blame--propertize-face (str &rest props)
+ (propertize str 'face (cons :height (cons 0.85 props))))
+
+(defun compact-blame/propertize-face_ (s_ &rest props)
+ (list 'propertize s_ ''face
+  `(list :height 0.85 ,@props)))
+
 (eval
- `(defun compact-blame--update-overlay (ov ,@compact-blame/commit-vars)
+ `(defun compact-blame--update-overlay
+   (,@compact-blame/ov-vars ,@compact-blame/commit-vars)
    (let* ((str compact-blame-format)
 		  (id (overlay-get ov 'compact-blame--rev))
 		  (b (compact-blame--get-bg-color id compact-blame-bg1))
@@ -83,7 +96,11 @@
 	(setq str (replace-regexp-in-string "^\s+\\|\s+$" "" str))
 	(setq str
 	 (concat (propertize " \x25c4" 'face (list :foreground b)) str))
-	(overlay-put ov 'before-string str))))
+	(overlay-put ov 'before-string str)
+	(puthash id
+	 (list ,@compact-blame/commit-vars) compact-blame/file-info))))
+(format "---\n\n%s" (symbol-function 'compact-blame--update-overlay))
+;;(byte-compile 'compact-blame--update-overlay)
 
 (defun compact-blame--make-status ()
  (set (make-local-variable 'compact-blame/total-lines)
@@ -192,57 +209,70 @@
    "fatal:\\(?6:.+?\\)"
    "\\(?98:.*?\\)"))
 
-;; (eval-buffer)
+(defconst compact-blame/update-call-code
+ (append '(compact-blame--update-overlay)
+  compact-blame/ov-vars compact-blame/commit-vars))
 
-(eval 
- `(defun compact-blame--create-process ()
-   (compact-blame--cleanup)
-   (let* ((take-off (float-time)) (b (current-buffer))
-		  ov ,@compact-blame/commit-vars new-author new-time update n)
+(eval
+ `(defun compact-blame/install-output-handler ()
+   (let* (update (b (current-buffer)) n commit-data
+		  ,@compact-blame/ov-vars ,@compact-blame/commit-vars)
 	(setq update
-	 (lambda (&rest args)
-	  (apply 'set args)
-	  ;; (eval '(message "ov=%s" ov) t)
-	  (compact-blame--update-overlay ov ,@compact-blame/commit-vars)))
-	(set (make-local-variable 'compact-blame/overlays) nil)
-	(compact-blame--make-status)
-	(compact-blame--spawn-local 'compact-blame/process
-	 "nice" "git" "blame" "-w" "--line-porcelain" (buffer-file-name))
+	 (lambda ()
+	  (compact-blame--update-overlay
+	   ,@compact-blame/ov-vars ,@compact-blame/commit-vars)))
 	(compact-blame--filter-lines
 	 compact-blame/process b compact-blame--pattern
 	 (lambda (ac)
 	  ;;(message "a='%s' m=%s" (match-string 0 ac) (match-data))
-	  (when (setq id (match-string 1 ac))
-	   (setq number (string-to-number (match-string 2 ac)))
-	   (setq length (match-string 3 ac))
-	   (compact-blame--update-status b t number)
-	   (with-current-buffer b
-		(setq ov (compact-blame--get-overlay-local number id))
-		(compact-blame--get-body-ov-local number id))
-	   (setq time nil author nil)
-	   (compact-blame--update-overlay ov ,@compact-blame/commit-vars))
-	  (when (setq n (match-string 5 ac))
-	   ;;(message "new-time='%s'" new-time)
-	   (setq time (seconds-to-time (string-to-number n)))
-	   (compact-blame--update-overlay ov ,@compact-blame/commit-vars))
-	  ;;(when (setq unimportant (match-string 101 ac))
-	  ;;(message "unimportant='%s'" unimportant))
-	  (when (setq n (match-string 4 ac))
-	   ;;(message "new-author='%s'" new-author)
-	   ;; TODO "update" args don't work
-	   (setq author n)
-	   (compact-blame--update-overlay ov ,@compact-blame/commit-vars))
-	  (when (setq fatal (match-string 6 ac))
-	   (message "fatal='%s'" fatal)) 
-	  (when (setq unparsed (match-string 98 ac))
-	   (message "unparsed='%s'" unparsed))
-	  ))
-	(set-process-sentinel compact-blame/process
-	 (lambda (process event)
-	  (setq event (car (split-string event)))
-	  (compact-blame--update-status b nil 100)
-	  (message
-	   "event=%s time=%dms" event (* 1000 (- (float-time) take-off))))))) t)
+	  (cond
+	   ((setq n (match-string 1 ac))
+		(setq number (string-to-number (match-string 2 ac)))
+		(setq length (match-string 3 ac) id n)
+		(compact-blame--update-status b t number)
+		(with-current-buffer b
+		 (setq ov (compact-blame--get-overlay-local number id))
+		 (compact-blame--get-body-ov-local number id)
+		 (if (setq commit-data (gethash id compact-blame/file-info))
+		  (progn
+		   (apply 'compact-blame--update-overlay
+			,@compact-blame/ov-vars commit-data))
+		  (setq time nil author nil)
+		  ,compact-blame/update-call-code)))
+	   ((setq n (match-string 5 ac))
+		;;(message "new-time='%s'" n)
+		(setq time (seconds-to-time (string-to-number n)))
+		,compact-blame/update-call-code)
+	   ;;(when (setq unimportant (match-string 101 ac))
+	   ;;(message "unimportant='%s'" unimportant))
+	   ((setq n (match-string 4 ac))
+		;;(message "new-author='%s'" n)
+		(setq author n)
+		,compact-blame/update-call-code)
+	   ((setq fatal (match-string 6 ac))
+		(message "fatal='%s'" fatal)) 
+	   ((setq unparsed (match-string 98 ac))
+		(message "unparsed='%s'" unparsed))
+	   ))))) t)
+(format "----\n\n%s" (symbol-function 'compact-blame/install-output-handler))
+(byte-compile 'compact-blame/install-output-handler)
+
+(defun compact-blame--create-process ()
+ (compact-blame--cleanup)
+ (let* ((take-off (float-time)) (b (current-buffer)))
+  (setq compact-blame/overlays nil
+   compact-blame/file-info (make-hash-table :test 'equal))
+  (compact-blame--make-status)
+  (compact-blame--spawn-local 'compact-blame/process
+   "nice" "git" "blame" "-w" "--porcelain" (buffer-file-name))
+  (compact-blame/install-output-handler)
+  (set-process-sentinel compact-blame/process
+   (lambda (process event)
+	(setq event (car (split-string event)))
+	(compact-blame--update-status b nil 100)
+	(message
+	 "event=%s time=%dms" event (* 1000 (- (float-time) take-off)))))))
+
 
 (defun compact-blame--cleanup ()
  (if compact-blame/process (delete-process compact-blame/process))
