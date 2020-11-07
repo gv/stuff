@@ -222,12 +222,8 @@
 
 (eval
  `(defun compact-blame/install-output-handler ()
-   (let* (update (b (current-buffer)) n commit-data
+   (let* ((b (current-buffer)) n commit-data (count 0)
 		  ,@compact-blame/ov-vars ,@compact-blame/commit-vars)
-	(setq update
-	 (lambda ()
-	  (compact-blame--update-overlay
-	   ,@compact-blame/ov-vars ,@compact-blame/commit-vars)))
 	(compact-blame--filter-lines
 	 compact-blame/process b compact-blame--pattern
 	 (lambda (ac)
@@ -236,7 +232,8 @@
 	   ((setq n (match-string 1 ac))
 		(setq number (string-to-number (match-string 2 ac)))
 		(setq length (match-string 3 ac) id n)
-		(compact-blame--update-status b t number)
+		(compact-blame--update-status b t
+		 (setq count (+ count (string-to-number length))))
 		(with-current-buffer b
 		 (setq ov (compact-blame--get-overlay-local number id))
 		 (compact-blame--get-body-ov-local number id)
@@ -271,7 +268,7 @@
    compact-blame/file-info (make-hash-table :test 'equal))
   (compact-blame--make-status)
   (compact-blame--spawn-local 'compact-blame/process
-   "nice" "git" "blame" "-w" "--porcelain" (buffer-file-name))
+   "nice" "git" "blame" "-w" "--incremental" (buffer-file-name))
   (compact-blame/install-output-handler)
   (set-process-sentinel compact-blame/process
    (lambda (process event)
