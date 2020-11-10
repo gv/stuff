@@ -55,12 +55,12 @@
  (defconst compact-blame/ov-vars '(ov number length))
  )
 
-;; This has to be a macro, because I can't put lexical
-;; environment through eval
-(defmacro compact-blame-+commit-vars (&rest prefix)
- (append prefix compact-blame/commit-vars))
-
-(modify-syntax-entry ?@ ".")
+(defmacro compact-blame/defun-subst
+ (name arglist docstring lexical-env form)
+ (let ((commit-vars '(time author id))
+	   (region-vars '(ov number length)))
+  (list 'defun name (eval arglist lexical-env) docstring
+   (eval form lexical-env))))
 
 (defun compact-blame--propertize-face_ (str &rest props)
  (propertize str 'face
@@ -73,39 +73,39 @@
  (list 'propertize s_ ''face
   `(list :height 0.85 ,@props)))
 
-(eval
- `(defun compact-blame--update-overlay
-   (,@compact-blame/ov-vars ,@compact-blame/commit-vars)
-   (let* ((str compact-blame-format)
-		  (id (overlay-get ov 'compact-blame--rev))
-		  (b (compact-blame--get-bg-color id compact-blame-bg1))
-		  (b2 (compact-blame--get-bg-color
-			   (substring id 6) compact-blame-bg2))
-		  (f "#303030") (f2 "#111111"))
-	(setq length-indication
-	 (if (< (length length) 2) "" (concat "\x2193" length)))
-	(setq str (replace-regexp-in-string "%#" length-indication str))
-	(setq str (replace-regexp-in-string "%[.]" (or author "...") str))
-	(setq str
-	 (replace-regexp-in-string "%Y" (format-time-string "%Y" time) str))
-	;;(setq str (propertize
-	;;		 str 'face (apply 'list :background b :foreground f defprops)))
-	(setq str
-	 (compact-blame--propertize-face str :background b :foreground f))
-	(setq str
-	 (replace-regexp-in-string "%m"
-	  (compact-blame--propertize-face (format-time-string "%m" time)
-	   :background b2 :foreground f2 :box t) str))
-	;;(propertize (format-time-string "%m" time) 'face
-	;; (apply 'list :background b2 :foreground f2	:box t defprops)) str))
-	(setq str (replace-regexp-in-string "^\s+\\|\s+$" "" str))
-	(setq str
-	 (concat (propertize " \x25c4" 'face (list :foreground b)) str))
-	(overlay-put ov 'before-string str)
-	(overlay-put ov 'compact-blame/ov-data
-	 (list ,@compact-blame/ov-vars))
-	(puthash id
-	 (list ,@compact-blame/commit-vars) compact-blame/file-info))))
+(compact-blame/defun-subst compact-blame--update-overlay
+ `(,@compact-blame/ov-vars ,@compact-blame/commit-vars)
+ "Print data onto the overlay and save them to file-info" t
+ `(let* ((str compact-blame-format)
+		 (id (overlay-get ov 'compact-blame--rev))
+		 (b (compact-blame--get-bg-color id compact-blame-bg1))
+		 (b2 (compact-blame--get-bg-color
+			  (substring id 6) compact-blame-bg2))
+		 (f "#303030") (f2 "#111111"))
+   (setq length-indication
+	(if (< (length length) 2) "" (concat "\x2193" length)))
+   (setq str (replace-regexp-in-string "%#" length-indication str))
+   (setq str (replace-regexp-in-string "%[.]" (or author "...") str))
+   (setq str
+	(replace-regexp-in-string "%Y" (format-time-string "%Y" time) str))
+   ;;(setq str (propertize
+   ;;		 str 'face (apply 'list :background b :foreground f defprops)))
+   (setq str
+	(compact-blame--propertize-face str :background b :foreground f))
+   (setq str
+	(replace-regexp-in-string "%m"
+	 (compact-blame--propertize-face (format-time-string "%m" time)
+	  :background b2 :foreground f2 :box t) str))
+   ;;(propertize (format-time-string "%m" time) 'face
+   ;; (apply 'list :background b2 :foreground f2	:box t defprops)) str))
+   (setq str (replace-regexp-in-string "^\s+\\|\s+$" "" str))
+   (setq str
+	(concat (propertize " \x25c4" 'face (list :foreground b)) str))
+   (overlay-put ov 'before-string str)
+   (overlay-put ov 'compact-blame/ov-data
+	(list ,@compact-blame/ov-vars))
+   (puthash id
+	(list ,@compact-blame/commit-vars) compact-blame/file-info)))
 ;;(format "---\n\n%s" (symbol-function 'compact-blame--update-overlay))
 (byte-compile 'compact-blame--update-overlay)
 
