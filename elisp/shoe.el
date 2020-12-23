@@ -297,7 +297,9 @@
 (add-hook 'shell-mode-hook 'tune-dabbrev)
 (add-hook 'org-mode-hook 'tune-dabbrev)
 (add-hook 'makefile-mode-hook 'tune-dabbrev)
-(add-hook 'org-mode-hook (lambda () (auto-fill-mode 1)))
+(defun vg-tune-org-mode ()
+  (auto-fill-mode 1))
+(add-hook 'org-mode-hook 'vg-tune-org-mode)
 
 (defun vg-tune-compilation (procname)
   "this is for grep to stop without confirmation when 
@@ -381,6 +383,7 @@ next grep is started"
 (setq dired-listing-switches "-alh")
 (setq ring-bell-function 'ignore)
 (setq org-support-shift-select t)
+(setq-default org-startup-truncated nil)
 (setq vc-command-messages t)
 (setq visible-bell t)
 (fringe-mode 0)

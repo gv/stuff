@@ -55,12 +55,15 @@
  (defconst compact-blame/ov-vars '(ov number length))
  )
 
+(modify-syntax-entry ?@ ".")
+
 (defmacro compact-blame/defun-subst
- (name arglist docstring lexical-env form)
- (let ((commit-vars '(time author id))
-	   (region-vars '(ov number length)))
-  (list 'defun name (eval arglist lexical-env) docstring
-   (eval form lexical-env))))
+ (name arglist docstring additional-lists form)
+ (let ((l-e '((commit-vars time author id)
+			  (region-vars ov number length))))
+  (setq l-e (nconc (eval additional-lists l-e) l-e))
+  (list 'defun name (eval arglist l-e) docstring
+   (eval form l-e))))
 
 (defun compact-blame--propertize-face_ (str &rest props)
  (propertize str 'face
@@ -73,9 +76,9 @@
  (list 'propertize s_ ''face
   `(list :height 0.85 ,@props)))
 
-(compact-blame/defun-subst compact-blame--update-overlay
- `(,@compact-blame/ov-vars ,@compact-blame/commit-vars)
- "Print data onto the overlay and save them to file-info" t
+(compact-blame/defun-subst compact-blame/update-overlay-local
+ `(,@compact-blame/ov-vars ,@commit-vars)
+ "Print data onto the overlay and save them to file-info" '() 
  `(let* ((str compact-blame-format)
 		 (id (overlay-get ov 'compact-blame--rev))
 		 (b (compact-blame--get-bg-color id compact-blame-bg1))
@@ -106,8 +109,8 @@
 	(list ,@compact-blame/ov-vars))
    (puthash id
 	(list ,@compact-blame/commit-vars) compact-blame/file-info)))
-;;(format "---\n\n%s" (symbol-function 'compact-blame--update-overlay))
-(byte-compile 'compact-blame--update-overlay)
+;;(format "---\n\n%s" (symbol-function 'compact-blame/update-overlay-local))
+;;(byte-compile 'compact-blame/update-overlay-local)
 
 (defun compact-blame--make-status ()
  (set (make-local-variable 'compact-blame/total-lines)
@@ -216,50 +219,53 @@
    "fatal:\\(?6:.+?\\)"
    "\\(?98:.*?\\)"))
 
-(defconst compact-blame/update-call-code
- (append '(compact-blame--update-overlay)
-  compact-blame/ov-vars compact-blame/commit-vars))
+(eval-when-compile
+ (defconst compact-blame/update-call-code
+  (append '(compact-blame/update-overlay-local)
+   compact-blame/ov-vars compact-blame/commit-vars)))
 
-(eval
- `(defun compact-blame/install-output-handler ()
-   (let* ((b (current-buffer)) n commit-data (count 0)
-		  ,@compact-blame/ov-vars ,@compact-blame/commit-vars)
-	(compact-blame--filter-lines
-	 compact-blame/process b compact-blame--pattern
-	 (lambda (ac)
-	  ;;(message "a='%s' m=%s" (match-string 0 ac) (match-data))
-	  (cond
-	   ((setq n (match-string 1 ac))
-		(setq number (string-to-number (match-string 2 ac)))
-		(setq length (match-string 3 ac) id n)
-		(compact-blame--update-status b t
-		 (setq count (+ count (string-to-number length))))
-		(with-current-buffer b
-		 (setq ov (compact-blame--get-overlay-local number id))
-		 (compact-blame--get-body-ov-local number id)
-		 (if (setq commit-data (gethash id compact-blame/file-info))
-		  (progn
-		   (apply 'compact-blame--update-overlay
-			,@compact-blame/ov-vars commit-data))
-		  (setq time nil author nil)
-		  ,compact-blame/update-call-code)))
-	   ((setq n (match-string 5 ac))
-		;;(message "new-time='%s'" n)
-		(setq time (seconds-to-time (string-to-number n)))
-		,compact-blame/update-call-code)
-	   ;;(when (setq unimportant (match-string 101 ac))
-	   ;;(message "unimportant='%s'" unimportant))
-	   ((setq n (match-string 4 ac))
-		;;(message "new-author='%s'" n)
-		(setq author n)
-		,compact-blame/update-call-code)
-	   ((setq fatal (match-string 6 ac))
-		(message "fatal='%s'" fatal)) 
-	   ((setq unparsed (match-string 98 ac))
-		(message "unparsed='%s'" unparsed))
-	   ))))) t)
-(format "----\n\n%s" (symbol-function 'compact-blame/install-output-handler))
-(byte-compile 'compact-blame/install-output-handler)
+(compact-blame/defun-subst compact-blame/install-output-handler ()
+ "All output line processing here"
+ `((call-update
+	compact-blame/update-overlay-local ,@region-vars ,@commit-vars))
+ `(let* ((b (current-buffer)) n commit-data (count 0)
+		 ,@compact-blame/ov-vars ,@compact-blame/commit-vars)
+   (compact-blame--filter-lines
+	compact-blame/process b compact-blame--pattern
+	(lambda (ac)
+	 ;;(message "a='%s' m=%s" (match-string 0 ac) (match-data))
+	 (cond
+	  ((setq n (match-string 1 ac))
+	   (setq number (string-to-number (match-string 2 ac)))
+	   (setq length (match-string 3 ac) id n)
+	   (compact-blame--update-status b t
+		(setq count (+ count (string-to-number length))))
+	   (with-current-buffer b
+		(setq ov (compact-blame--get-overlay-local number id))
+		(compact-blame--get-body-ov-local number id)
+		(if (setq commit-data (gethash id compact-blame/file-info))
+		 (progn
+		  (apply 'compact-blame/update-overlay-local
+		   ,@compact-blame/ov-vars commit-data))
+		 (setq time nil author nil)
+		 ,call-update)))
+	  ((setq n (match-string 5 ac))
+	   ;;(message "new-time='%s'" n)
+	   (setq time (seconds-to-time (string-to-number n)))
+	   (with-current-buffer b
+		,compact-blame/update-call-code))
+	  ;;(when (setq unimportant (match-string 101 ac))
+	  ;;(message "unimportant='%s'" unimportant))
+	  ((setq n (match-string 4 ac))
+	   ;;(message "new-author='%s'" n)
+	   (setq author n)
+	   (with-current-buffer b ,call-update))
+	  ((setq fatal (match-string 6 ac))
+	   (message "fatal='%s'" fatal)) 
+	  ((setq unparsed (match-string 98 ac))
+	   (message "unparsed='%s'" unparsed)))))))
+;;(format "----\n\n%s" (symbol-function 'compact-blame/install-output-handler))
+;;(byte-compile 'compact-blame/install-output-handler)
 
 (defun compact-blame--create-process ()
  (compact-blame--cleanup)
@@ -363,7 +369,7 @@
 	(when id
 	 (setq args (append (overlay-get ov 'compact-blame/ov-data) commit-data))
 	 ;;(message "id=%s args=%s" id args)
-	 (apply 'compact-blame--update-overlay args))))
+	 (apply 'compact-blame/update-overlay-local args))))
   compact-blame/overlays)
  (message "coeff=%s" compact-blame-light-coeff))
 
